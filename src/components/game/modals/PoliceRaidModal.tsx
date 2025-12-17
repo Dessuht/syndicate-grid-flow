@@ -1,0 +1,120 @@
+import { useGameStore } from '@/stores/gameStore';
+import { motion } from 'framer-motion';
+import { AlertTriangle, DollarSign, Swords, DoorOpen, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+export const PoliceRaidModal = () => {
+  const { handleRaidChoice, cash, officers, dismissEvent } = useGameStore();
+
+  // Calculate bribe cost with White Paper Fan bonus
+  const whitePaperFan = officers.find(o => o.rank === 'White Paper Fan' && o.assignedBuildingId);
+  const bribeBonus = whitePaperFan ? Math.floor(whitePaperFan.skills.diplomacy * 10) : 0;
+  const bribeCost = Math.max(500, 2000 - bribeBonus);
+  const canBribe = cash >= bribeCost;
+
+  // Red Pole defense bonus
+  const redPole = officers.find(o => o.rank === 'Red Pole' && o.assignedBuildingId);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-background/80 backdrop-blur-md"
+      />
+
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="relative w-full max-w-lg mx-4 p-6 rounded-lg bg-card border-2 border-neon-red/50 neon-glow-red"
+      >
+        <button
+          onClick={dismissEvent}
+          className="absolute top-4 right-4 p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 rounded-lg bg-neon-red/20 border border-neon-red/50 animate-pulse">
+            <AlertTriangle className="w-8 h-8 text-neon-red" />
+          </div>
+          <div>
+            <h2 className="font-display text-2xl font-bold neon-text-red">POLICE RAID</h2>
+            <p className="text-muted-foreground">The OCTB is at your door</p>
+          </div>
+        </div>
+
+        <p className="text-foreground mb-6 leading-relaxed">
+          Inspector Wong's Organized Crime unit has your operations surrounded. 
+          Your heat level attracted unwanted attention. Choose your response wisely.
+        </p>
+
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-auto py-4 border-neon-amber/30 hover:border-neon-amber/60 hover:bg-neon-amber/10"
+            disabled={!canBribe}
+            onClick={() => handleRaidChoice('bribe')}
+          >
+            <div className="p-2 rounded bg-neon-amber/20">
+              <DollarSign className="w-5 h-5 text-neon-amber" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Bribe the Officers</p>
+              <p className="text-xs text-muted-foreground">
+                Cost: ${bribeCost} • Reduces heat by 30
+                {bribeBonus > 0 && <span className="text-neon-cyan"> (Lily Wong -${bribeBonus})</span>}
+              </p>
+            </div>
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-auto py-4 border-neon-red/30 hover:border-neon-red/60 hover:bg-neon-red/10"
+            onClick={() => handleRaidChoice('stand')}
+          >
+            <div className="p-2 rounded bg-neon-red/20">
+              <Swords className="w-5 h-5 text-neon-red" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Stand Your Ground</p>
+              <p className="text-xs text-muted-foreground">
+                -15 Rep • -20 Energy to all
+                {redPole && <span className="text-neon-cyan"> (Big Chan 50% damage reduction)</span>}
+              </p>
+            </div>
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-auto py-4 border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
+            onClick={() => handleRaidChoice('escape')}
+          >
+            <div className="p-2 rounded bg-neon-cyan/20">
+              <DoorOpen className="w-5 h-5 text-neon-cyan" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Scatter & Escape</p>
+              <p className="text-xs text-muted-foreground">
+                Random building inactive for 3 days
+              </p>
+            </div>
+          </Button>
+        </div>
+
+        {!canBribe && (
+          <p className="mt-4 text-xs text-neon-red text-center">
+            Insufficient funds for bribery
+          </p>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+};

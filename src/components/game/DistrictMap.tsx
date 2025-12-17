@@ -2,18 +2,29 @@ import { useState } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { BuildingCard } from './BuildingCard';
 import { OfficersPanel } from './OfficersPanel';
+import { SoldiersPanel } from './SoldiersPanel';
+import { DayCycle } from './DayCycle';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Play, PartyPopper } from 'lucide-react';
+import { Map, Play, PartyPopper, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const DistrictMap = () => {
-  const { buildings, officers, currentDay, processDay, hostNightclub, cash } = useGameStore();
+  const { 
+    buildings, 
+    officers, 
+    currentDay, 
+    currentPhase,
+    advancePhase, 
+    hostNightclub, 
+    cash,
+    intel 
+  } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
   const assignOfficer = useGameStore(state => state.assignOfficer);
   const unassignOfficer = useGameStore(state => state.unassignOfficer);
 
   const handleAssign = (buildingId: string) => {
-    if (selectedOfficerId) {
+    if (selectedOfficerId && currentPhase === 'morning') {
       const officer = officers.find(o => o.id === selectedOfficerId);
       if (officer && !officer.assignedBuildingId) {
         assignOfficer(selectedOfficerId, buildingId);
@@ -23,9 +34,11 @@ export const DistrictMap = () => {
   };
 
   const handleUnassign = (buildingId: string) => {
-    const building = buildings.find(b => b.id === buildingId);
-    if (building?.assignedOfficerId) {
-      unassignOfficer(building.assignedOfficerId);
+    if (currentPhase === 'morning') {
+      const building = buildings.find(b => b.id === buildingId);
+      if (building?.assignedOfficerId) {
+        unassignOfficer(building.assignedOfficerId);
+      }
     }
   };
 
@@ -37,55 +50,78 @@ export const DistrictMap = () => {
     return null;
   };
 
+  const phaseButtonText = {
+    morning: 'Start Operations',
+    day: 'End Work Day',
+    evening: 'Begin Night',
+    night: 'Next Day',
+  };
+
   return (
-    <div className="flex gap-6 p-6 h-full">
+    <div className="flex gap-4 p-4 h-full">
       {/* Main Grid */}
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-6">
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10 border border-primary/30">
               <Map className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="font-display text-xl font-bold gradient-text">Kowloon District</h2>
-              <p className="text-sm text-muted-foreground">Your territory • {buildings.filter(b => b.isOccupied).length}/{buildings.length} active</p>
+              <h2 className="font-display text-lg font-bold gradient-text">Kowloon District</h2>
+              <p className="text-xs text-muted-foreground">
+                {buildings.filter(b => b.isOccupied).length}/{buildings.length} active • Intel: {intel}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <DayCycle />
+
+          <div className="flex items-center gap-2">
             <Button
               variant="nightclub"
-              size="lg"
+              size="default"
               onClick={hostNightclub}
               disabled={cash < 1000}
               className="gap-2"
             >
               <PartyPopper className="w-4 h-4" />
-              Nightclub ($1000)
+              Party ($1k)
             </Button>
             <Button
               variant="cyber"
-              size="lg"
-              onClick={processDay}
+              size="default"
+              onClick={advancePhase}
               className="gap-2"
             >
-              <Play className="w-4 h-4" />
-              Next Day
+              {currentPhase === 'night' ? <SkipForward className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {phaseButtonText[currentPhase]}
             </Button>
           </div>
         </div>
 
         {/* Selection hint */}
         <AnimatePresence>
-          {selectedOfficerId && (
+          {selectedOfficerId && currentPhase === 'morning' && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/30"
+              className="mb-3 p-2 rounded-lg bg-primary/10 border border-primary/30"
             >
               <p className="text-sm text-primary">
                 <span className="font-semibold">{officers.find(o => o.id === selectedOfficerId)?.name}</span> selected — click an empty building to assign
+              </p>
+            </motion.div>
+          )}
+          {currentPhase !== 'morning' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-3 p-2 rounded-lg bg-secondary/50 border border-border"
+            >
+              <p className="text-sm text-muted-foreground">
+                Assignments locked. Wait for morning to reassign officers.
               </p>
             </motion.div>
           )}
@@ -93,7 +129,7 @@ export const DistrictMap = () => {
 
         {/* Building Grid */}
         <motion.div 
-          className="command-grid"
+          className="command-grid flex-1 overflow-auto"
           layout
         >
           <AnimatePresence mode="popLayout">
@@ -104,7 +140,7 @@ export const DistrictMap = () => {
                   key={building.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.03 }}
                 >
                   <BuildingCard
                     building={building}
@@ -113,6 +149,7 @@ export const DistrictMap = () => {
                     onUnassign={() => handleUnassign(building.id)}
                     isInactive={isInactive}
                     currentDay={currentDay}
+                    canInteract={currentPhase === 'morning'}
                   />
                 </motion.div>
               );
@@ -121,12 +158,13 @@ export const DistrictMap = () => {
         </motion.div>
       </div>
 
-      {/* Officers Sidebar */}
-      <div className="w-80 shrink-0">
+      {/* Right Sidebar */}
+      <div className="w-72 shrink-0 flex flex-col gap-4 overflow-auto">
         <OfficersPanel
           selectedOfficerId={selectedOfficerId}
-          onSelectOfficer={setSelectedOfficerId}
+          onSelectOfficer={currentPhase === 'morning' ? setSelectedOfficerId : () => {}}
         />
+        <SoldiersPanel />
       </div>
     </div>
   );
