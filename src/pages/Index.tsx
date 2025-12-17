@@ -1,13 +1,15 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { GameLayout } from '@/components/game/GameLayout';
+import { Helmet } from 'react-helmet-async';
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <>
+      <Helmet>
+        <title>Kowloon Syndicate | Triad Strategy Game</title>
+        <meta name="description" content="Command your criminal empire in the neon-lit streets of Hong Kong. Manage officers, buildings, and evade the police in this Triad strategy game." />
+      </Helmet>
+      <GameLayout />
+    </>
   );
 };
 

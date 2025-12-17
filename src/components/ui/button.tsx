@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -15,6 +15,9 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        cyber: "font-display font-bold uppercase tracking-wider bg-neon-cyan/10 border border-neon-cyan/50 text-neon-cyan hover:border-neon-cyan hover:shadow-[0_0_20px_hsl(186_100%_50%/0.3)] active:scale-95",
+        nightclub: "font-display font-bold uppercase tracking-wider bg-neon-magenta/10 border border-neon-magenta/50 text-neon-magenta hover:border-neon-magenta hover:shadow-[0_0_20px_hsl(328_100%_50%/0.3)] active:scale-95",
+        danger: "font-display font-bold uppercase tracking-wider bg-neon-red/10 border border-neon-red/50 text-neon-red hover:border-neon-red hover:shadow-[0_0_20px_hsl(0_90%_55%/0.3)] active:scale-95",
       },
       size: {
         default: "h-10 px-4 py-2",
