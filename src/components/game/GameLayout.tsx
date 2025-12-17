@@ -3,7 +3,7 @@ import { Sidebar, ViewType } from './Sidebar';
 import { ResourceBar } from './ResourceBar';
 import { DistrictMap } from './DistrictMap';
 import { GlobalMap } from './GlobalMap';
-import { PoliceRaidModal } from './PoliceRaidModal';
+import { EventManager } from './EventManager';
 import { RainOverlay } from './RainOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,7 +24,7 @@ export const GameLayout = () => {
         <ResourceBar />
 
         {/* View Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView}
@@ -41,8 +41,8 @@ export const GameLayout = () => {
         </main>
       </div>
 
-      {/* Event Modal */}
-      <PoliceRaidModal />
+      {/* Event Modal System */}
+      <EventManager />
     </div>
   );
 };
