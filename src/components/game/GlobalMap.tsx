@@ -1,27 +1,26 @@
 import { useGameStore } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin, Settings } from 'lucide-react';
+import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Territory locations in Hong Kong (lat, lng)
 const TERRITORY_LOCATIONS: Record<string, { coords: [number, number]; label: string }> = {
-  'player': { coords: [114.1694, 22.2783], label: 'Wan Chai' }, // Wan Chai
-  'rival-1': { coords: [114.1849, 22.3282], label: 'Kowloon City' }, // Kowloon City
-  'rival-2': { coords: [114.1694, 22.3193], label: 'Mong Kok' }, // Mong Kok
-  'rival-3': { coords: [114.1722, 22.2988], label: 'Tsim Sha Tsui' }, // TST
+  'player': { coords: [22.2783, 114.1694], label: 'Wan Chai' },
+  'rival-1': { coords: [22.3282, 114.1849], label: 'Kowloon City' },
+  'rival-2': { coords: [22.3193, 114.1694], label: 'Mong Kok' },
+  'rival-3': { coords: [22.2988, 114.1722], label: 'Tsim Sha Tsui' },
 };
 
 // Gang colors
 const GANG_COLORS: Record<string, string> = {
-  'player': '#00FFFF', // Cyan - player
-  'rival-1': '#FF4444', // Red
-  'rival-2': '#4488FF', // Blue
-  'rival-3': '#44FF44', // Green
+  'player': '#00FFFF',
+  'rival-1': '#FF4444',
+  'rival-2': '#4488FF',
+  'rival-3': '#44FF44',
 };
 
 export const GlobalMap = () => {
@@ -38,146 +37,108 @@ export const GlobalMap = () => {
   } = useGameStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.CircleMarker[]>([]);
   
-  const [mapboxToken, setMapboxToken] = useState(() => 
-    localStorage.getItem('mapbox_token') || ''
-  );
-  const [showTokenInput, setShowTokenInput] = useState(!mapboxToken);
   const [selectedRival, setSelectedRival] = useState<string | null>(null);
-  const [mapError, setMapError] = useState<string | null>(null);
 
   const activeRival = activeDiplomacy ? rivals.find(r => r.id === activeDiplomacy.rivalId) : null;
   const selectedRivalData = selectedRival ? rivals.find(r => r.id === selectedRival) : null;
 
-  // Calculate our military strength
   const ourStrength = soldiers.reduce((sum, s) => sum + (s.loyalty > 30 ? s.skill : 0), 0);
-
-  const saveToken = () => {
-    localStorage.setItem('mapbox_token', mapboxToken);
-    setShowTokenInput(false);
-    setMapError(null);
-  };
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || showTokenInput) return;
+    if (!mapContainer.current || mapRef.current) return;
 
-    try {
-      mapboxgl.accessToken = mapboxToken;
-      
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
-        center: [114.17, 22.30], // Hong Kong center
-        zoom: 11.5,
-        pitch: 0,
-      });
+    // Create map
+    mapRef.current = L.map(mapContainer.current, {
+      center: [22.31, 114.17],
+      zoom: 12,
+      zoomControl: true,
+      attributionControl: false,
+    });
 
-      map.current.addControl(
-        new mapboxgl.NavigationControl({ visualizePitch: false }),
-        'top-left'
-      );
+    // Dark map tiles (CartoDB Dark Matter - free, no key needed)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+    }).addTo(mapRef.current);
 
-      map.current.on('load', () => {
-        addMarkers();
-      });
-
-      map.current.on('error', (e) => {
-        console.error('Mapbox error:', e);
-        setMapError('Invalid Mapbox token. Please check and try again.');
-      });
-
-    } catch (error) {
-      console.error('Map init error:', error);
-      setMapError('Failed to initialize map. Please check your token.');
-    }
+    // Add markers
+    addMarkers();
 
     return () => {
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-      map.current?.remove();
+      mapRef.current?.remove();
+      mapRef.current = null;
     };
-  }, [mapboxToken, showTokenInput]);
+  }, []);
 
-  // Add territory markers
   const addMarkers = () => {
-    if (!map.current) return;
+    if (!mapRef.current) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
+    // Clear existing
+    markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // Player territory
-    const playerEl = createMarkerElement('player', GANG_COLORS['player'], true);
-    const playerMarker = new mapboxgl.Marker({ element: playerEl })
-      .setLngLat(TERRITORY_LOCATIONS['player'].coords)
-      .addTo(map.current);
+    // Player marker
+    const playerMarker = L.circleMarker(TERRITORY_LOCATIONS['player'].coords, {
+      radius: 18,
+      fillColor: GANG_COLORS['player'],
+      fillOpacity: 0.4,
+      color: GANG_COLORS['player'],
+      weight: 3,
+    }).addTo(mapRef.current);
+    
+    playerMarker.bindTooltip('Your Territory (Wan Chai)', {
+      permanent: false,
+      className: 'territory-tooltip',
+    });
     markersRef.current.push(playerMarker);
 
-    // Rival territories
+    // Rival markers
     rivals.forEach((rival, index) => {
-      const rivalKey = `rival-${index + 1}` as keyof typeof TERRITORY_LOCATIONS;
-      const location = TERRITORY_LOCATIONS[rivalKey];
-      if (!location) return;
+      const key = `rival-${index + 1}`;
+      const location = TERRITORY_LOCATIONS[key];
+      if (!location || !mapRef.current) return;
 
       const color = rival.hasAlliance 
         ? '#44FF44' 
         : rival.relationship < -20 
           ? '#FF4444' 
-          : GANG_COLORS[rivalKey] || '#AA44FF';
+          : GANG_COLORS[key];
 
-      const el = createMarkerElement(rival.id, color, false, rival.name.charAt(0));
-      el.addEventListener('click', () => {
+      const marker = L.circleMarker(location.coords, {
+        radius: 15,
+        fillColor: color,
+        fillOpacity: 0.4,
+        color: color,
+        weight: 3,
+      }).addTo(mapRef.current);
+
+      marker.bindTooltip(`${rival.name} (${rival.district})`, {
+        permanent: false,
+        className: 'territory-tooltip',
+      });
+
+      marker.on('click', () => {
         setSelectedRival(selectedRival === rival.id ? null : rival.id);
       });
 
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat(location.coords)
-        .addTo(map.current!);
+      marker.on('mouseover', () => {
+        marker.setStyle({ radius: 20, fillOpacity: 0.6 });
+      });
+
+      marker.on('mouseout', () => {
+        marker.setStyle({ radius: 15, fillOpacity: 0.4 });
+      });
+
       markersRef.current.push(marker);
     });
   };
 
-  const createMarkerElement = (id: string, color: string, isPlayer: boolean, initial?: string) => {
-    const el = document.createElement('div');
-    el.className = 'territory-marker';
-    el.style.cssText = `
-      width: ${isPlayer ? '50px' : '40px'};
-      height: ${isPlayer ? '50px' : '40px'};
-      background: ${color}33;
-      border: 3px solid ${color};
-      border-radius: 50%;
-      cursor: ${isPlayer ? 'default' : 'pointer'};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: ${isPlayer ? '14px' : '12px'};
-      color: ${color};
-      box-shadow: 0 0 20px ${color}66;
-      transition: all 0.2s ease;
-    `;
-    el.innerHTML = isPlayer ? '★' : (initial || '');
-    
-    if (!isPlayer) {
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.2)';
-        el.style.boxShadow = `0 0 30px ${color}`;
-      });
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
-        el.style.boxShadow = `0 0 20px ${color}66`;
-      });
-    }
-    
-    return el;
-  };
-
-  // Update markers when rivals change
+  // Update markers when data changes
   useEffect(() => {
-    if (map.current && !showTokenInput) {
+    if (mapRef.current) {
       addMarkers();
     }
   }, [rivals, selectedRival]);
@@ -204,29 +165,19 @@ export const GlobalMap = () => {
             <h2 className="font-display text-xl font-bold" style={{ color: 'hsl(var(--neon-purple))' }}>
               Hong Kong Territory
             </h2>
-            <p className="text-sm text-muted-foreground">Intel: {intel} • Our Strength: {ourStrength}</p>
+            <p className="text-sm text-muted-foreground">Intel: {intel} • Strength: {ourStrength}</p>
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowTokenInput(true)}
-            title="Map Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => purchaseIntel(500)}
-            disabled={cash < 500}
-            className="gap-2"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Buy Intel ($500)
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={() => purchaseIntel(500)}
+          disabled={cash < 500}
+          className="gap-2"
+        >
+          <ShoppingCart className="w-4 h-4" />
+          Buy Intel ($500)
+        </Button>
       </div>
 
       {/* Legend */}
@@ -249,45 +200,12 @@ export const GlobalMap = () => {
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {/* Map Container */}
-        <div className="lg:col-span-2 relative rounded-lg overflow-hidden border border-border bg-card">
-          {showTokenInput ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-card p-6">
-              <div className="max-w-md w-full space-y-4">
-                <div className="text-center">
-                  <Globe className="w-12 h-12 mx-auto mb-4 text-neon-purple" />
-                  <h3 className="font-display text-lg font-bold mb-2">Mapbox Token Required</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Enter your Mapbox public token to display the Hong Kong map. 
-                    Get one free at <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-neon-cyan underline">mapbox.com</a>
-                  </p>
-                </div>
-                <Input
-                  type="text"
-                  placeholder="pk.eyJ1Ijoi..."
-                  value={mapboxToken}
-                  onChange={(e) => setMapboxToken(e.target.value)}
-                  className="font-mono text-sm"
-                />
-                {mapError && (
-                  <p className="text-sm text-neon-red">{mapError}</p>
-                )}
-                <Button 
-                  onClick={saveToken} 
-                  disabled={!mapboxToken}
-                  className="w-full"
-                  variant="cyber"
-                >
-                  Load Map
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div ref={mapContainer} className="absolute inset-0" />
-          )}
+        {/* Map */}
+        <div className="lg:col-span-2 relative rounded-lg overflow-hidden border border-border">
+          <div ref={mapContainer} className="absolute inset-0" style={{ background: '#1a1a2e' }} />
         </div>
 
-        {/* Selected Territory Info */}
+        {/* Info Panel */}
         <div className="space-y-4 overflow-auto">
           <AnimatePresence mode="wait">
             {selectedRivalData ? (
@@ -389,13 +307,13 @@ export const GlobalMap = () => {
               >
                 <MapPin className="w-8 h-8 mx-auto mb-3 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
-                  Click a territory marker to view gang details
+                  Click a territory marker on the map
                 </p>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Quick Overview */}
+          {/* Quick List */}
           <div className="p-4 rounded-lg border border-border bg-card">
             <h4 className="font-display text-sm font-semibold mb-3 text-muted-foreground">All Territories</h4>
             <div className="space-y-2">
@@ -409,10 +327,7 @@ export const GlobalMap = () => {
                   onClick={() => setSelectedRival(selectedRival === rival.id ? null : rival.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <span 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: GANG_COLORS[`rival-${index + 1}`] }} 
-                    />
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: GANG_COLORS[`rival-${index + 1}`] }} />
                     <span className="text-sm">{rival.name}</span>
                   </div>
                   <span className={cn(
@@ -457,8 +372,7 @@ export const GlobalMap = () => {
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={cancelDiplomacy}>
-                  <X className="w-4 h-4 mr-1" />
-                  Cancel
+                  <X className="w-4 h-4 mr-1" /> Cancel
                 </Button>
                 <Button
                   variant={activeDiplomacy.action === 'turfWar' ? 'danger' : 'cyber'}
@@ -466,8 +380,7 @@ export const GlobalMap = () => {
                   onClick={confirmDiplomacy}
                   disabled={!canConfirmDiplomacy()}
                 >
-                  <Check className="w-4 h-4 mr-1" />
-                  Confirm
+                  <Check className="w-4 h-4 mr-1" /> Confirm
                 </Button>
               </div>
             </motion.div>
