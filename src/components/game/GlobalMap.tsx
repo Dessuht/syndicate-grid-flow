@@ -5,31 +5,27 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
-// SVG paths for Hong Kong districts (simplified but recognizable shapes)
-const DISTRICT_PATHS: Record<string, { path: string; center: { x: number; y: number } }> = {
+// SVG paths for Hong Kong districts - properly spaced layout
+const DISTRICT_PATHS: Record<string, { path: string; center: { x: number; y: number }; label: string }> = {
   'wan-chai': {
-    path: 'M280,180 L320,165 L360,175 L380,200 L370,230 L330,245 L290,235 L270,210 Z',
-    center: { x: 325, y: 205 }
+    path: 'M320,200 L370,185 L420,195 L430,225 L400,255 L350,260 L310,245 L305,220 Z',
+    center: { x: 365, y: 220 },
+    label: 'Wan Chai'
   },
   'kowloon-city': {
-    path: 'M200,80 L260,65 L310,75 L340,95 L350,130 L320,155 L270,165 L220,155 L190,125 L195,95 Z',
-    center: { x: 270, y: 115 }
+    path: 'M180,60 L250,45 L320,55 L340,85 L320,120 L260,135 L190,125 L160,95 Z',
+    center: { x: 250, y: 90 },
+    label: 'Kowloon'
   },
   'mong-kok': {
-    path: 'M120,100 L180,85 L200,95 L195,130 L180,155 L140,165 L100,150 L95,120 Z',
-    center: { x: 150, y: 125 }
+    path: 'M60,80 L120,65 L170,75 L180,105 L160,140 L100,150 L50,135 L45,105 Z',
+    center: { x: 110, y: 105 },
+    label: 'Mong Kok'
   },
   'tsim-sha-tsui': {
-    path: 'M180,160 L220,155 L270,165 L280,180 L270,210 L230,225 L190,215 L170,190 Z',
-    center: { x: 225, y: 190 }
-  },
-  'central': {
-    path: 'M320,165 L370,155 L410,165 L430,190 L420,220 L380,235 L330,245 L320,220 Z',
-    center: { x: 375, y: 195 }
-  },
-  'sham-shui-po': {
-    path: 'M60,130 L100,115 L140,125 L150,155 L130,185 L90,195 L55,175 L45,150 Z',
-    center: { x: 95, y: 155 }
+    path: 'M170,145 L230,130 L280,145 L290,180 L265,215 L200,225 L160,205 L155,170 Z',
+    center: { x: 220, y: 175 },
+    label: 'TST'
   }
 };
 
@@ -86,14 +82,9 @@ export const GlobalMap = () => {
   };
 
   const getDistrictLabel = (districtKey: string) => {
+    const district = DISTRICT_PATHS[districtKey];
     if (districtKey === PLAYER_DISTRICT) return 'Wan Chai (You)';
-    const rival = rivals.find(r => RIVAL_TO_DISTRICT[r.id] === districtKey);
-    if (rival) return rival.district;
-    const labels: Record<string, string> = {
-      'central': 'Central',
-      'sham-shui-po': 'Sham Shui Po'
-    };
-    return labels[districtKey] || districtKey;
+    return district?.label || districtKey;
   };
 
   const canConfirmDiplomacy = () => {
@@ -174,7 +165,7 @@ export const GlobalMap = () => {
               />
               
               {/* District Territories */}
-              {Object.entries(DISTRICT_PATHS).map(([key, { path, center }]) => {
+              {Object.entries(DISTRICT_PATHS).map(([key, { path, center, label }]) => {
                 const isPlayerTerritory = key === PLAYER_DISTRICT;
                 const rival = rivals.find(r => RIVAL_TO_DISTRICT[r.id] === key);
                 const isClickable = !!rival;
@@ -182,7 +173,7 @@ export const GlobalMap = () => {
                 return (
                   <g key={key}>
                     {/* Territory Shape */}
-                    <motion.path
+                    <path
                       d={path}
                       fill={getDistrictColor(key)}
                       fillOpacity={getDistrictOpacity(key)}
@@ -193,8 +184,6 @@ export const GlobalMap = () => {
                       onClick={() => isClickable && setSelectedDistrict(selectedDistrict === key ? null : key)}
                       onMouseEnter={() => setHoveredDistrict(key)}
                       onMouseLeave={() => setHoveredDistrict(null)}
-                      whileHover={isClickable ? { scale: 1.02 } : {}}
-                      transition={{ duration: 0.2 }}
                     />
                     
                     {/* District Label */}
@@ -207,7 +196,7 @@ export const GlobalMap = () => {
                       fill={isPlayerTerritory ? 'hsl(var(--neon-cyan))' : 'hsl(var(--foreground))'}
                       style={{ textShadow: '0 0 8px hsl(var(--background))' }}
                     >
-                      {getDistrictLabel(key).split(' ')[0]}
+                      {isPlayerTerritory ? 'You' : label}
                     </text>
                     
                     {/* Status Indicators */}
