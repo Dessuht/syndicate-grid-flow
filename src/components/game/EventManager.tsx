@@ -4,10 +4,11 @@ import { BetrayalModal } from './modals/BetrayalModal';
 import { CriminalModal } from './modals/CriminalModal';
 import { RivalAttackModal } from './modals/RivalAttackModal';
 import { DesertionNotice } from './modals/DesertionNotice';
+import { TerritoryUltimatumModal } from './modals/TerritoryUltimatumModal';
 
 export const EventManager = () => {
   const { activeEvent, eventData } = useGameStore();
-
+  
   switch (activeEvent) {
     case 'policeRaid':
       return <PoliceRaidModal />;
@@ -19,6 +20,8 @@ export const EventManager = () => {
       return <RivalAttackModal data={eventData} />;
     case 'soldierDesertion':
       return <DesertionNotice data={eventData} />;
+    case 'territoryUltimatum':
+      return <TerritoryUltimatumModal />;
     default:
       return null;
   }
