@@ -1,10 +1,10 @@
-import { DollarSign, Star, AlertTriangle, Calendar, Brain, Users } from 'lucide-react';
+import { DollarSign, Star, AlertTriangle, Calendar, Brain, Users, Zap } from 'lucide-react';
 import { useGameStore } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 export const ResourceBar = () => {
-  const { cash, reputation, policeHeat, currentDay, intel, soldiers, officers } = useGameStore();
+  const { cash, reputation, policeHeat, currentDay, intel, influence, soldiers, officers } = useGameStore();
   const heatColor = policeHeat > 70 ? 'neon-text-red' : policeHeat > 40 ? 'neon-text-amber' : 'neon-text-green';
   const activeOfficers = officers.filter(o => o.assignedBuildingId).length;
 
@@ -69,6 +69,17 @@ export const ResourceBar = () => {
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Intel</p>
             <p className="text-sm font-bold neon-text-cyan">{intel}</p>
+          </div>
+        </div>
+        
+        {/* Influence */}
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-neon-purple/10 border border-neon-purple/30">
+            <Zap className="w-4 h-4" style={{ color: 'hsl(var(--neon-purple))' }} />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Influence</p>
+            <p className="text-sm font-bold" style={{ color: 'hsl(var(--neon-purple))' }}>{influence}</p>
           </div>
         </div>
 

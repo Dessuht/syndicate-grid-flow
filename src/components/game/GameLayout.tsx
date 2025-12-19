@@ -8,10 +8,16 @@ import { EventManager } from './EventManager';
 import { RainOverlay } from './RainOverlay';
 import { useGameStore } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FamilyCouncilScene } from './FamilyCouncilScene';
 
 export const GameLayout = () => {
+  const { currentScene, syndicateMembers, recruitSyndicateMember, cash, recruitCost } = useGameStore();
   const [activeView, setActiveView] = useState<ViewType>('district');
-  const { syndicateMembers, recruitSyndicateMember, cash, recruitCost } = useGameStore();
+
+  // If we are in the COUNCIL scene, override the view
+  if (currentScene === 'COUNCIL') {
+    return <FamilyCouncilScene />;
+  }
 
   return (
     <div className="flex h-screen w-full bg-background bg-cyber-grid bg-grid overflow-hidden">

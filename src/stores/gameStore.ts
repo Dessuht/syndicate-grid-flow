@@ -5,6 +5,7 @@ import { generateSoldier } from '@/lib/characterGenerator';
 // ==================== TYPES ====================
 export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blue Lantern' | 'Deputy (438)' | 'Dragonhead (489)';
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
+export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL'; // Added COUNCIL
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
 export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | null;
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
@@ -40,6 +41,7 @@ export interface Officer {
   daysToRecovery: number;
   currentAgenda: string | null; // NEW: Officer's current goal/desire
   face: number; // ADDED
+  grudge: boolean; // NEW: Officer holds a grudge
 }
 
 export interface Building {
@@ -94,6 +96,16 @@ export interface PostConflictSummaryData {
   rivalName?: string;
 }
 
+export interface CouncilMotion {
+  id: string;
+  title: string;
+  description: string;
+  type: 'expansion' | 'internal';
+  effect: (state: GameState) => Partial<GameState>;
+  officerVotes: Record<string, 'yes' | 'no'>;
+  isVetoed: boolean;
+}
+
 // ==================== INITIAL DATA ====================
 const PROMOTION_COST = 5000;
 const PROMOTION_FACE_REQUIREMENT = 50;
@@ -137,7 +149,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isArrested: false,
     daysToRecovery: 0,
     currentAgenda: null, 
-    face: 30, // Initial Face
+    face: 30, 
+    grudge: false,
   },
   {
     id: 'off-2',
@@ -161,7 +174,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isArrested: false,
     daysToRecovery: 0,
     currentAgenda: null, 
-    face: 35, // Initial Face
+    face: 35, 
+    grudge: false,
   },
   {
     id: 'off-3',
@@ -185,7 +199,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isArrested: false,
     daysToRecovery: 0,
     currentAgenda: null, 
-    face: 25, // Initial Face
+    face: 25, 
+    grudge: false,
   },
   {
     id: 'off-4',
@@ -209,7 +224,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isArrested: false,
     daysToRecovery: 0,
     currentAgenda: null, 
-    face: 40, // Initial Face
+    face: 40, 
+    grudge: false,
   },
 ];
 
@@ -361,6 +377,7 @@ export interface GameState {
   currentPhase: DayPhase;
   stipend: number;  // daily pay per soldier
   intel: number;  // Intelligence resource
+  influence: number; // NEW: Influence resource
 
   // Entities
   officers: Officer[];
@@ -396,6 +413,10 @@ export interface GameState {
   // Street War System
   streetWarRivalId: string | null;
 
+  // Council System
+  currentScene: GameScene;
+  councilMotions: CouncilMotion[];
+
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => void;
   unassignOfficer: (officerId: string) => void;
@@ -404,11 +425,17 @@ export interface GameState {
   reduceHeat: (amount: number) => void;
   hostNightclub: () => void;
 
-  // NEW Officer Interaction Actions
-  shareTea: (officerId: string) => void; // Renamed from talkToOfficer
+  // Officer Interaction Actions
+  shareTea: (officerId: string) => void;
   giveBonus: (officerId: string) => void;
-  reprimandOfficer: (officerId: string) => void; // Renamed from threatenOfficer
+  reprimandOfficer: (officerId: string) => void;
   promoteOfficer: (officerId: string, newRank: OfficerRank) => void;
+
+  // Council Actions
+  generateCouncilMotions: () => void;
+  handleCouncilVote: (motionId: string, playerVote: 'yes' | 'no') => void;
+  useInfluenceToOrderVote: (motionId: string, officerId: string, vote: 'yes' | 'no') => void;
+  exitCouncil: () => void;
 
   // Event handlers
   handleRaidChoice: (choice: 'bribe' | 'stand' | 'escape') => void;
@@ -466,8 +493,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentPhase: 'morning',
   stipend: 50,
   intel: 0,
+  influence: 10, // Initial influence
 
-  // Initialize intel resource
+  // Initialize entities
   officers: INITIAL_OFFICERS,
   buildings: INITIAL_BUILDINGS,
   soldiers: INITIAL_SOLDIERS,
@@ -492,6 +520,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Street War System
   streetWarRivalId: null,
+
+  // Council System
+  currentScene: 'DISTRICT', // Default scene
+  councilMotions: [],
 
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
@@ -560,7 +592,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  // --- NEW OFFICER INTERACTION ACTIONS ---
+  // --- OFFICER INTERACTION ACTIONS ---
   shareTea: (officerId: string) => {
     set((state) => {
         const officer = state.officers.find(o => o.id === officerId);
@@ -569,7 +601,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         // 1. Increase Loyalty (+5)
         const newLoyalty = Math.min(100, officer.loyalty + 5);
 
-        // 2. Reveal Agenda (if null) - Keeping this as it's useful for gameplay
+        // 2. Reveal Agenda (if null)
         let newAgenda = officer.currentAgenda;
         if (!newAgenda) {
             const AGENDAS = [
@@ -725,12 +757,161 @@ export const useGameStore = create<GameState>((set, get) => ({
         };
     });
   },
-  // --- END NEW OFFICER INTERACTION ACTIONS ---
+  // --- END OFFICER INTERACTION ACTIONS ---
+
+  // --- COUNCIL ACTIONS ---
+  generateCouncilMotions: () => {
+    const state = get();
+    const motions: CouncilMotion[] = [];
+    const councilMembers = state.officers.filter(o => o.rank !== 'Blue Lantern').slice(0, 3); // Top 3 non-Blue Lanterns
+
+    // Motion 1: Expansion (Invade Sun Yee On)
+    const rivalToAttack = state.rivals.find(r => r.name === 'Sun Yee On');
+    if (rivalToAttack && !rivalToAttack.isActiveConflict) {
+      const motion: CouncilMotion = {
+        id: 'motion-1',
+        title: 'Expand Territory: Invade Sun Yee On',
+        description: 'Launch a turf war against Sun Yee On in Tsim Sha Tsui. High risk, high reward.',
+        type: 'expansion',
+        effect: (s) => ({
+          territoryFriction: Math.min(100, s.territoryFriction + 50),
+          rivals: s.rivals.map(r => r.id === rivalToAttack.id ? { ...r, isActiveConflict: true } : r),
+        }),
+        officerVotes: {},
+        isVetoed: false,
+      };
+      motions.push(motion);
+    }
+
+    // Motion 2: Internal (Raise Officer Cut)
+    const motion2: CouncilMotion = {
+      id: 'motion-2',
+      title: 'Internal Affairs: Raise Officer Cut',
+      description: 'Increase officer pay by 20% of daily revenue. Boosts loyalty but cuts profits.',
+      type: 'internal',
+      effect: (s) => ({
+        officers: s.officers.map(o => ({ ...o, loyalty: Math.min(100, o.loyalty + 30) })),
+        // Note: Revenue cut logic would be applied in processDayOperations based on a flag, but for simplicity, we apply the loyalty boost here.
+      }),
+      officerVotes: {},
+      isVetoed: false,
+    };
+    motions.push(motion2);
+
+    // Determine officer votes (based on loyalty/rank)
+    const finalMotions = motions.map(motion => {
+      const officerVotes: Record<string, 'yes' | 'no'> = {};
+      councilMembers.forEach(officer => {
+        let vote = 'no';
+        // Simple voting logic: High loyalty/high rank tends to vote 'yes' on expansion/internal stability
+        if (motion.type === 'expansion') {
+          vote = officer.loyalty > 60 || officer.rank === 'Red Pole' ? 'yes' : 'no';
+        } else if (motion.type === 'internal') {
+          vote = officer.loyalty < 80 || officer.rank === 'White Paper Fan' ? 'yes' : 'no';
+        }
+        officerVotes[officer.id] = vote as 'yes' | 'no';
+      });
+      return { ...motion, officerVotes };
+    });
+
+    set({ councilMotions: finalMotions });
+  },
+
+  handleCouncilVote: (motionId: string, playerVote: 'yes' | 'no') => {
+    set((state) => {
+      const motion = state.councilMotions.find(m => m.id === motionId);
+      if (!motion) return state;
+
+      const councilMembers = state.officers.filter(o => o.rank !== 'Blue Lantern').slice(0, 3);
+      
+      let yesCount = 0;
+      let noCount = 0;
+      councilMembers.forEach(o => {
+        if (motion.officerVotes[o.id] === 'yes') yesCount++;
+        else noCount++;
+      });
+
+      const councilMajorityVote = yesCount > noCount ? 'yes' : 'no';
+      const isVeto = playerVote !== councilMajorityVote;
+
+      let updates: Partial<GameState> = {};
+      let updatedOfficers = state.officers;
+
+      if (isVeto) {
+        // Player vetoed the council majority
+        updatedOfficers = state.officers.map(o => {
+          if (motion.officerVotes[o.id] === councilMajorityVote) {
+            // Officers who were overruled lose loyalty and gain a grudge
+            return { 
+              ...o, 
+              loyalty: Math.max(0, o.loyalty - 20),
+              grudge: true,
+            };
+          }
+          return o;
+        });
+        updates.influence = Math.max(0, state.influence - 5); // Veto costs influence
+      } else {
+        // Player voted with the majority, motion passes (or fails gracefully)
+        if (playerVote === 'yes') {
+          updates = motion.effect(state);
+        }
+        updates.influence = Math.min(100, state.influence + 5); // Gain influence for consensus
+      }
+
+      // Mark motion as resolved
+      const updatedMotions = state.councilMotions.filter(m => m.id !== motionId);
+
+      return {
+        ...state,
+        ...updates,
+        officers: updatedOfficers,
+        councilMotions: updatedMotions,
+        // If no motions left, exit council scene
+        currentScene: updatedMotions.length === 0 ? 'DISTRICT' : 'COUNCIL',
+      };
+    });
+  },
+
+  useInfluenceToOrderVote: (motionId: string, officerId: string, vote: 'yes' | 'no') => {
+    set((state) => {
+      const motion = state.councilMotions.find(m => m.id === motionId);
+      const officer = state.officers.find(o => o.id === officerId);
+      if (!motion || !officer || state.influence < 10) return state;
+
+      // Cost 10 Influence
+      const newInfluence = state.influence - 10;
+
+      // Force the officer's vote without loyalty penalty
+      const updatedMotions = state.councilMotions.map(m => 
+        m.id === motionId 
+          ? { ...m, officerVotes: { ...m.officerVotes, [officerId]: vote } }
+          : m
+      );
+
+      return {
+        influence: newInfluence,
+        councilMotions: updatedMotions,
+      };
+    });
+  },
+
+  exitCouncil: () => {
+    set({ currentScene: 'DISTRICT', councilMotions: [] });
+  },
+  // --- END COUNCIL ACTIONS ---
 
   advancePhase: (/* ... existing implementation ... */) => {
     set((state) => {
       const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
       const currentIndex = phases.indexOf(state.currentPhase);
+
+      // Check for Council Trigger (Every 10 days, at the start of the day cycle)
+      if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
+        // Queue council meeting for the next morning
+        get().generateCouncilMotions();
+        return { currentPhase: 'morning', currentDay: state.currentDay + 1, currentScene: 'COUNCIL' };
+      }
 
       // Process phase-specific logic
       let updates: Partial<GameState> = {};
