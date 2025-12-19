@@ -7,7 +7,7 @@ export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blu
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL'; // Added COUNCIL
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | null;
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | null;
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -42,6 +42,7 @@ export interface Officer {
   currentAgenda: string | null; // NEW: Officer's current goal/desire
   face: number; // ADDED
   grudge: boolean; // NEW: Officer holds a grudge
+  isTraitor: boolean; // NEW: Officer is leading a rebellion
 }
 
 export interface Building {
@@ -57,6 +58,8 @@ export interface Building {
   foodProvided: number;  // for soldier needs
   entertainmentProvided: number;
   upgraded: boolean;
+  isRebelBase: boolean; // NEW: Building is controlled by a rogue officer
+  rebelSoldierCount: number; // NEW: Number of soldiers defending the base
 }
 
 export interface StreetSoldier {
@@ -85,14 +88,14 @@ export interface RivalGang {
 }
 
 export interface PostConflictSummaryData {
-  type: 'raid' | 'streetWar';
+  type: 'raid' | 'streetWar' | 'civilWar';
   outcome: 'success' | 'failure';
   officerId: string | null;
   soldiersLost: number;
   reputationChange: number;
   faceChange: number;
   loyaltyChange: number;
-  officerStatusEffect: 'none' | 'wounded' | 'arrested';
+  officerStatusEffect: 'none' | 'wounded' | 'arrested' | 'executed' | 'imprisoned';
   rivalName?: string;
 }
 
@@ -151,6 +154,7 @@ const INITIAL_OFFICERS: Officer[] = [
     currentAgenda: null, 
     face: 30, 
     grudge: false,
+    isTraitor: false,
   },
   {
     id: 'off-2',
@@ -176,6 +180,7 @@ const INITIAL_OFFICERS: Officer[] = [
     currentAgenda: null, 
     face: 35, 
     grudge: false,
+    isTraitor: false,
   },
   {
     id: 'off-3',
@@ -201,6 +206,7 @@ const INITIAL_OFFICERS: Officer[] = [
     currentAgenda: null, 
     face: 25, 
     grudge: false,
+    isTraitor: false,
   },
   {
     id: 'off-4',
@@ -226,6 +232,7 @@ const INITIAL_OFFICERS: Officer[] = [
     currentAgenda: null, 
     face: 40, 
     grudge: false,
+    isTraitor: false,
   },
 ];
 
@@ -242,7 +249,9 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 30,
     entertainmentProvided: 5,
-    upgraded: false
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
   },
   {
     id: 'bld-2',
@@ -256,7 +265,9 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: true,
     foodProvided: 0,
     entertainmentProvided: 40,
-    upgraded: false
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
   },
   {
     id: 'bld-3',
@@ -270,7 +281,9 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 0,
     entertainmentProvided: 0,
-    upgraded: false
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
   },
   {
     id: 'bld-4',
@@ -284,7 +297,9 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: true,
     foodProvided: 10,
     entertainmentProvided: 60,
-    upgraded: false
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
   },
   {
     id: 'bld-5',
@@ -298,7 +313,9 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 35,
     entertainmentProvided: 5,
-    upgraded: false
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
   },
   {
     id: 'bld-6',
@@ -312,7 +329,9 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 0,
     entertainmentProvided: 0,
-    upgraded: false
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
   },
 ];
 
@@ -413,6 +432,10 @@ export interface GameState {
   // Street War System
   streetWarRivalId: string | null;
 
+  // Civil War State
+  isCivilWarActive: boolean; // NEW
+  rebelOfficerId: string | null; // NEW
+
   // Council System
   currentScene: GameScene;
   councilMotions: CouncilMotion[];
@@ -444,6 +467,7 @@ export interface GameState {
   handleRivalAttackChoice: (choice: 'fight' | 'negotiate' | 'retreat') => void;
   handleTerritoryUltimatum: (choice: 'pay' | 'refuse') => void;
   handleStreetWarChoice: (choice: 'bribe' | 'fight') => void;
+  handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void; // NEW
   dismissEvent: () => void;
 
   // Diplomacy
@@ -521,6 +545,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Street War System
   streetWarRivalId: null,
 
+  // Civil War State
+  isCivilWarActive: false,
+  rebelOfficerId: null,
+
   // Council System
   currentScene: 'DISTRICT', // Default scene
   councilMotions: [],
@@ -537,6 +565,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (!officer || officer.isWounded || officer.isArrested || !building || building.isOccupied || officer.assignedBuildingId) {
         return state;
       }
+      
+      // Cannot assign to a rebel base
+      if (building.isRebelBase) return state;
 
       if (building.inactiveUntilDay && building.inactiveUntilDay > state.currentDay) {
         return state;
@@ -901,6 +932,104 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   // --- END COUNCIL ACTIONS ---
 
+  // --- CIVIL WAR ACTIONS ---
+  handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => {
+    set((state) => {
+      const rebelOfficer = state.officers.find(o => o.id === officerId);
+      const rebelBase = state.buildings.find(b => b.isRebelBase && b.assignedOfficerId === officerId);
+      if (!rebelOfficer || !rebelBase) return state;
+
+      let updates: Partial<GameState> = { activeEvent: null, eventData: null, isCivilWarActive: false, rebelOfficerId: null };
+      let summaryData: PostConflictSummaryData = {
+        type: 'civilWar',
+        outcome: 'failure',
+        officerId: officerId,
+        soldiersLost: 0,
+        reputationChange: 0,
+        faceChange: 0,
+        loyaltyChange: 0,
+        officerStatusEffect: 'none',
+      };
+
+      switch (choice) {
+        case 'raid':
+          // Calculate Raid Strength: Player's remaining soldiers vs. Rebel soldiers
+          const loyalSoldierStrength = state.soldiers.reduce((sum, s) => sum + s.skill, 0);
+          const rebelStrength = rebelBase.rebelSoldierCount * 50; // Assume 50 strength per rebel soldier
+          const success = loyalSoldierStrength > rebelStrength;
+
+          if (success) {
+            // Victory: Officer removed/imprisoned, building recovered
+            const execution = Math.random() < 0.5;
+            summaryData.outcome = 'success';
+            summaryData.reputationChange = 20;
+            summaryData.officerStatusEffect = execution ? 'executed' : 'imprisoned';
+            summaryData.soldiersLost = Math.floor(state.soldiers.length * 0.1); // 10% loyal soldier loss
+
+            updates.officers = state.officers.filter(o => o.id !== officerId);
+            if (!execution) {
+              // If imprisoned, re-add officer as arrested
+              updates.officers = [...(updates.officers || state.officers), { ...rebelOfficer, isTraitor: false, isArrested: true, assignedBuildingId: null, loyalty: 0 }];
+            }
+            
+            updates.buildings = state.buildings.map(b =>
+              b.id === rebelBase.id ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } : b
+            );
+            updates.soldiers = state.soldiers.slice(summaryData.soldiersLost);
+          } else {
+            // Defeat: Massive reputation loss, officer remains rogue, lose more soldiers
+            summaryData.outcome = 'failure';
+            summaryData.reputationChange = -30;
+            summaryData.soldiersLost = Math.floor(state.soldiers.length * 0.3); // 30% loyal soldier loss
+            
+            updates.soldiers = state.soldiers.slice(summaryData.soldiersLost);
+            // Civil War remains active
+            updates.isCivilWarActive = true;
+            updates.rebelOfficerId = officerId;
+          }
+          break;
+
+        case 'negotiate':
+          const cost = 5000; // Fixed cost for negotiation
+          const intelCost = 50;
+          if (state.cash < cost || state.intel < intelCost) return state;
+
+          summaryData.outcome = 'success';
+          summaryData.reputationChange = -50;
+          summaryData.loyaltyChange = 50;
+          
+          updates.cash = state.cash - cost;
+          updates.intel = state.intel - intelCost;
+          updates.officers = state.officers.map(o =>
+            o.id === officerId ? { ...o, isTraitor: false, loyalty: 50, face: 0, grudge: false } : o
+          );
+          updates.buildings = state.buildings.map(b =>
+            b.id === rebelBase.id ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } : b
+          );
+          // Rebel soldiers return to the pool
+          updates.soldiers = [...state.soldiers, ...Array(rebelBase.rebelSoldierCount).fill(0).map(() => createNewSoldier(state.currentDay))];
+          break;
+      }
+
+      updates.reputation = Math.max(0, state.reputation + summaryData.reputationChange);
+      updates.pendingEvents = [...state.pendingEvents, { type: 'postConflictSummary', data: summaryData }];
+      
+      // Check for pending events
+      if (updates.pendingEvents?.length > 0) {
+        const [nextEvent, ...rest] = updates.pendingEvents;
+        return {
+          ...updates,
+          activeEvent: nextEvent.type,
+          eventData: nextEvent.data,
+          pendingEvents: rest,
+        };
+      }
+
+      return updates;
+    });
+  },
+  // --- END CIVIL WAR ACTIONS ---
+
   advancePhase: (/* ... existing implementation ... */) => {
     set((state) => {
       const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
@@ -947,10 +1076,23 @@ export const useGameStore = create<GameState>((set, get) => ({
           break;
 
         case 'night':
-          // Night -> Morning (next day): Random events, relationship changes
+          // Night -> Morning (next day): Random events, relationship changes, COUP CHECK
           const nightResults = processNightEvents(state);
           updates = { ...updates, ...nightResults.updates, currentPhase: 'morning', currentDay: state.currentDay + 1 };
           newEvents = nightResults.events;
+          
+          // Check for Coup Attempt
+          if (!state.isCivilWarActive) {
+            const coupCheck = checkCoupAttempt(state);
+            if (coupCheck.officerId) {
+              updates.isCivilWarActive = true;
+              updates.rebelOfficerId = coupCheck.officerId;
+              updates.officers = coupCheck.updatedOfficers;
+              updates.buildings = coupCheck.updatedBuildings;
+              updates.soldiers = coupCheck.updatedSoldiers;
+              newEvents.push({ type: 'coupAttempt', data: { officerName: coupCheck.officerName, buildingName: coupCheck.buildingName, officerId: coupCheck.officerId } });
+            }
+          }
           break;
       }
 
@@ -973,6 +1115,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  // ... (rest of the actions remain the same)
   setStipend: (amount: number) => {
     set({ stipend: Math.max(0, Math.min(200, amount)) });
   },
@@ -1787,6 +1930,80 @@ export const useGameStore = create<GameState>((set, get) => ({
 }));
 
 // ==================== HELPER FUNCTIONS ====================
+
+/**
+ * Helper function to create a new StreetSoldier object.
+ */
+function createNewSoldier(currentDay: number): StreetSoldier {
+  // We reuse the logic from recruitSoldier but return the object instead of updating state
+  return {
+    id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
+    loyalty: 60 + Math.floor(Math.random() * 20),
+    needs: {
+      food: 70 + Math.floor(Math.random() * 20),
+      entertainment: 50 + Math.floor(Math.random() * 30),
+      pay: 60,
+    },
+    skill: 30 + Math.floor(Math.random() * 40),
+    isDeserting: false,
+  };
+}
+
+/**
+ * Checks if any high-ranking officer is ready to stage a coup.
+ */
+function checkCoupAttempt(state: GameState): { officerId: string | null; officerName: string | null; buildingName: string | null; updatedOfficers: Officer[]; updatedBuildings: Building[]; updatedSoldiers: StreetSoldier[] } {
+  const coupCandidate = state.officers.find(o => 
+    (o.rank === 'Red Pole' || o.rank === 'White Paper Fan' || o.rank === 'Deputy (438)' || o.rank === 'Dragonhead (489)') &&
+    o.loyalty < 15 &&
+    o.face > 50 &&
+    o.assignedBuildingId // Must be assigned to a building to seize it
+  );
+
+  if (!coupCandidate) {
+    return { officerId: null, officerName: null, buildingName: null, updatedOfficers: state.officers, updatedBuildings: state.buildings, updatedSoldiers: state.soldiers };
+  }
+
+  const building = state.buildings.find(b => b.id === coupCandidate.assignedBuildingId);
+  if (!building) {
+    return { officerId: null, officerName: null, buildingName: null, updatedOfficers: state.officers, updatedBuildings: state.buildings, updatedSoldiers: state.soldiers };
+  }
+
+  // 1. Mark Officer as Traitor
+  const updatedOfficers = state.officers.map(o => 
+    o.id === coupCandidate.id ? { ...o, isTraitor: true, assignedBuildingId: null } : o
+  );
+
+  // 2. Split Soldiers (30% defect)
+  const totalSoldiers = state.soldiers.length;
+  const defectingCount = Math.floor(totalSoldiers * 0.3);
+  const loyalSoldiers = state.soldiers.slice(defectingCount);
+  
+  // 3. Seize Building
+  const updatedBuildings = state.buildings.map(b => 
+    b.id === building.id 
+      ? { 
+          ...b, 
+          isRebelBase: true, 
+          rebelSoldierCount: defectingCount, 
+          isOccupied: true, 
+          assignedOfficerId: coupCandidate.id,
+          inactiveUntilDay: null, // Active rebel base
+        } 
+      : b
+  );
+  
+  return {
+    officerId: coupCandidate.id,
+    officerName: coupCandidate.name,
+    buildingName: building.name,
+    updatedOfficers,
+    updatedBuildings,
+    updatedSoldiers: loyalSoldiers,
+  };
+}
+
 function processDayOperations(state: GameState): { updates: Partial<GameState>; events: { type: EventType; data: any }[] } {
   let totalRevenue = 0;
   let totalHeat = 0;
@@ -1797,7 +2014,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   let updatedOfficers = state.officers.map(officer => {
     if (officer.assignedBuildingId) {
       const building = state.buildings.find(b => b.id === officer.assignedBuildingId);
-      if (building && (!building.inactiveUntilDay || building.inactiveUntilDay <= state.currentDay)) {
+      if (building && (!building.inactiveUntilDay || building.inactiveUntilDay <= state.currentDay) && !building.isRebelBase) {
         // Calculate revenue based on officer skills
         let revenueMultiplier = 1;
         if (building.isIllicit && officer.rank === 'Red Pole') {
@@ -1869,7 +2086,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
 
   const updatedBuildings = state.buildings.map(b => {
     const officer = finalOfficers.find(o => o.assignedBuildingId === b.id);
-    if (!officer && b.isOccupied) {
+    if (!officer && b.isOccupied && !b.isRebelBase) {
       return {
         ...b,
         isOccupied: false,
@@ -1904,23 +2121,24 @@ function processEveningNeeds(state: GameState): { updates: Partial<GameState>; e
 
   // Calculate total food and entertainment from buildings
   const totalFood = state.buildings
-    .filter(b => b.isOccupied)
+    .filter(b => b.isOccupied && !b.isRebelBase)
     .reduce((sum, b) => sum + b.foodProvided, 0);
 
   const totalEntertainment = state.buildings
-    .filter(b => b.isOccupied)
+    .filter(b => b.isOccupied && !b.isRebelBase)
     .reduce((sum, b) => sum + b.entertainmentProvided, 0);
 
   // Pay stipends
-  const stipendCost = state.soldiers.length * state.stipend;
+  const loyalSoldiers = state.soldiers.filter(s => !s.isDeserting);
+  const stipendCost = loyalSoldiers.length * state.stipend;
   const canPayFull = state.cash >= stipendCost;
-  const actualPay = canPayFull ? state.stipend : Math.floor(state.cash / state.soldiers.length);
+  const actualPay = canPayFull ? state.stipend : Math.floor(state.cash / loyalSoldiers.length);
 
   // Update soldier needs
   const updatedSoldiers = state.soldiers.map(soldier => {
     // Needs decay
-    const foodSatisfaction = Math.min(100, soldier.needs.food - 20 + (totalFood / state.soldiers.length));
-    const entSatisfaction = Math.min(100, soldier.needs.entertainment - 15 + (totalEntertainment / state.soldiers.length));
+    const foodSatisfaction = Math.min(100, soldier.needs.food - 20 + (totalFood / loyalSoldiers.length));
+    const entSatisfaction = Math.min(100, soldier.needs.entertainment - 15 + (totalEntertainment / loyalSoldiers.length));
     const paySatisfaction = Math.min(100, (actualPay / 50) * 50);  // 50 is baseline
 
     // Loyalty changes based on needs

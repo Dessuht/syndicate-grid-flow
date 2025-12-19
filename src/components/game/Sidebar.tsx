@@ -1,4 +1,4 @@
-import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle, Heart, Lock } from 'lucide-react';
+import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle, Heart, Lock, Swords } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
@@ -34,7 +34,7 @@ const NAV_ITEMS = [
 
 export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { rivals, officers } = useGameStore();
+  const { rivals, officers, isCivilWarActive } = useGameStore();
   
   // Check if there's an active street war
   const hasActiveStreetWar = rivals.some(r => r.isActiveConflict);
@@ -71,6 +71,24 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           )}
         </div>
       </div>
+      
+      {/* Civil War Alert */}
+      {isCivilWarActive && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="p-2 bg-neon-red/20 border-b border-neon-red/50"
+        >
+          <div className="flex items-center gap-2">
+            <Swords className="w-4 h-4 text-neon-red animate-pulse shrink-0" />
+            {!isCollapsed && (
+              <p className="text-xs font-semibold text-neon-red leading-tight">
+                CIVIL WAR ACTIVE
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-2">

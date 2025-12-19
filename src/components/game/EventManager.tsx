@@ -7,6 +7,7 @@ import { DesertionNotice } from './modals/DesertionNotice';
 import { TerritoryUltimatumModal } from './modals/TerritoryUltimatumModal';
 import { StreetWarModal } from './modals/StreetWarModal';
 import { PostWarSummaryModal } from './modals/PostWarSummaryModal';
+import { CoupAttemptModal } from './modals/CoupAttemptModal';
 
 export const EventManager = () => {
   const { activeEvent, eventData } = useGameStore();
@@ -28,6 +29,8 @@ export const EventManager = () => {
       return <StreetWarModal />;
     case 'postConflictSummary':
       return <PostWarSummaryModal data={eventData} />;
+    case 'coupAttempt':
+      return <CoupAttemptModal data={eventData} />;
     default:
       return null;
   }
