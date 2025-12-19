@@ -31,12 +31,14 @@ export interface Officer {
   skills: OfficerSkills;
   loyalty: number;  // 0-100, affects betrayal chance
   daysAssigned: number;  // consecutive days on same building
+  daysIdle: number; // NEW: consecutive days unassigned
   relationships: OfficerRelationship[];
   isBetraying: boolean;
-  traits: CharacterTrait[];  // Add traits to officers
-  isWounded: boolean;  // New flag for wounded officers
-  isArrested: boolean;  // New flag for arrested officers
-  daysToRecovery: number;  // Days until recovery from wound
+  traits: CharacterTrait[];
+  isWounded: boolean;
+  isArrested: boolean;
+  daysToRecovery: number;
+  currentAgenda: string | null; // NEW: Officer's current goal/desire
 }
 
 export interface Building {
@@ -117,6 +119,7 @@ const INITIAL_OFFICERS: Officer[] = [
     skills: createOfficerSkills('Red Pole'),
     loyalty: 75,
     daysAssigned: 0,
+    daysIdle: 0, // Initialize
     relationships: [
       { targetId: 'off-2', respect: 40 },
       { targetId: 'off-3', respect: 60 },
@@ -126,7 +129,8 @@ const INITIAL_OFFICERS: Officer[] = [
     traits: ['Fearless', 'Ruthless'],
     isWounded: false,
     isArrested: false,
-    daysToRecovery: 0
+    daysToRecovery: 0,
+    currentAgenda: null, // Initialize
   },
   {
     id: 'off-2',
@@ -138,6 +142,7 @@ const INITIAL_OFFICERS: Officer[] = [
     skills: createOfficerSkills('White Paper Fan'),
     loyalty: 85,
     daysAssigned: 0,
+    daysIdle: 0, // Initialize
     relationships: [
       { targetId: 'off-1', respect: 50 },
       { targetId: 'off-3', respect: 70 },
@@ -147,7 +152,8 @@ const INITIAL_OFFICERS: Officer[] = [
     traits: ['Calculating', 'Silver Tongue'],
     isWounded: false,
     isArrested: false,
-    daysToRecovery: 0
+    daysToRecovery: 0,
+    currentAgenda: null, // Initialize
   },
   {
     id: 'off-3',
@@ -159,6 +165,7 @@ const INITIAL_OFFICERS: Officer[] = [
     skills: createOfficerSkills('Straw Sandal'),
     loyalty: 65,
     daysAssigned: 0,
+    daysIdle: 0, // Initialize
     relationships: [
       { targetId: 'off-1', respect: 55 },
       { targetId: 'off-2', respect: 60 },
@@ -168,7 +175,8 @@ const INITIAL_OFFICERS: Officer[] = [
     traits: ['Street Smart', 'Connected'],
     isWounded: false,
     isArrested: false,
-    daysToRecovery: 0
+    daysToRecovery: 0,
+    currentAgenda: null, // Initialize
   },
   {
     id: 'off-4',
@@ -180,6 +188,7 @@ const INITIAL_OFFICERS: Officer[] = [
     skills: createOfficerSkills('Blue Lantern'),
     loyalty: 70,
     daysAssigned: 0,
+    daysIdle: 0, // Initialize
     relationships: [
       { targetId: 'off-1', respect: 45 },
       { targetId: 'off-2', respect: 50 },
@@ -189,7 +198,8 @@ const INITIAL_OFFICERS: Officer[] = [
     traits: ['Loyal Dog', 'Street Smart'],
     isWounded: false,
     isArrested: false,
-    daysToRecovery: 0
+    daysToRecovery: 0,
+    currentAgenda: null, // Initialize
   },
 ];
 
@@ -384,6 +394,11 @@ export interface GameState {
   reduceHeat: (amount: number) => void;
   hostNightclub: () => void;
 
+  // NEW Officer Interaction Actions
+  talkToOfficer: (officerId: string) => void;
+  giveBonus: (officerId: string) => void;
+  threatenOfficer: (officerId: string) => void;
+
   // Event handlers
   handleRaidChoice: (choice: 'bribe' | 'stand' | 'escape') => void;
   handleBetrayalChoice: (choice: 'forgive' | 'punish' | 'exile') => void;
@@ -487,7 +502,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       // Update other officers' respect (jealousy mechanic)
       const updatedOfficers = state.officers.map(o => {
         if (o.id === officerId) {
-          return { ...o, assignedBuildingId: buildingId };
+          return { ...o, assignedBuildingId: buildingId, daysIdle: 0 }; // Reset daysIdle
         }
 
         // Other officers lose respect if this building is high-value
@@ -534,7 +549,92 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  advancePhase: () => {
+  // --- NEW OFFICER INTERACTION ACTIONS ---
+  talkToOfficer: (officerId: string) => {
+    set((state) => {
+        const officer = state.officers.find(o => o.id === officerId);
+        if (!officer || state.currentPhase !== 'morning' || officer.isWounded || officer.isArrested) return state;
+
+        // 1. Increase Loyalty (+5)
+        const newLoyalty = Math.min(100, officer.loyalty + 5);
+
+        // 2. Reveal Agenda (if null)
+        let newAgenda = officer.currentAgenda;
+        if (!newAgenda) {
+            const AGENDAS = [
+                'Wants to own a Noodle Shop',
+                'Wants to own a Nightclub',
+                'Wants a higher rank',
+                'Wants to reduce police heat',
+                'Wants a trade agreement with Sun Yee On',
+            ];
+            newAgenda = AGENDAS[Math.floor(Math.random() * AGENDAS.length)];
+        }
+
+        // 3. Spend time (modelled as energy cost)
+        const newEnergy = Math.max(0, officer.energy - 10);
+
+        return {
+            officers: state.officers.map(o =>
+                o.id === officerId
+                    ? { ...o, loyalty: newLoyalty, currentAgenda: newAgenda, energy: newEnergy }
+                    : o
+            ),
+        };
+    });
+  },
+
+  giveBonus: (officerId: string) => {
+    set((state) => {
+        const officer = state.officers.find(o => o.id === officerId);
+        const cost = 1000;
+        if (!officer || state.cash < cost || officer.isWounded || officer.isArrested) return state;
+
+        // 1. Spend $1,000 Cash
+        // 2. Boost Loyalty (+20)
+        const newLoyalty = Math.min(100, officer.loyalty + 20);
+
+        // 3. Lower 'Hunger' for promotion (clear agenda if promotion/building related)
+        let newAgenda = officer.currentAgenda;
+        if (newAgenda && (newAgenda.includes('rank') || newAgenda.includes('own'))) {
+            newAgenda = null;
+        }
+
+        return {
+            cash: state.cash - cost,
+            officers: state.officers.map(o =>
+                o.id === officerId
+                    ? { ...o, loyalty: newLoyalty, currentAgenda: newAgenda }
+                    : o
+            ),
+        };
+    });
+  },
+
+  threatenOfficer: (officerId: string) => {
+    set((state) => {
+        const officer = state.officers.find(o => o.id === officerId);
+        if (!officer || officer.isWounded || officer.isArrested) return state;
+
+        // 1. Lower District Heat (-10)
+        const newHeat = Math.max(0, state.policeHeat - 10);
+
+        // 2. Significantly lower Loyalty (-20)
+        const newLoyalty = Math.max(0, officer.loyalty - 20);
+
+        return {
+            policeHeat: newHeat,
+            officers: state.officers.map(o =>
+                o.id === officerId
+                    ? { ...o, loyalty: newLoyalty }
+                    : o
+            ),
+        };
+    });
+  },
+  // --- END NEW OFFICER INTERACTION ACTIONS ---
+
+  advancePhase: (/* ... existing implementation ... */) => {
     set((state) => {
       const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
       const currentIndex = phases.indexOf(state.currentPhase);
@@ -1453,7 +1553,8 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
         return {
           ...officer,
           energy: newEnergy,
-          daysAssigned: newDaysAssigned
+          daysAssigned: newDaysAssigned,
+          daysIdle: 0, // Reset daysIdle if assigned
         };
       }
     }
@@ -1466,13 +1567,15 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
       return {
         ...o,
         assignedBuildingId: null,
-        daysAssigned: 0
+        daysAssigned: 0,
+        daysIdle: 0, // Will be incremented at night
       };
     }
     return o;
   });
 
   const updatedBuildings = state.buildings.map(b => {
+    // FIX: Check if the building's assignedOfficerId matches any officer's ID
     const officer = finalOfficers.find(o => o.assignedBuildingId === b.id);
     if (!officer && b.isOccupied) {
       return {
@@ -1584,9 +1687,54 @@ function processEveningNeeds(state: GameState): { updates: Partial<GameState>; e
 function processNightEvents(state: GameState): { updates: Partial<GameState>; events: { type: EventType; data: any }[] } {
   const events: { type: EventType; data: any }[] = [];
 
-  // Check for betrayal from jealous officers
-  state.officers.forEach(officer => {
-    if (officer.loyalty < 40 && officer.daysAssigned === 0) {
+  // Update officer relationships based on daily assignments and handle idle time
+  const updatedOfficers = state.officers.map(officer => {
+    let newOfficer = { ...officer };
+
+    // 1. Update daysIdle/daysAssigned
+    if (newOfficer.assignedBuildingId === null && !newOfficer.isArrested && !newOfficer.isWounded) {
+      newOfficer.daysIdle += 1;
+      newOfficer.daysAssigned = 0;
+    } else {
+      // If assigned, wounded, or arrested, reset idle counter
+      newOfficer.daysIdle = 0;
+    }
+
+    // 2. Ambitious Trait Check (if unassigned for 3 days)
+    if (newOfficer.traits.includes('Ambitious' as CharacterTrait) && newOfficer.daysIdle >= 3) {
+      newOfficer.loyalty = Math.max(0, newOfficer.loyalty - 10); // Loyalty drops significantly
+    }
+    
+    // 3. Relationship updates
+    const newRelationships = newOfficer.relationships.map(rel => {
+      const target = state.officers.find(o => o.id === rel.targetId);
+      if (target) {
+        // If both assigned, slight respect increase
+        if (newOfficer.assignedBuildingId && target.assignedBuildingId) {
+          return {
+            ...rel,
+            respect: Math.min(100, rel.respect + 1)
+          };
+        }
+
+        // If you're assigned and they're not, they lose respect
+        if (newOfficer.assignedBuildingId && !target.assignedBuildingId) {
+          return {
+            ...rel,
+            respect: Math.max(-100, rel.respect - 2)
+          };
+        }
+      }
+      return rel;
+    });
+    newOfficer.relationships = newRelationships;
+    
+    return newOfficer;
+  });
+
+  // Check for betrayal from jealous officers (using updatedOfficers)
+  updatedOfficers.forEach(officer => {
+    if (officer.loyalty < 40 && officer.daysIdle > 0) {
       // Officer not assigned might be jealous
       const avgRespect = officer.relationships.reduce((sum, r) => sum + r.respect, 0) / officer.relationships.length;
       if (avgRespect < 30 && Math.random() < 0.2) {
@@ -1612,36 +1760,6 @@ function processNightEvents(state: GameState): { updates: Partial<GameState>; ev
         }
       });
     }
-  });
-
-  // Update officer relationships based on daily assignments
-  const updatedOfficers = state.officers.map(officer => {
-    const newRelationships = officer.relationships.map(rel => {
-      const target = state.officers.find(o => o.id === rel.targetId);
-      if (target) {
-        // If both assigned, slight respect increase
-        if (officer.assignedBuildingId && target.assignedBuildingId) {
-          return {
-            ...rel,
-            respect: Math.min(100, rel.respect + 1)
-          };
-        }
-
-        // If you're assigned and they're not, they lose respect
-        if (officer.assignedBuildingId && !target.assignedBuildingId) {
-          return {
-            ...rel,
-            respect: Math.max(-100, rel.respect - 2)
-          };
-        }
-      }
-      return rel;
-    });
-
-    return {
-      ...officer,
-      relationships: newRelationships
-    };
   });
 
   return {

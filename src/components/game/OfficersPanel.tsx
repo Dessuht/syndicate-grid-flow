@@ -1,7 +1,9 @@
-import { useGameStore } from '@/stores/gameStore';
+import { useGameStore, Officer } from '@/stores/gameStore';
 import { OfficerCard } from './OfficerCard';
 import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
+import { useState } from 'react';
+import { OfficerDossierModal } from './modals/OfficerDossierModal';
 
 interface OfficersPanelProps {
   selectedOfficerId: string | null;
@@ -10,11 +12,24 @@ interface OfficersPanelProps {
 
 export const OfficersPanel = ({ selectedOfficerId, onSelectOfficer }: OfficersPanelProps) => {
   const { officers, buildings, currentPhase } = useGameStore();
+  const [dossierOfficerId, setDossierOfficerId] = useState<string | null>(null);
 
   const getBuildingName = (buildingId: string | null) => {
     if (!buildingId) return undefined;
     return buildings.find(b => b.id === buildingId)?.name;
   };
+
+  const handleOfficerClick = (officerId: string) => {
+    // 1. Always open dossier
+    setDossierOfficerId(officerId);
+
+    // 2. Only handle assignment selection if in the morning phase
+    if (currentPhase === 'morning') {
+      onSelectOfficer(selectedOfficerId === officerId ? null : officerId);
+    }
+  };
+  
+  const selectedOfficer = officers.find(o => o.id === dossierOfficerId);
 
   return (
     <motion.div
@@ -29,7 +44,7 @@ export const OfficersPanel = ({ selectedOfficerId, onSelectOfficer }: OfficersPa
         <div>
           <h2 className="font-display text-sm font-semibold neon-text-magenta">Officers</h2>
           <p className="text-[10px] text-muted-foreground">
-            {currentPhase === 'morning' ? 'Click to select' : 'Locked until morning'}
+            {currentPhase === 'morning' ? 'Click to select/view' : 'Click to view dossier'}
           </p>
         </div>
       </div>
@@ -45,13 +60,23 @@ export const OfficersPanel = ({ selectedOfficerId, onSelectOfficer }: OfficersPa
             <OfficerCard
               officer={officer}
               isSelected={selectedOfficerId === officer.id}
-              onSelect={() => onSelectOfficer(selectedOfficerId === officer.id ? null : officer.id)}
+              onSelect={() => handleOfficerClick(officer.id)}
               buildingName={getBuildingName(officer.assignedBuildingId)}
-              disabled={currentPhase !== 'morning'}
+              // We set disabled to false here so the card remains clickable for the dossier modal.
+              // The assignment logic is handled inside handleOfficerClick based on currentPhase.
+              disabled={false} 
             />
           </motion.div>
         ))}
       </div>
+      
+      {/* Officer Dossier Modal */}
+      {selectedOfficer && (
+        <OfficerDossierModal 
+          officer={selectedOfficer} 
+          onClose={() => setDossierOfficerId(null)} 
+        />
+      )}
     </motion.div>
   );
 };
