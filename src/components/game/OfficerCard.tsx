@@ -1,6 +1,6 @@
 import { Officer, OfficerRank } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
-import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star } from 'lucide-react';
+import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star, X, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface OfficerCardProps {
@@ -36,6 +36,7 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
   const RankIcon = RANK_ICONS[officer.rank];
   const energyPercent = (officer.energy / officer.maxEnergy) * 100;
   const isExhausted = officer.energy === 0;
+  const isUnavailable = officer.isWounded || officer.isArrested;
 
   return (
     <motion.div
@@ -43,30 +44,50 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
       whileHover={!disabled ? { scale: 1.02 } : {}}
       whileTap={!disabled ? { scale: 0.98 } : {}}
       className={cn(
-        "p-2 rounded-lg border transition-all duration-200",
+        "p-2 rounded-lg border transition-all duration-200 relative",
         isSelected 
           ? "bg-primary/20 border-primary neon-glow-cyan" 
           : "bg-card border-border hover:border-primary/50",
         isExhausted && "opacity-50",
         officer.assignedBuildingId && "border-neon-green/30",
         disabled ? "cursor-default" : "cursor-pointer",
-        officer.loyalty < 40 && "border-neon-red/30"
+        officer.loyalty < 40 && "border-neon-red/30",
+        isUnavailable && "opacity-70"
       )}
       onClick={!disabled ? onSelect : undefined}
     >
+      {/* Status overlays */}
+      {officer.isWounded && (
+        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-neon-red border-2 border-background flex items-center justify-center">
+          <X className="w-2.5 h-2.5 text-background" />
+        </div>
+      )}
+      
+      {officer.isArrested && (
+        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-neon-amber border-2 border-background flex items-center justify-center">
+          <Lock className="w-2.5 h-2.5 text-background" />
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         {/* Avatar */}
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center border font-display font-bold text-xs shrink-0",
-          RANK_COLORS[officer.rank]
+          RANK_COLORS[officer.rank],
+          isUnavailable && "grayscale"
         )}>
           {officer.name.split(' ').map(n => n[0]).join('')}
         </div>
-        
+
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h4 className="font-medium text-xs text-foreground truncate">{officer.name}</h4>
+            <h4 className={cn(
+              "font-medium text-xs text-foreground truncate",
+              isUnavailable && "line-through"
+            )}>
+              {officer.name}
+            </h4>
             <RankIcon className={cn("w-3 h-3 shrink-0", RANK_COLORS[officer.rank].split(' ')[0])} />
           </div>
           <div className="flex items-center gap-2">
@@ -76,20 +97,18 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
             </span>
           </div>
         </div>
-        
+
         {/* Stats Column */}
         <div className="flex flex-col items-end gap-1">
           {/* Energy */}
           <div className="flex items-center gap-1">
             <Zap className={cn(
               "w-3 h-3",
-              energyPercent > 50 ? "text-neon-green" : 
-              energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
+              energyPercent > 50 ? "text-neon-green" : energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
             )} />
             <span className={cn(
               "text-[10px] font-medium",
-              energyPercent > 50 ? "text-neon-green" : 
-              energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
+              energyPercent > 50 ? "text-neon-green" : energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
             )}>
               {officer.energy}
             </span>
@@ -99,20 +118,18 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
           <div className="flex items-center gap-1">
             <Heart className={cn(
               "w-3 h-3",
-              officer.loyalty > 60 ? "text-neon-green" : 
-              officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
+              officer.loyalty > 60 ? "text-neon-green" : officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
             )} />
             <span className={cn(
               "text-[10px]",
-              officer.loyalty > 60 ? "text-neon-green" : 
-              officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
+              officer.loyalty > 60 ? "text-neon-green" : officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
             )}>
               {officer.loyalty}%
             </span>
           </div>
         </div>
       </div>
-      
+
       {/* Traits */}
       <div className="flex flex-wrap gap-1 mt-1.5">
         {officer.traits.map((trait, index) => (
@@ -124,7 +141,7 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
           </span>
         ))}
       </div>
-      
+
       {/* Assignment Status */}
       {buildingName && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
@@ -134,14 +151,33 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
           </div>
         </div>
       )}
-      
+
+      {/* Status Messages */}
       {isExhausted && !buildingName && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
           <span className="text-[10px] text-neon-red">Exhausted</span>
         </div>
       )}
-      
-      {officer.loyalty < 40 && !isExhausted && (
+
+      {officer.isWounded && (
+        <div className="mt-1.5 pt-1.5 border-t border-border">
+          <span className="text-[10px] text-neon-red flex items-center gap-1">
+            <X className="w-3 h-3" />
+            Wounded - {officer.daysToRecovery} days to recovery
+          </span>
+        </div>
+      )}
+
+      {officer.isArrested && (
+        <div className="mt-1.5 pt-1.5 border-t border-border">
+          <span className="text-[10px] text-neon-amber flex items-center gap-1">
+            <Lock className="w-3 h-3" />
+            Arrested
+          </span>
+        </div>
+      )}
+
+      {officer.loyalty < 40 && !isExhausted && !isUnavailable && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
           <span className="text-[10px] text-neon-amber">Low loyalty - risk of betrayal</span>
         </div>

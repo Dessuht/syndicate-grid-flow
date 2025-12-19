@@ -1,10 +1,10 @@
-import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle } from 'lucide-react';
+import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle, Heart, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 
-export type ViewType = 'district' | 'global';
+export type ViewType = 'district' | 'global' | 'legal';
 
 interface SidebarProps {
   activeView: ViewType;
@@ -24,14 +24,24 @@ const NAV_ITEMS = [
     icon: Globe, 
     description: 'Diplomacy & expansion' 
   },
+  { 
+    id: 'legal' as ViewType, 
+    label: 'Legal & Medical', 
+    icon: Heart, 
+    description: 'Hospital & jail management' 
+  },
 ];
 
 export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { rivals } = useGameStore();
+  const { rivals, officers } = useGameStore();
   
   // Check if there's an active street war
   const hasActiveStreetWar = rivals.some(r => r.isActiveConflict);
+  
+  // Count wounded and arrested officers
+  const woundedOfficers = officers.filter(o => o.isWounded);
+  const arrestedOfficers = officers.filter(o => o.isArrested);
 
   return (
     <motion.aside
@@ -61,13 +71,14 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           )}
         </div>
       </div>
-      
+
       {/* Navigation */}
       <nav className="flex-1 p-2">
         <div className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const isActive = activeView === item.id;
             const showWarning = item.id === 'district' && hasActiveStreetWar;
+            const showBadge = (item.id === 'legal' && (woundedOfficers.length > 0 || arrestedOfficers.length > 0));
             
             return (
               <button
@@ -86,12 +97,19 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
                     isActive && "text-primary"
                   )} 
                 />
+                
                 {!isCollapsed && (
                   <div className="text-left flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{item.label}</p>
                       {showWarning && (
                         <AlertTriangle className="w-4 h-4 text-neon-red animate-pulse" />
+                      )}
+                      {showBadge && (
+                        <span className="flex h-2 w-2">
+                          <span className="animate-ping absolute h-2 w-2 rounded-full bg-neon-red opacity-75"></span>
+                          <span className="relative h-2 w-2 rounded-full bg-neon-red"></span>
+                        </span>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">{item.description}</p>
@@ -102,7 +120,7 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           })}
         </div>
       </nav>
-      
+
       {/* Stats Preview */}
       {!isCollapsed && (
         <div className="p-4 border-t border-sidebar-border">
@@ -124,7 +142,7 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           </div>
         </div>
       )}
-      
+
       {/* Collapse Toggle */}
       <div className="p-2 border-t border-sidebar-border">
         <button

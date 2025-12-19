@@ -11,20 +11,20 @@ import { Button } from '@/components/ui/button';
 export const DistrictMap = () => {
   const { buildings, officers, currentDay, currentPhase, advancePhase, hostNightclub, cash, intel } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
-  
   const assignOfficer = useGameStore(state => state.assignOfficer);
   const unassignOfficer = useGameStore(state => state.unassignOfficer);
-  
+
   const handleAssign = (buildingId: string) => {
     if (selectedOfficerId && currentPhase === 'morning') {
       const officer = officers.find(o => o.id === selectedOfficerId);
-      if (officer && !officer.assignedBuildingId) {
+      // Check if officer is available for assignment
+      if (officer && !officer.assignedBuildingId && !officer.isWounded && !officer.isArrested) {
         assignOfficer(selectedOfficerId, buildingId);
         setSelectedOfficerId(null);
       }
     }
   };
-  
+
   const handleUnassign = (buildingId: string) => {
     if (currentPhase === 'morning') {
       const building = buildings.find(b => b.id === buildingId);
@@ -33,7 +33,7 @@ export const DistrictMap = () => {
       }
     }
   };
-  
+
   const getOfficerForBuilding = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     if (building?.assignedOfficerId) {
@@ -41,7 +41,7 @@ export const DistrictMap = () => {
     }
     return null;
   };
-  
+
   const phaseButtonText = {
     morning: 'Start Operations',
     day: 'End Work Day',
@@ -80,7 +80,7 @@ export const DistrictMap = () => {
             <Button 
               variant="cyber" 
               size="default" 
-              onClick={advancePhase}
+              onClick={advancePhase} 
               className="gap-2"
             >
               {currentPhase === 'night' ? <SkipForward className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -88,7 +88,7 @@ export const DistrictMap = () => {
             </Button>
           </div>
         </div>
-        
+
         {/* Selection hint */}
         <AnimatePresence>
           {selectedOfficerId && currentPhase === 'morning' && (
@@ -99,7 +99,9 @@ export const DistrictMap = () => {
               className="mb-3 p-2 rounded-lg bg-primary/10 border border-primary/30"
             >
               <p className="text-sm text-primary">
-                <span className="font-semibold">{officers.find(o => o.id === selectedOfficerId)?.name}</span> selected — click an empty building to assign
+                <span className="font-semibold">
+                  {officers.find(o => o.id === selectedOfficerId)?.name}
+                </span> selected — click an empty building to assign
               </p>
             </motion.div>
           )}
@@ -116,7 +118,7 @@ export const DistrictMap = () => {
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {/* Building Grid */}
         <motion.div className="command-grid flex-1 overflow-auto" layout>
           <AnimatePresence mode="popLayout">
@@ -144,7 +146,7 @@ export const DistrictMap = () => {
           </AnimatePresence>
         </motion.div>
       </div>
-      
+
       {/* Right Sidebar */}
       <div className="w-72 shrink-0 flex flex-col gap-4 overflow-auto">
         <OfficersPanel 

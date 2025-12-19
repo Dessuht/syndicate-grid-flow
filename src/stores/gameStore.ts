@@ -34,6 +34,9 @@ export interface Officer {
   relationships: OfficerRelationship[];
   isBetraying: boolean;
   traits: CharacterTrait[];  // Add traits to officers
+  isWounded: boolean;  // New flag for wounded officers
+  isArrested: boolean;  // New flag for arrested officers
+  daysToRecovery: number;  // Days until recovery from wound
 }
 
 export interface Building {
@@ -120,7 +123,10 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-4', respect: 30 },
     ],
     isBetraying: false,
-    traits: ['Fearless', 'Ruthless']
+    traits: ['Fearless', 'Ruthless'],
+    isWounded: false,
+    isArrested: false,
+    daysToRecovery: 0
   },
   {
     id: 'off-2',
@@ -138,7 +144,10 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-4', respect: 45 },
     ],
     isBetraying: false,
-    traits: ['Calculating', 'Silver Tongue']
+    traits: ['Calculating', 'Silver Tongue'],
+    isWounded: false,
+    isArrested: false,
+    daysToRecovery: 0
   },
   {
     id: 'off-3',
@@ -156,7 +165,10 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-4', respect: 35 },
     ],
     isBetraying: false,
-    traits: ['Street Smart', 'Connected']
+    traits: ['Street Smart', 'Connected'],
+    isWounded: false,
+    isArrested: false,
+    daysToRecovery: 0
   },
   {
     id: 'off-4',
@@ -174,7 +186,10 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-3', respect: 40 },
     ],
     isBetraying: false,
-    traits: ['Loyal Dog', 'Street Smart']
+    traits: ['Loyal Dog', 'Street Smart'],
+    isWounded: false,
+    isArrested: false,
+    daysToRecovery: 0
   },
 ];
 
@@ -408,6 +423,11 @@ export interface GameState {
 
   // Street War actions
   increaseFriction: () => void;
+
+  // Hospital/Jail Recovery System
+  healOfficer: (officerId: string) => void;
+  releaseOfficer: (officerId: string) => void;
+  processRecovery: () => void;
 }
 
 // ==================== STORE ====================
@@ -455,7 +475,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       const officer = state.officers.find(o => o.id === officerId);
       const building = state.buildings.find(b => b.id === buildingId);
 
-      if (!officer || !building || building.isOccupied || officer.assignedBuildingId) {
+      // Check if officer is available for assignment (not wounded or arrested)
+      if (!officer || officer.isWounded || officer.isArrested || !building || building.isOccupied || officer.assignedBuildingId) {
         return state;
       }
 
@@ -558,6 +579,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           newEvents = nightResults.events;
           break;
       }
+
+      // Process recovery at the end of each day cycle
+      const recoveryResults = processRecovery(state);
+      updates = { ...updates, ...recoveryResults };
 
       // Queue events if any
       if (newEvents.length > 0) {
@@ -675,8 +700,11 @@ export const useGameStore = create<GameState>((set, get) => ({
               } else {
                 newOfficer.loyalty = Math.max(0, newOfficer.loyalty + officerLoyaltyChange);
                 if (officerStatusEffect === 'wounded') {
+                  newOfficer.isWounded = true;
+                  newOfficer.daysToRecovery = 3;
                   newOfficer.energy = Math.max(0, Math.floor(newOfficer.maxEnergy * 0.2));
                 } else if (officerStatusEffect === 'arrested') {
+                  newOfficer.isArrested = true;
                   newOfficer.assignedBuildingId = null;
                   newOfficer.energy = 0;
                 }
@@ -1038,8 +1066,11 @@ export const useGameStore = create<GameState>((set, get) => ({
               } else {
                 newOfficer.loyalty = Math.max(0, newOfficer.loyalty + officerLoyaltyChange);
                 if (officerStatusEffect === 'wounded') {
+                  newOfficer.isWounded = true;
+                  newOfficer.daysToRecovery = 3;
                   newOfficer.energy = Math.max(0, Math.floor(newOfficer.maxEnergy * 0.2));
                 } else if (officerStatusEffect === 'arrested') {
+                  newOfficer.isArrested = true;
                   newOfficer.assignedBuildingId = null;
                   newOfficer.energy = 0;
                 }
@@ -1327,6 +1358,57 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       territoryFriction: Math.min(100, state.territoryFriction + 5)
     }));
+  },
+
+  // Hospital/Jail Recovery System
+  healOfficer: (officerId: string) => {
+    set((state) => {
+      if (state.cash < 2000) return state;
+      
+      return {
+        cash: state.cash - 2000,
+        officers: state.officers.map(o => 
+          o.id === officerId && o.isWounded
+            ? { ...o, isWounded: false, daysToRecovery: 0 }
+            : o
+        )
+      };
+    });
+  },
+
+  releaseOfficer: (officerId: string) => {
+    set((state) => {
+      // Check if we have enough intel or cash
+      if (state.intel < 50 && state.cash < 5000) return state;
+      
+      return {
+        intel: state.intel >= 50 ? state.intel - 50 : state.intel,
+        cash: state.cash >= 5000 ? state.cash - 5000 : state.cash,
+        officers: state.officers.map(o => 
+          o.id === officerId && o.isArrested
+            ? { ...o, isArrested: false }
+            : o
+        )
+      };
+    });
+  },
+
+  processRecovery: () => {
+    set((state) => {
+      const updatedOfficers = state.officers.map(o => {
+        if (o.isWounded && o.daysToRecovery > 0) {
+          const newDaysToRecovery = o.daysToRecovery - 1;
+          // If recovery is complete, heal the officer
+          if (newDaysToRecovery === 0) {
+            return { ...o, isWounded: false, daysToRecovery: 0 };
+          }
+          return { ...o, daysToRecovery: newDaysToRecovery };
+        }
+        return o;
+      });
+      
+      return { officers: updatedOfficers };
+    });
   }
 }));
 
@@ -1569,6 +1651,23 @@ function processNightEvents(state: GameState): { updates: Partial<GameState>; ev
     },
     events,
   };
+}
+
+// Process recovery at the end of each day cycle
+function processRecovery(state: GameState): Partial<GameState> {
+  const updatedOfficers = state.officers.map(o => {
+    if (o.isWounded && o.daysToRecovery > 0) {
+      const newDaysToRecovery = o.daysToRecovery - 1;
+      // If recovery is complete, heal the officer
+      if (newDaysToRecovery === 0) {
+        return { ...o, isWounded: false, daysToRecovery: 0 };
+      }
+      return { ...o, daysToRecovery: newDaysToRecovery };
+    }
+    return o;
+  });
+  
+  return { officers: updatedOfficers };
 }
 
 const SOLDIER_NAMES_EXPORT = SOLDIER_NAMES;
