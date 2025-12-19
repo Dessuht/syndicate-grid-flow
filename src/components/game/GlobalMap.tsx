@@ -7,12 +7,40 @@ import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Territory locations in Hong Kong (lat, lng)
-const TERRITORY_LOCATIONS: Record<string, { coords: [number, number]; label: string }> = {
-  'player': { coords: [22.2783, 114.1694], label: 'Wan Chai' },
-  'rival-1': { coords: [22.3282, 114.1849], label: 'Kowloon City' },
-  'rival-2': { coords: [22.3193, 114.1694], label: 'Mong Kok' },
-  'rival-3': { coords: [22.2988, 114.1722], label: 'Tsim Sha Tsui' },
+// Territory polygon boundaries in Hong Kong (lat, lng) - approximate district boundaries
+const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: string; center: [number, number] }> = {
+  'player': { 
+    label: 'Wan Chai',
+    center: [22.2783, 114.1750],
+    coords: [
+      [22.2720, 114.1600], [22.2720, 114.1850], [22.2850, 114.1900], 
+      [22.2900, 114.1850], [22.2880, 114.1650], [22.2800, 114.1580]
+    ]
+  },
+  'rival-1': { 
+    label: 'Kowloon City',
+    center: [22.3282, 114.1849],
+    coords: [
+      [22.3150, 114.1750], [22.3150, 114.1950], [22.3250, 114.2050],
+      [22.3400, 114.2000], [22.3420, 114.1800], [22.3300, 114.1700]
+    ]
+  },
+  'rival-2': { 
+    label: 'Mong Kok',
+    center: [22.3193, 114.1694],
+    coords: [
+      [22.3100, 114.1550], [22.3100, 114.1750], [22.3200, 114.1800],
+      [22.3300, 114.1750], [22.3320, 114.1600], [22.3200, 114.1500]
+    ]
+  },
+  'rival-3': { 
+    label: 'Tsim Sha Tsui',
+    center: [22.2988, 114.1722],
+    coords: [
+      [22.2900, 114.1650], [22.2920, 114.1800], [22.3050, 114.1850],
+      [22.3100, 114.1750], [22.3080, 114.1600], [22.2980, 114.1550]
+    ]
+  },
 };
 
 // Gang colors
@@ -38,7 +66,7 @@ export const GlobalMap = () => {
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.CircleMarker[]>([]);
+  const polygonsRef = useRef<L.Polygon[]>([]);
   
   const [selectedRival, setSelectedRival] = useState<string | null>(null);
 
@@ -51,10 +79,10 @@ export const GlobalMap = () => {
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
-    // Create map
+    // Create map - centered to show all territories
     mapRef.current = L.map(mapContainer.current, {
-      center: [22.31, 114.17],
-      zoom: 12,
+      center: [22.305, 114.175],
+      zoom: 13,
       zoomControl: true,
       attributionControl: false,
     });
@@ -64,8 +92,8 @@ export const GlobalMap = () => {
       maxZoom: 19,
     }).addTo(mapRef.current);
 
-    // Add markers
-    addMarkers();
+    // Add territory polygons
+    addTerritoryPolygons();
 
     return () => {
       mapRef.current?.remove();
@@ -73,33 +101,35 @@ export const GlobalMap = () => {
     };
   }, []);
 
-  const addMarkers = () => {
+  const addTerritoryPolygons = () => {
     if (!mapRef.current) return;
 
-    // Clear existing
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
+    // Clear existing polygons
+    polygonsRef.current.forEach(p => p.remove());
+    polygonsRef.current = [];
 
-    // Player marker
-    const playerMarker = L.circleMarker(TERRITORY_LOCATIONS['player'].coords, {
-      radius: 18,
+    // Player territory polygon
+    const playerTerritory = TERRITORY_BOUNDARIES['player'];
+    const playerPolygon = L.polygon(playerTerritory.coords, {
       fillColor: GANG_COLORS['player'],
-      fillOpacity: 0.4,
+      fillOpacity: 0.35,
       color: GANG_COLORS['player'],
       weight: 3,
+      dashArray: '0',
     }).addTo(mapRef.current);
     
-    playerMarker.bindTooltip('Your Territory (Wan Chai)', {
-      permanent: false,
-      className: 'territory-tooltip',
+    playerPolygon.bindTooltip('Your Territory (Wan Chai)', {
+      permanent: true,
+      direction: 'center',
+      className: 'territory-label',
     });
-    markersRef.current.push(playerMarker);
+    polygonsRef.current.push(playerPolygon);
 
-    // Rival markers
+    // Rival territory polygons
     rivals.forEach((rival, index) => {
       const key = `rival-${index + 1}`;
-      const location = TERRITORY_LOCATIONS[key];
-      if (!location || !mapRef.current) return;
+      const territory = TERRITORY_BOUNDARIES[key];
+      if (!territory || !mapRef.current) return;
 
       const color = rival.hasAlliance 
         ? '#44FF44' 
@@ -107,39 +137,39 @@ export const GlobalMap = () => {
           ? '#FF4444' 
           : GANG_COLORS[key];
 
-      const marker = L.circleMarker(location.coords, {
-        radius: 15,
+      const polygon = L.polygon(territory.coords, {
         fillColor: color,
-        fillOpacity: 0.4,
+        fillOpacity: 0.3,
         color: color,
-        weight: 3,
+        weight: 2,
       }).addTo(mapRef.current);
 
-      marker.bindTooltip(`${rival.name} (${rival.district})`, {
-        permanent: false,
-        className: 'territory-tooltip',
+      polygon.bindTooltip(`${rival.name}`, {
+        permanent: true,
+        direction: 'center',
+        className: 'territory-label',
       });
 
-      marker.on('click', () => {
+      polygon.on('click', () => {
         setSelectedRival(selectedRival === rival.id ? null : rival.id);
       });
 
-      marker.on('mouseover', () => {
-        marker.setStyle({ radius: 20, fillOpacity: 0.6 });
+      polygon.on('mouseover', () => {
+        polygon.setStyle({ fillOpacity: 0.5, weight: 4 });
       });
 
-      marker.on('mouseout', () => {
-        marker.setStyle({ radius: 15, fillOpacity: 0.4 });
+      polygon.on('mouseout', () => {
+        polygon.setStyle({ fillOpacity: 0.3, weight: 2 });
       });
 
-      markersRef.current.push(marker);
+      polygonsRef.current.push(polygon);
     });
   };
 
-  // Update markers when data changes
+  // Update polygons when data changes
   useEffect(() => {
     if (mapRef.current) {
-      addMarkers();
+      addTerritoryPolygons();
     }
   }, [rivals, selectedRival]);
 
@@ -199,14 +229,14 @@ export const GlobalMap = () => {
         ))}
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {/* Map */}
-        <div className="lg:col-span-2 relative rounded-lg overflow-hidden border border-border">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+        {/* Map - larger area */}
+        <div className="flex-1 lg:flex-[2] relative rounded-lg overflow-hidden border border-border min-h-[400px] lg:min-h-0">
           <div ref={mapContainer} className="absolute inset-0" style={{ background: '#1a1a2e' }} />
         </div>
 
-        {/* Info Panel */}
-        <div className="space-y-4 overflow-auto">
+        {/* Info Panel - smaller sidebar */}
+        <div className="lg:w-80 space-y-4 overflow-auto">
           <AnimatePresence mode="wait">
             {selectedRivalData ? (
               <motion.div
