@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { Character } from '@/types/character';
+import { generateSoldier } from '@/lib/characterGenerator';
 
 // ==================== TYPES ====================
 
@@ -223,6 +225,10 @@ export interface GameState {
   // Diplomacy
   activeDiplomacy: { rivalId: string; action: DiploAction } | null;
 
+  // Family Council - Character System
+  syndicateMembers: Character[];
+  recruitCost: number;
+
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => void;
   unassignOfficer: (officerId: string) => void;
@@ -249,6 +255,9 @@ export interface GameState {
   
   // Soldiers
   recruitSoldier: () => void;
+  
+  // Character System
+  recruitSyndicateMember: () => void;
 }
 
 // ==================== STORE ====================
@@ -271,6 +280,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   eventData: null,
   pendingEvents: [],
   activeDiplomacy: null,
+  syndicateMembers: [],
+  recruitCost: 500,
 
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
@@ -770,6 +781,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         cash: state.cash - cost,
         soldiers: [...state.soldiers, newSoldier],
+      };
+    });
+  },
+
+  recruitSyndicateMember: () => {
+    set((state) => {
+      if (state.cash < state.recruitCost) return state;
+
+      const newMember = generateSoldier(state.currentDay);
+
+      return {
+        cash: state.cash - state.recruitCost,
+        syndicateMembers: [...state.syndicateMembers, newMember],
       };
     });
   },

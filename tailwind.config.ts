@@ -69,6 +69,11 @@ export default {
           red: "hsl(var(--neon-red))",
           purple: "hsl(var(--neon-purple))",
         },
+        jianghu: {
+          gold: "hsl(var(--jianghu-gold))",
+          amber: "hsl(var(--jianghu-amber))",
+          crimson: "hsl(var(--jianghu-crimson))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
