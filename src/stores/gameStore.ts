@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Character, CharacterTrait, generateSoldier } from '@/types/character';
+import { Character, CharacterTrait } from '@/types/character';
+import { generateSoldier } from '@/lib/characterGenerator';
 
 // ==================== TYPES ====================
 
