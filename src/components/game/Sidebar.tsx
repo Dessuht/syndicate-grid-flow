@@ -1,4 +1,4 @@
-import { Map, Globe, Users, TrendingUp, Shield, Menu, Building } from 'lucide-react';
+import { Building, Globe, Users, TrendingUp, Shield, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
@@ -11,13 +11,23 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'district' as ViewType, label: 'District', icon: Building, description: 'Manage buildings' },
-  { id: 'global' as ViewType, label: 'Territory', icon: Globe, description: 'Expand influence' },
+  { 
+    id: 'district' as ViewType, 
+    label: 'District', 
+    icon: Building, 
+    description: 'Manage buildings & personnel' 
+  },
+  { 
+    id: 'global' as ViewType, 
+    label: 'Territory', 
+    icon: Globe, 
+    description: 'Diplomacy & expansion' 
+  },
 ];
 
 export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
+
   return (
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
@@ -63,10 +73,12 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-primary"
                 )}
               >
-                <item.icon className={cn(
-                  "w-5 h-5 shrink-0",
-                  isActive && "text-primary"
-                )} />
+                <item.icon 
+                  className={cn(
+                    "w-5 h-5 shrink-0",
+                    isActive && "text-primary"
+                  )} 
+                />
                 {!isCollapsed && (
                   <div className="text-left">
                     <p className="font-medium text-sm">{item.label}</p>
