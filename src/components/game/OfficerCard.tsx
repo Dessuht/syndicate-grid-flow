@@ -1,6 +1,6 @@
 import { Officer, OfficerRank } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
-import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star, X, Lock } from 'lucide-react';
+import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star, X, Lock, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface OfficerCardProps {
@@ -16,6 +16,8 @@ const RANK_ICONS: Record<OfficerRank, React.ElementType> = {
   'White Paper Fan': BookOpen,
   'Straw Sandal': Footprints,
   'Blue Lantern': Lamp,
+  'Deputy (438)': Star,
+  'Dragonhead (489)': Skull,
 };
 
 const RANK_COLORS: Record<OfficerRank, string> = {
@@ -23,6 +25,8 @@ const RANK_COLORS: Record<OfficerRank, string> = {
   'White Paper Fan': 'text-foreground border-foreground/50 bg-foreground/10',
   'Straw Sandal': 'text-neon-amber border-neon-amber/50 bg-neon-amber/10',
   'Blue Lantern': 'text-neon-cyan border-neon-cyan/50 bg-neon-cyan/10',
+  'Deputy (438)': 'text-jianghu-gold border-jianghu-gold/50 bg-jianghu-gold/10',
+  'Dragonhead (489)': 'text-jianghu-crimson border-jianghu-crimson/50 bg-jianghu-crimson/10',
 };
 
 const RANK_SPECIALTY: Record<OfficerRank, string> = {
@@ -30,10 +34,12 @@ const RANK_SPECIALTY: Record<OfficerRank, string> = {
   'White Paper Fan': 'Heat -',
   'Straw Sandal': 'Legal +',
   'Blue Lantern': 'Loyalty +',
+  'Deputy (438)': 'Logistics/Diplo',
+  'Dragonhead (489)': 'Command/Combat',
 };
 
 export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disabled }: OfficerCardProps) => {
-  const RankIcon = RANK_ICONS[officer.rank];
+  const RankIcon = RANK_ICONS[officer.rank] || Lamp;
   const energyPercent = (officer.energy / officer.maxEnergy) * 100;
   const isExhausted = officer.energy === 0;
   const isUnavailable = officer.isWounded || officer.isArrested;
@@ -73,7 +79,7 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
         {/* Avatar */}
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center border font-display font-bold text-xs shrink-0",
-          RANK_COLORS[officer.rank],
+          RANK_COLORS[officer.rank].split(' ').filter(c => c.startsWith('text-') || c.startsWith('border-') || c.startsWith('bg-')).join(' '),
           isUnavailable && "grayscale"
         )}>
           {officer.name.split(' ').map(n => n[0]).join('')}
@@ -100,17 +106,17 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
 
         {/* Stats Column */}
         <div className="flex flex-col items-end gap-1">
-          {/* Energy */}
+          {/* Face */}
           <div className="flex items-center gap-1">
-            <Zap className={cn(
+            <Star className={cn(
               "w-3 h-3",
-              energyPercent > 50 ? "text-neon-green" : energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
+              officer.face > 50 ? "text-jianghu-gold" : "text-muted-foreground/50"
             )} />
             <span className={cn(
               "text-[10px] font-medium",
-              energyPercent > 50 ? "text-neon-green" : energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
+              officer.face > 50 ? "text-jianghu-gold" : "text-muted-foreground/50"
             )}>
-              {officer.energy}
+              {officer.face}
             </span>
           </div>
           

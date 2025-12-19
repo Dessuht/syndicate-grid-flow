@@ -1,6 +1,6 @@
-import { useGameStore, Officer } from '@/stores/gameStore';
+import { useGameStore, Officer, OfficerRank } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase } from 'lucide-react';
+import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase, Star, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -10,22 +10,30 @@ interface OfficerDossierModalProps {
   onClose: () => void;
 }
 
+const PROMOTION_COST = 5000;
+const PROMOTION_FACE_REQUIREMENT = 50;
+
 export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalProps) => {
   const { 
     currentPhase, 
     cash, 
-    talkToOfficer, 
+    shareTea, 
     giveBonus, 
-    threatenOfficer 
+    reprimandOfficer,
+    promoteOfficer
   } = useGameStore();
 
   const isMorning = currentPhase === 'morning';
   const isUnavailable = officer.isWounded || officer.isArrested;
   const canInteract = isMorning && !isUnavailable;
+  
+  const canPromote = officer.face >= PROMOTION_FACE_REQUIREMENT && cash >= PROMOTION_COST;
+  const isMaxRank = officer.rank === 'Deputy (438)' || officer.rank === 'Dragonhead (489)';
+  const nextRank = officer.rank === 'Red Pole' || officer.rank === 'White Paper Fan' ? 'Deputy (438)' : 'Dragonhead (489)';
+  const promotionAvailable = !isMaxRank && (officer.rank === 'Red Pole' || officer.rank === 'White Paper Fan' || officer.rank === 'Straw Sandal' || officer.rank === 'Blue Lantern');
 
-  const handleTalk = () => {
-    talkToOfficer(officer.id);
-    // Close if energy runs out, otherwise keep open to see loyalty/agenda update
+  const handleShareTea = () => {
+    shareTea(officer.id);
     if (officer.energy - 10 <= 0) {
         onClose();
     }
@@ -36,8 +44,13 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
     onClose();
   };
 
-  const handleThreaten = () => {
-    threatenOfficer(officer.id);
+  const handleReprimand = () => {
+    reprimandOfficer(officer.id);
+    onClose();
+  };
+  
+  const handlePromote = (rank: OfficerRank) => {
+    promoteOfficer(officer.id, rank);
     onClose();
   };
 
@@ -106,6 +119,27 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
                 )}
               />
             </div>
+            
+            {/* Face Bar */}
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <div className="flex items-center gap-1">
+                  <Star className="w-3 h-3 text-jianghu-gold" />
+                  <span className="text-muted-foreground">Face (Prestige)</span>
+                </div>
+                <span className={cn(
+                  "font-medium",
+                  officer.face >= PROMOTION_FACE_REQUIREMENT ? "text-jianghu-gold" : "text-muted-foreground"
+                )}>
+                  {officer.face}%
+                </span>
+              </div>
+              <Progress 
+                value={officer.face} 
+                className="h-1.5 bg-slate-800"
+                indicatorClassName="bg-jianghu-gold"
+              />
+            </div>
 
             {/* Energy Bar */}
             <div>
@@ -130,7 +164,7 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
                 <span className="text-xs font-semibold text-neon-amber">Current Agenda</span>
               </div>
               <p className="text-sm mt-1 text-foreground">
-                {officer.currentAgenda || (canInteract ? 'Unknown. Talk to reveal.' : 'Unknown.')}
+                {officer.currentAgenda || (canInteract ? 'Unknown. Share Tea to reveal.' : 'Unknown.')}
               </p>
             </div>
           </div>
@@ -153,18 +187,18 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
           {/* Interaction Actions */}
           <h3 className="font-display text-lg font-bold mb-3">Interactions</h3>
           <div className="space-y-3">
-            {/* Talk/Consult */}
+            {/* Share Tea */}
             <Button
               variant="outline"
               className="w-full justify-start gap-3 h-auto py-3 border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
-              onClick={handleTalk}
+              onClick={handleShareTea}
               disabled={!canInteract || officer.energy < 10}
             >
               <div className="p-2 rounded bg-neon-cyan/20">
                 <MessageSquare className="w-5 h-5 text-neon-cyan" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Talk/Consult</p>
+                <p className="font-semibold text-foreground">Share Tea</p>
                 <p className="text-xs text-muted-foreground">
                   +5 Loyalty, Reveal Agenda • -10 Energy
                 </p>
@@ -189,25 +223,55 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
               </div>
             </Button>
 
-            {/* Threaten */}
+            {/* Reprimand */}
             <Button
               variant="outline"
               className="w-full justify-start gap-3 h-auto py-3 border-neon-red/30 hover:border-neon-red/60 hover:bg-neon-red/10"
-              onClick={handleThreaten}
+              onClick={handleReprimand}
               disabled={!canInteract}
             >
               <div className="p-2 rounded bg-neon-red/20">
                 <Skull className="w-5 h-5 text-neon-red" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Threaten</p>
+                <p className="font-semibold text-foreground">Reprimand</p>
                 <p className="text-xs text-muted-foreground">
-                  -10 Heat • -20 Loyalty (High Risk)
+                  -10 Heat • -20 Loyalty (Risk of Snitching/Quitting)
                 </p>
               </div>
             </Button>
           </div>
           
+          {/* Promotion Section */}
+          {promotionAvailable && (
+            <div className="mt-6 pt-4 border-t border-border space-y-3">
+              <h3 className="font-display text-lg font-bold text-jianghu-gold">Promotion Ceremony</h3>
+              
+              <Button
+                variant="cyber"
+                className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => handlePromote(nextRank)}
+                disabled={!canPromote}
+              >
+                <div className="p-2 rounded bg-jianghu-gold/20">
+                  <TrendingUp className="w-5 h-5 text-jianghu-gold" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-foreground">Promote to {nextRank}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Cost: ${PROMOTION_COST.toLocaleString()} • Requires {PROMOTION_FACE_REQUIREMENT} Face
+                  </p>
+                </div>
+              </Button>
+              
+              {!canPromote && (
+                <p className="text-[10px] text-center text-neon-amber">
+                  Requires ${PROMOTION_COST.toLocaleString()} cash and {PROMOTION_FACE_REQUIREMENT} Face.
+                </p>
+              )}
+            </div>
+          )}
+
           {!isMorning && (
             <p className="mt-4 text-xs text-neon-amber text-center">
               Interactions are only available during the Morning phase.
