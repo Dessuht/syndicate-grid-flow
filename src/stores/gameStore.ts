@@ -7,7 +7,7 @@ export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blu
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL'; // Added COUNCIL
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | null; // Added 'newEra'
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | null; // Added 'dailyBriefing'
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -449,6 +449,9 @@ export interface GameState {
   // Council System
   currentScene: GameScene;
   councilMotions: CouncilMotion[];
+  
+  // Daily Briefing State
+  dailyBriefingIgnored: boolean; // NEW: Tracks if the passive choice was taken
 
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => void;
@@ -480,6 +483,7 @@ export interface GameState {
   handleStreetWarChoice: (choice: 'bribe' | 'fight') => void;
   handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void;
   handleLeaderDeath: (officerId: string) => void; // NEW
+  handleDailyBriefingChoice: (choice: 'passive' | 'financial' | 'authoritarian') => void; // NEW
   dismissEvent: () => void;
 
   // Diplomacy
@@ -564,6 +568,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Council System
   currentScene: 'DISTRICT', // Default scene
   councilMotions: [],
+  
+  // Daily Briefing State
+  dailyBriefingIgnored: false,
 
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
@@ -1022,7 +1029,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           updates.cash = state.cash - cost;
           updates.intel = state.intel - intelCost;
           updates.officers = state.officers.map(o =>
-            o.id === officerId ? { ...o, isTraitor: false, loyalty: 50, face: 0, grudge: false } : o
+            o.id === officerId ? { ...o, isTraitor: false, loyalty: 50, face: 0, grudge: false, isSuccessor: false, isTestingWaters: false } : o
           );
           updates.buildings = state.buildings.map(b =>
             b.id === rebelBase.id ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } : b
@@ -1063,7 +1070,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           // Resetting state for simulation purposes, replace with actual Game Over logic
           cash: 1000,
           reputation: 10,
-          officers: INITIAL_OFFICERS.map(o => ({...o, isSuccessor: false})),
+          officers: INITIAL_OFFICERS.map(o => ({...o, isSuccessor: false, isTestingWaters: false})),
           soldiers: INITIAL_SOLDIERS,
           currentDay: 1,
           activeEvent: null,
@@ -1109,12 +1116,71 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
     });
   },
-  // --- END CIVIL WAR ACTIONS ---
+  
+  handleDailyBriefingChoice: (choice: 'passive' | 'financial' | 'authoritarian') => {
+    set((state) => {
+      const { officerId, eventType } = state.eventData;
+      const officer = state.officers.find(o => o.id === officerId);
+      if (!officer) return { ...state, activeEvent: null, eventData: null };
+
+      let updates: Partial<GameState> = { activeEvent: null, eventData: null, dailyBriefingIgnored: false };
+      let updatedOfficers = state.officers;
+      let newCash = state.cash;
+
+      const EVENT_COSTS: Record<string, { cost: number, loyaltyBoost: number, energyBoost: number }> = {
+        sick: { cost: 500, loyaltyBoost: 0, energyBoost: 0 },
+        disgruntled: { cost: 1000, loyaltyBoost: 10, energyBoost: 0 },
+        hungover: { cost: 200, loyaltyBoost: 0, energyBoost: 20 },
+        rivals: { cost: 1500, loyaltyBoost: 15, energyBoost: 0 },
+      };
+      
+      const costs = EVENT_COSTS[eventType];
+
+      switch (choice) {
+        case 'passive':
+          // Officer effectiveness -50% for the day. Tracked by dailyBriefingIgnored.
+          updates.dailyBriefingIgnored = true;
+          break;
+
+        case 'financial':
+          if (state.cash < costs.cost) return state; // Should be disabled in UI, but safety check
+          
+          newCash -= costs.cost;
+          updatedOfficers = updatedOfficers.map(o => 
+            o.id === officerId 
+              ? { 
+                  ...o, 
+                  loyalty: Math.min(100, o.loyalty + costs.loyaltyBoost),
+                  energy: Math.min(o.maxEnergy, o.energy + costs.energyBoost),
+                } 
+              : o
+          );
+          break;
+
+        case 'authoritarian':
+          // Fixes issue, but -20 Loyalty
+          updatedOfficers = updatedOfficers.map(o => 
+            o.id === officerId 
+              ? { ...o, loyalty: Math.max(0, o.loyalty - 20) } 
+              : o
+          );
+          break;
+      }
+
+      return { ...updates, cash: newCash, officers: updatedOfficers };
+    });
+  },
+  // --- END EVENT ACTIONS ---
 
   advancePhase: (/* ... existing implementation ... */) => {
     set((state) => {
       const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
       const currentIndex = phases.indexOf(state.currentPhase);
+
+      // 1. BLOCK: Cannot advance from morning if a Daily Briefing is active
+      if (state.currentPhase === 'morning' && state.activeEvent === 'dailyBriefing') {
+        return state;
+      }
 
       // Check for Council Trigger (Every 10 days, at the start of the day cycle)
       if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
@@ -1166,7 +1232,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           break;
 
         case 'night':
-          // Night -> Morning (next day): Random events, relationship changes, COUP CHECK
+          // Night -> Morning (next day): Random events, relationship changes, COUP CHECK, Daily Briefing Trigger
           const nightResults = processNightEvents(state);
           updates = { ...updates, ...nightResults.updates, currentPhase: 'morning', currentDay: state.currentDay + 1 };
           newEvents = nightResults.events;
@@ -1191,6 +1257,15 @@ export const useGameStore = create<GameState>((set, get) => ({
               newEvents.push({ type: 'coupAttempt', data: { officerName: coupCheck.officerName, buildingName: coupCheck.buildingName, officerId: coupCheck.officerId } });
             }
           }
+          
+          // Generate Daily Briefing Event for the next morning
+          const briefingEvent = generateDailyBriefing(state);
+          if (briefingEvent) {
+            newEvents.push(briefingEvent);
+          }
+          
+          // Reset daily briefing ignored flag
+          updates.dailyBriefingIgnored = false;
           break;
       }
 
@@ -2049,6 +2124,41 @@ function createNewSoldier(currentDay: number): StreetSoldier {
 }
 
 /**
+ * Generates a random daily briefing event for an assigned officer.
+ */
+function generateDailyBriefing(state: GameState): { type: EventType; data: any } | null {
+  const assignedOfficers = state.officers.filter(o => o.assignedBuildingId && !o.isWounded && !o.isArrested);
+  
+  if (assignedOfficers.length === 0 || Math.random() < 0.5) {
+    return null; // 50% chance of no event
+  }
+  
+  const officer = assignedOfficers[Math.floor(Math.random() * assignedOfficers.length)];
+  
+  // Determine event type based on officer traits or randomly
+  let eventType: 'sick' | 'disgruntled' | 'hungover' | 'rivals';
+  
+  if (officer.traits.includes('Hot-headed') && Math.random() < 0.4) {
+    eventType = 'hungover';
+  } else if (officer.loyalty < 50 && Math.random() < 0.4) {
+    eventType = 'disgruntled';
+  } else if (officer.traits.includes('Connected') && Math.random() < 0.3) {
+    eventType = 'rivals';
+  } else {
+    const types: ('sick' | 'disgruntled' | 'hungover' | 'rivals')[] = ['sick', 'disgruntled', 'hungover', 'rivals'];
+    eventType = types[Math.floor(Math.random() * types.length)];
+  }
+
+  return {
+    type: 'dailyBriefing',
+    data: {
+      officerId: officer.id,
+      eventType: eventType,
+    },
+  };
+}
+
+/**
  * Checks if any high-ranking officer is ready to stage a coup.
  */
 function checkCoupAttempt(state: GameState): { officerId: string | null; officerName: string | null; buildingName: string | null; updatedOfficers: Officer[]; updatedBuildings: Building[]; updatedSoldiers: StreetSoldier[] } {
@@ -2107,6 +2217,8 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   let totalHeat = 0;
   let totalIntel = 0;  // Track intel generation
   const events: { type: EventType; data: any }[] = [];
+  
+  const briefingOfficerId = state.dailyBriefingIgnored ? state.eventData?.officerId : null;
 
   // Calculate revenue and heat from occupied buildings
   let updatedOfficers = state.officers.map(officer => {
@@ -2127,6 +2239,12 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
         if (!building.isIllicit && officer.rank === 'Straw Sandal') {
           revenueMultiplier += officer.skills.logistics / 100;
         }
+        
+        // Apply passive penalty if this officer was ignored
+        if (briefingOfficerId === officer.id) {
+            revenueMultiplier *= 0.5; // 50% effectiveness reduction
+        }
+        
         totalRevenue += Math.floor(building.baseRevenue * revenueMultiplier);
 
         // Calculate heat reduction from White Paper Fan at Police Station

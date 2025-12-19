@@ -20,7 +20,7 @@ export const DistrictMap = () => {
     intel,
     isCivilWarActive,
     rebelOfficerId,
-    handleCoupResolution // We need this if we implement a direct raid button here later, but for now, we just disable advancePhase
+    activeEvent
   } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
   const assignOfficer = useGameStore(state => state.assignOfficer);
@@ -67,6 +67,8 @@ export const DistrictMap = () => {
   };
   
   const rebelOfficer = officers.find(o => o.id === rebelOfficerId);
+  
+  const isPhaseBlocked = isCivilWarActive || activeEvent === 'dailyBriefing';
 
   return (
     <div className="flex gap-4 p-4 h-full">
@@ -90,22 +92,22 @@ export const DistrictMap = () => {
               variant="nightclub" 
               size="default" 
               onClick={hostNightclub} 
-              disabled={cash < 1000 || isCivilWarActive}
+              disabled={cash < 1000 || isPhaseBlocked}
               className="gap-2"
             >
               <PartyPopper className="w-4 h-4" />
               Party ($1k)
             </Button>
             
-            {isCivilWarActive ? (
+            {isPhaseBlocked ? (
               <Button 
                 variant="destructive" 
                 size="default" 
                 disabled={true}
                 className="gap-2 animate-pulse"
               >
-                <Swords className="w-4 h-4" />
-                Civil War Active
+                {isCivilWarActive ? <Swords className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                {isCivilWarActive ? 'Civil War Active' : 'Morning Briefing Required'}
               </Button>
             ) : (
               <Button 
@@ -140,7 +142,7 @@ export const DistrictMap = () => {
 
         {/* Selection hint */}
         <AnimatePresence>
-          {selectedOfficerId && currentPhase === 'morning' && !isCivilWarActive && (
+          {selectedOfficerId && currentPhase === 'morning' && !isPhaseBlocked && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -154,7 +156,7 @@ export const DistrictMap = () => {
               </p>
             </motion.div>
           )}
-          {currentPhase !== 'morning' && !isCivilWarActive && (
+          {currentPhase !== 'morning' && !isPhaseBlocked && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -187,7 +189,7 @@ export const DistrictMap = () => {
                     onUnassign={() => handleUnassign(building.id)}
                     isInactive={isInactive}
                     currentDay={currentDay}
-                    canInteract={currentPhase === 'morning' && !isCivilWarActive}
+                    canInteract={currentPhase === 'morning' && !isPhaseBlocked}
                   />
                 </motion.div>
               );
@@ -200,7 +202,7 @@ export const DistrictMap = () => {
       <div className="w-72 shrink-0 flex flex-col gap-4 overflow-auto">
         <OfficersPanel 
           selectedOfficerId={selectedOfficerId} 
-          onSelectOfficer={currentPhase === 'morning' && !isCivilWarActive ? setSelectedOfficerId : () => {}} 
+          onSelectOfficer={currentPhase === 'morning' && !isPhaseBlocked ? setSelectedOfficerId : () => {}} 
         />
         <SoldiersPanel />
       </div>
