@@ -5,12 +5,11 @@ import { cn } from '@/lib/utils';
 
 export const ResourceBar = () => {
   const { cash, reputation, policeHeat, currentDay, intel, soldiers, officers } = useGameStore();
-
   const heatColor = policeHeat > 70 ? 'neon-text-red' : policeHeat > 40 ? 'neon-text-amber' : 'neon-text-green';
   const activeOfficers = officers.filter(o => o.assignedBuildingId).length;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center justify-between px-4 py-3 bg-card/80 backdrop-blur-sm border-b border-border"

@@ -1,6 +1,6 @@
 import { Officer, OfficerRank } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
-import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart } from 'lucide-react';
+import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface OfficerCardProps {
@@ -62,7 +62,7 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
         )}>
           {officer.name.split(' ').map(n => n[0]).join('')}
         </div>
-
+        
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -76,38 +76,55 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
             </span>
           </div>
         </div>
-
+        
         {/* Stats Column */}
         <div className="flex flex-col items-end gap-1">
           {/* Energy */}
           <div className="flex items-center gap-1">
             <Zap className={cn(
               "w-3 h-3",
-              energyPercent > 50 ? "text-neon-green" : energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
+              energyPercent > 50 ? "text-neon-green" : 
+              energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
             )} />
             <span className={cn(
               "text-[10px] font-medium",
-              energyPercent > 50 ? "text-neon-green" : energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
+              energyPercent > 50 ? "text-neon-green" : 
+              energyPercent > 20 ? "text-neon-amber" : "text-neon-red"
             )}>
               {officer.energy}
             </span>
           </div>
+          
           {/* Loyalty */}
           <div className="flex items-center gap-1">
             <Heart className={cn(
               "w-3 h-3",
-              officer.loyalty > 60 ? "text-neon-green" : officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
+              officer.loyalty > 60 ? "text-neon-green" : 
+              officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
             )} />
             <span className={cn(
               "text-[10px]",
-              officer.loyalty > 60 ? "text-neon-green" : officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
+              officer.loyalty > 60 ? "text-neon-green" : 
+              officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
             )}>
               {officer.loyalty}%
             </span>
           </div>
         </div>
       </div>
-
+      
+      {/* Traits */}
+      <div className="flex flex-wrap gap-1 mt-1.5">
+        {officer.traits.map((trait, index) => (
+          <span 
+            key={index} 
+            className="text-[8px] px-1 py-0.5 rounded bg-secondary/50 border border-border text-muted-foreground"
+          >
+            {trait}
+          </span>
+        ))}
+      </div>
+      
       {/* Assignment Status */}
       {buildingName && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
@@ -117,13 +134,13 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
           </div>
         </div>
       )}
-
+      
       {isExhausted && !buildingName && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
           <span className="text-[10px] text-neon-red">Exhausted</span>
         </div>
       )}
-
+      
       {officer.loyalty < 40 && !isExhausted && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
           <span className="text-[10px] text-neon-amber">Low loyalty - risk of betrayal</span>

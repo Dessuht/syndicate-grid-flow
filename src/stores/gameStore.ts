@@ -11,9 +11,9 @@ export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
   enforcement: number; // Red Pole specialty - boosts illicit revenue, defense
-  diplomacy: number;     // White Paper Fan specialty - reduces heat, improves bribes
-  logistics: number;     // Straw Sandal specialty - boosts legal revenue
-  recruitment: number;   // Blue Lantern specialty - soldier loyalty bonus
+  diplomacy: number; // White Paper Fan specialty - reduces heat, improves bribes
+  logistics: number; // Straw Sandal specialty - boosts legal revenue
+  recruitment: number; // Blue Lantern specialty - soldier loyalty bonus
 }
 
 export interface OfficerRelationship {
@@ -33,6 +33,7 @@ export interface Officer {
   daysAssigned: number; // consecutive days on same building
   relationships: OfficerRelationship[];
   isBetraying: boolean;
+  traits: CharacterTrait[]; // Add traits to officers
 }
 
 export interface Building {
@@ -55,9 +56,9 @@ export interface StreetSoldier {
   name: string;
   loyalty: number; // 0-100
   needs: {
-    food: number;     // 0-100, depletes daily
+    food: number; // 0-100, depletes daily
     entertainment: number;
-    pay: number;      // satisfaction with stipend
+    pay: number; // satisfaction with stipend
   };
   skill: number; // combat effectiveness
   isDeserting: boolean;
@@ -89,6 +90,7 @@ const createOfficerSkills = (rank: OfficerRank): OfficerSkills => {
   }
 };
 
+// Add traits to officers
 const INITIAL_OFFICERS: Officer[] = [
   {
     id: 'off-1',
@@ -106,6 +108,7 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-4', respect: 30 },
     ],
     isBetraying: false,
+    traits: ['Fearless', 'Ruthless']
   },
   {
     id: 'off-2',
@@ -123,6 +126,7 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-4', respect: 45 },
     ],
     isBetraying: false,
+    traits: ['Calculating', 'Silver Tongue']
   },
   {
     id: 'off-3',
@@ -140,6 +144,7 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-4', respect: 35 },
     ],
     isBetraying: false,
+    traits: ['Street Smart', 'Connected']
   },
   {
     id: 'off-4',
@@ -157,6 +162,7 @@ const INITIAL_OFFICERS: Officer[] = [
       { targetId: 'off-3', respect: 40 },
     ],
     isBetraying: false,
+    traits: ['Loyal Dog', 'Street Smart']
   },
 ];
 
@@ -307,6 +313,7 @@ export interface GameState {
   currentDay: number;
   currentPhase: DayPhase;
   stipend: number; // daily pay per soldier
+  intel: number; // Intelligence resource
 
   // Entities
   officers: Officer[];
@@ -315,7 +322,6 @@ export interface GameState {
   rivals: RivalGang[];
 
   // Intel & Upgrades
-  intel: number;
   unlockedUpgrades: string[];
 
   // Event system
@@ -334,7 +340,7 @@ export interface GameState {
   homeDistrictLeaderId: string | null;
   homeDistrictHeat: number;
   homeDistrictRevenue: number;
-  
+
   // Territory Stats
   territoryFriction: number;
   territoryInfluence: number;
@@ -374,11 +380,15 @@ export interface GameState {
   unassignSyndicateMember: () => void;
   processRacketCycle: () => void;
   scoutTerritory: (rivalId: string) => void;
-  
+
   // Territory Management
   startFrictionTimer: () => void;
   stopFrictionTimer: () => void;
   resetFriction: () => void;
+  
+  // Intel actions
+  spendIntelToReduceFriction: (rivalId: string, amount: number) => void;
+  spendIntelToScout: (rivalId: string) => void;
 }
 
 // ==================== STORE ====================
@@ -390,11 +400,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentDay: 1,
   currentPhase: 'morning',
   stipend: 50,
+  intel: 0, // Initialize intel resource
   officers: INITIAL_OFFICERS,
   buildings: INITIAL_BUILDINGS,
   soldiers: INITIAL_SOLDIERS,
   rivals: INITIAL_RIVALS,
-  intel: 0,
   unlockedUpgrades: [],
   activeEvent: null,
   eventData: null,
@@ -402,12 +412,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeDiplomacy: null,
   syndicateMembers: [],
   recruitCost: 500,
-  
+
   // Home District Racket
   homeDistrictLeaderId: null,
   homeDistrictHeat: 10,
   homeDistrictRevenue: 0,
-  
+
   // Territory Stats
   territoryFriction: 0,
   territoryInfluence: 20,
@@ -416,7 +426,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
     if (state.currentPhase !== 'morning') return;
-
+    
     set((state) => {
       const officer = state.officers.find(o => o.id === officerId);
       const building = state.buildings.find(b => b.id === buildingId);
@@ -428,7 +438,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (building.inactiveUntilDay && building.inactiveUntilDay > state.currentDay) {
         return state;
       }
-
+      
       // Update other officers' respect (jealousy mechanic)
       const updatedOfficers = state.officers.map(o => {
         if (o.id === officerId) {
@@ -446,7 +456,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         return o;
       });
-
+      
       return {
         officers: updatedOfficers,
         buildings: state.buildings.map(b => 
@@ -484,11 +494,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => {
       const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
       const currentIndex = phases.indexOf(state.currentPhase);
-
+      
       // Process phase-specific logic
       let updates: Partial<GameState> = {};
       let newEvents: { type: EventType; data: any }[] = [];
-
+      
       switch (state.currentPhase) {
         case 'morning':
           // Morning -> Day: Nothing special, just advance
@@ -513,8 +523,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           newEvents = nightResults.events;
           break;
       }
-
-      // Queue events
+      
+      // Queue events if any
       if (newEvents.length > 0) {
         const [firstEvent, ...rest] = newEvents;
         return {
@@ -524,7 +534,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: [...state.pendingEvents, ...rest],
         };
       }
-
+      
       return updates;
     });
   },
@@ -576,19 +586,16 @@ export const useGameStore = create<GameState>((set, get) => ({
         case 'bribe':
           const bribeCost = Math.max(500, 2000 - bribeBonus);
           if (state.cash < bribeCost) return state;
-          
           updates = {
             ...updates,
             cash: state.cash - bribeCost,
             policeHeat: Math.max(0, state.policeHeat - 30),
           };
           break;
-          
         case 'stand':
           // Red Pole reduces damage
           const redPole = state.officers.find(o => o.rank === 'Red Pole' && o.assignedBuildingId);
           const damageReduction = redPole ? 0.5 : 1;
-          
           updates = {
             ...updates,
             reputation: Math.max(0, state.reputation - Math.floor(15 * damageReduction)),
@@ -598,7 +605,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             })),
           };
           break;
-          
         case 'escape':
           const occupiedBuildings = state.buildings.filter(b => b.isOccupied && b.type !== 'Police Station');
           if (occupiedBuildings.length > 0) {
@@ -619,7 +625,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
           break;
       }
-
+      
       // Check for pending events
       if (state.pendingEvents.length > 0) {
         const [nextEvent, ...rest] = state.pendingEvents;
@@ -630,7 +636,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: rest,
         };
       }
-
+      
       return updates;
     });
   },
@@ -651,7 +657,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           );
           updates.reputation = Math.max(0, state.reputation - 10); // Looks weak
           break;
-          
         case 'punish':
           updates.officers = state.officers.map(o => {
             if (o.id === betrayerId) {
@@ -662,7 +667,6 @@ export const useGameStore = create<GameState>((set, get) => ({
                 energy: Math.max(0, o.energy - 40)
               };
             }
-            
             // Other officers fear you
             return {
               ...o,
@@ -671,7 +675,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           });
           updates.policeHeat = Math.min(100, state.policeHeat + 5);
           break;
-          
         case 'exile':
           updates.officers = state.officers.filter(o => o.id !== betrayerId);
           updates.buildings = state.buildings.map(b => 
@@ -681,7 +684,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           );
           break;
       }
-
+      
       // Check for pending events
       if (state.pendingEvents.length > 0) {
         const [nextEvent, ...rest] = state.pendingEvents;
@@ -692,7 +695,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: rest,
         };
       }
-
+      
       return updates;
     });
   },
@@ -710,7 +713,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           }));
           updates.reputation = Math.min(100, state.reputation + 5);
           break;
-          
         case 'enslave':
           // Add a free worker (soldier with 0 pay needs)
           const newSlave: StreetSoldier = {
@@ -727,12 +729,11 @@ export const useGameStore = create<GameState>((set, get) => ({
           };
           updates.soldiers = [...state.soldiers, newSlave];
           break;
-          
         case 'spy':
           updates.intel = state.intel + 50;
           break;
       }
-
+      
       // Check for pending events
       if (state.pendingEvents.length > 0) {
         const [nextEvent, ...rest] = state.pendingEvents;
@@ -743,7 +744,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: rest,
         };
       }
-
+      
       return updates;
     });
   },
@@ -781,7 +782,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
           updates.policeHeat = Math.min(100, state.policeHeat + 15);
           break;
-          
         case 'negotiate':
           updates.cash = Math.max(0, state.cash - 800);
           updates.rivals = state.rivals.map(r => 
@@ -790,7 +790,6 @@ export const useGameStore = create<GameState>((set, get) => ({
               : r
           );
           break;
-          
         case 'retreat':
           updates.reputation = Math.max(0, state.reputation - 10);
           const randomBuilding = state.buildings.filter(b => b.isOccupied)[0];
@@ -803,7 +802,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
           break;
       }
-
+      
       // Check for pending events
       if (state.pendingEvents.length > 0) {
         const [nextEvent, ...rest] = state.pendingEvents;
@@ -814,7 +813,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: rest,
         };
       }
-
+      
       return updates;
     });
   },
@@ -827,7 +826,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         case 'pay':
           const payment = Math.floor(state.cash * 0.2);
           updates.cash = Math.max(0, state.cash - payment);
-          
           // Reduce loyalty of assigned member
           if (state.homeDistrictLeaderId) {
             updates.syndicateMembers = state.syndicateMembers.map(m => 
@@ -837,7 +835,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             );
           }
           break;
-          
         case 'refuse':
           updates.territoryFriction = 0;
           updates.rivals = state.rivals.map(r => 
@@ -847,7 +844,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           );
           break;
       }
-
+      
       // Check for pending events
       if (state.pendingEvents.length > 0) {
         const [nextEvent, ...rest] = state.pendingEvents;
@@ -858,7 +855,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: rest,
         };
       }
-
+      
       return updates;
     });
   },
@@ -873,7 +870,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           pendingEvents: rest,
         };
       }
-      
       return { activeEvent: null, eventData: null };
     });
   },
@@ -895,7 +891,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       switch (action) {
         case 'trade':
           if (state.cash < 1000) return { ...state, activeDiplomacy: null };
-          
           updates.cash = state.cash - 1000;
           updates.intel = state.intel + 100;
           updates.rivals = state.rivals.map(r => 
@@ -904,10 +899,8 @@ export const useGameStore = create<GameState>((set, get) => ({
               : r
           );
           break;
-          
         case 'alliance':
           if (rival.relationship < 30) return { ...state, activeDiplomacy: null };
-          
           updates.reputation = Math.min(100, state.reputation + 10);
           updates.rivals = state.rivals.map(r => 
             r.id === rivalId 
@@ -915,7 +908,6 @@ export const useGameStore = create<GameState>((set, get) => ({
               : r
           );
           break;
-          
         case 'turfWar':
           // Queue a rival attack event
           updates.pendingEvents = [...state.pendingEvents, {
@@ -929,7 +921,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           );
           break;
       }
-
+      
       return updates;
     });
   },
@@ -1137,16 +1129,11 @@ export const useGameStore = create<GameState>((set, get) => ({
             // Check if friction has reached 100
             if (newFriction >= 100) {
               // Trigger ultimatum event
-              return {
-                territoryFriction: newFriction,
-                activeEvent: 'territoryUltimatum',
-                eventData: {}
-              };
+              return { territoryFriction: newFriction, activeEvent: 'territoryUltimatum', eventData: {} };
             }
             
             return { territoryFriction: newFriction };
           }
-          
           return state;
         });
       }, 300000); // 5 minutes in milliseconds
@@ -1166,6 +1153,37 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   resetFriction: () => {
     set({ territoryFriction: 0 });
+  },
+  
+  // Intel actions
+  spendIntelToReduceFriction: (rivalId: string, amount: number) => {
+    set((state) => {
+      if (state.intel < amount) return state;
+      
+      return {
+        intel: state.intel - amount,
+        rivals: state.rivals.map(r => 
+          r.id === rivalId 
+            ? { ...r, relationship: Math.min(100, r.relationship + Math.floor(amount / 10)) } 
+            : r
+        )
+      };
+    });
+  },
+  
+  spendIntelToScout: (rivalId: string) => {
+    set((state) => {
+      if (state.intel < 50) return state; // Cost 50 intel to scout
+      
+      return {
+        intel: state.intel - 50,
+        rivals: state.rivals.map(r => 
+          r.id === rivalId 
+            ? { ...r, isScouted: true } 
+            : r
+        )
+      };
+    });
   }
 }));
 
@@ -1173,6 +1191,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 function processDayOperations(state: GameState): { updates: Partial<GameState>; events: { type: EventType; data: any }[] } {
   let totalRevenue = 0;
   let totalHeat = 0;
+  let totalIntel = 0; // Track intel generation
   const events: { type: EventType; data: any }[] = [];
   
   // Calculate revenue and heat from occupied buildings
@@ -1197,15 +1216,16 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
           totalHeat += building.heatGen;
         }
         
+        // Generate Intel based on Street Smart trait
+        if (officer.traits.includes('Street Smart')) {
+          totalIntel += 5; // 5 Intel per day for Street Smart officers
+        }
+        
         // Increase days assigned
         const newDaysAssigned = officer.daysAssigned + 1;
         const newEnergy = Math.max(0, officer.energy - 10);
         
-        return {
-          ...officer,
-          energy: newEnergy,
-          daysAssigned: newDaysAssigned
-        };
+        return { ...officer, energy: newEnergy, daysAssigned: newDaysAssigned };
       }
     }
     return officer;
@@ -1214,11 +1234,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   // Auto-unassign officers with 0 energy
   const finalOfficers = updatedOfficers.map(o => {
     if (o.energy === 0 && o.assignedBuildingId) {
-      return {
-        ...o,
-        assignedBuildingId: null,
-        daysAssigned: 0
-      };
+      return { ...o, assignedBuildingId: null, daysAssigned: 0 };
     }
     return o;
   });
@@ -1226,11 +1242,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   const updatedBuildings = state.buildings.map(b => {
     const officer = finalOfficers.find(o => o.assignedBuildingId === b.id);
     if (!officer && b.isOccupied) {
-      return {
-        ...b,
-        isOccupied: false,
-        assignedOfficerId: null
-      };
+      return { ...b, isOccupied: false, assignedOfficerId: null };
     }
     return b;
   });
@@ -1247,6 +1259,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
     updates: {
       cash: state.cash + totalRevenue,
       policeHeat: newHeat,
+      intel: state.intel + totalIntel, // Add generated intel
       officers: finalOfficers,
       buildings: updatedBuildings,
     },
@@ -1261,7 +1274,7 @@ function processEveningNeeds(state: GameState): { updates: Partial<GameState>; e
   const totalFood = state.buildings
     .filter(b => b.isOccupied)
     .reduce((sum, b) => sum + b.foodProvided, 0);
-    
+  
   const totalEntertainment = state.buildings
     .filter(b => b.isOccupied)
     .reduce((sum, b) => sum + b.entertainmentProvided, 0);
@@ -1342,10 +1355,7 @@ function processNightEvents(state: GameState): { updates: Partial<GameState>; ev
       if (avgRespect < 30 && Math.random() < 0.2) {
         events.push({
           type: 'betrayal',
-          data: {
-            officerId: officer.id,
-            officerName: officer.name
-          }
+          data: { officerId: officer.id, officerName: officer.name }
         });
       }
     }
@@ -1356,10 +1366,7 @@ function processNightEvents(state: GameState): { updates: Partial<GameState>; ev
     if (rival.relationship < -30 && !rival.hasAlliance && Math.random() < 0.15) {
       events.push({
         type: 'rivalAttack',
-        data: {
-          rivalId: rival.id,
-          rivalName: rival.name
-        }
+        data: { rivalId: rival.id, rivalName: rival.name }
       });
     }
   });
@@ -1371,27 +1378,18 @@ function processNightEvents(state: GameState): { updates: Partial<GameState>; ev
       if (target) {
         // If both assigned, slight respect increase
         if (officer.assignedBuildingId && target.assignedBuildingId) {
-          return {
-            ...rel,
-            respect: Math.min(100, rel.respect + 1)
-          };
+          return { ...rel, respect: Math.min(100, rel.respect + 1) };
         }
         
         // If you're assigned and they're not, they lose respect
         if (officer.assignedBuildingId && !target.assignedBuildingId) {
-          return {
-            ...rel,
-            respect: Math.max(-100, rel.respect - 2)
-          };
+          return { ...rel, respect: Math.max(-100, rel.respect - 2) };
         }
       }
       return rel;
     });
     
-    return {
-      ...officer,
-      relationships: newRelationships
-    };
+    return { ...officer, relationships: newRelationships };
   });
   
   return {

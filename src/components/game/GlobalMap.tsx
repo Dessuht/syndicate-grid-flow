@@ -1,6 +1,6 @@
 import { useGameStore } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin, DollarSign, Brain, AlertTriangle, Home } from 'lucide-react';
+import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin, DollarSign, Brain, AlertTriangle, Home, Eye, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
@@ -85,7 +85,9 @@ export const GlobalMap = () => {
     homeDistrictRevenue,
     homeDistrictHeat,
     territoryFriction,
-    territoryInfluence
+    territoryInfluence,
+    spendIntelToReduceFriction,
+    spendIntelToScout
   } = useGameStore();
   
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -332,7 +334,7 @@ export const GlobalMap = () => {
                   </div>
                   {selectedRivalData.isScouted && (
                     <div className="flex items-center gap-1.5">
-                      <Brain className="w-4 h-4 text-neon-amber" />
+                      <Eye className="w-4 h-4 text-neon-amber" />
                       <span className="text-sm text-neon-amber">Scouted</span>
                     </div>
                   )}
@@ -354,6 +356,33 @@ export const GlobalMap = () => {
                     <span className="px-2 py-0.5 rounded text-xs bg-neon-green/20 text-neon-green border border-neon-green/30">
                       Allied
                     </span>
+                  )}
+                </div>
+                
+                {/* Intel Actions */}
+                <div className="space-y-2 mb-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start gap-2 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/10"
+                    onClick={() => spendIntelToReduceFriction(selectedRivalData.id, 20)}
+                    disabled={intel < 20}
+                  >
+                    <Zap className="w-4 h-4" />
+                    Reduce Friction (20 Intel)
+                  </Button>
+                  
+                  {!selectedRivalData.isScouted && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start gap-2 border-neon-purple/30 text-neon-purple hover:bg-neon-purple/10"
+                      onClick={() => spendIntelToScout(selectedRivalData.id)}
+                      disabled={intel < 50}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Scout Territory (50 Intel)
+                    </Button>
                   )}
                 </div>
                 
