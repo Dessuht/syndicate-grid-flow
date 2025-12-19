@@ -26,7 +26,8 @@ export type CharacterTrait =
   | 'Ruthless'
   | 'Loyal Dog'
   | 'Street Smart'
-  | 'Silver Tongue';
+  | 'Silver Tongue'
+  | 'Battle Hardened';
 
 export interface TraitEffect {
   description: string;
@@ -106,6 +107,13 @@ export const TRAIT_EFFECTS: Record<CharacterTrait, TraitEffect> = {
     heatMod: -10,
     faceMod: 15,
     moodMod: 5,
+  },
+  'Battle Hardened': {
+    description: 'Experienced in combat, resilient to fear.',
+    loyaltyMod: 5,
+    heatMod: 0,
+    faceMod: 5,
+    moodMod: 0,
   },
 };
 

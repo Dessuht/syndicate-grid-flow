@@ -6,7 +6,7 @@ import { generateSoldier } from '@/lib/characterGenerator';
 export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blue Lantern';
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | null;
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | null;
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -74,6 +74,18 @@ export interface RivalGang {
   hasAlliance: boolean;
   isScouted: boolean; // New property for expansion logic
   isActiveConflict: boolean; // New property for active conflicts
+}
+
+export interface PostConflictSummaryData {
+  type: 'raid' | 'streetWar';
+  outcome: 'success' | 'failure';
+  officerId: string | null;
+  soldiersLost: number;
+  reputationChange: number;
+  faceChange: number;
+  loyaltyChange: number;
+  officerStatusEffect: 'none' | 'wounded' | 'arrested';
+  rivalName?: string;
 }
 
 // ==================== INITIAL DATA ====================
@@ -613,17 +625,83 @@ export const useGameStore = create<GameState>((set, get) => ({
           };
           break;
         case 'stand':
-          // Red Pole reduces damage
-          const redPole = state.officers.find(o => o.rank === 'Red Pole' && o.assignedBuildingId);
-          const damageReduction = redPole ? 0.5 : 1;
-          updates = {
-            ...updates,
-            reputation: Math.max(0, state.reputation - Math.floor(15 * damageReduction)),
-            officers: state.officers.map(o => ({
-              ...o,
-              energy: Math.max(0, o.energy - Math.floor(20 * damageReduction)),
-            })),
-          };
+          // --- Combat Resolution for Raid ---
+          const raidPower = 50; // Base police strength
+          
+          // Calculate our strength: Officer Loyalty Sum + Soldier Count * 5
+          const officerLoyaltySum = state.officers.reduce((sum, o) => sum + o.loyalty, 0);
+          const soldierStrength = state.soldiers.length * 5;
+          const ourRaidStrength = officerLoyaltySum + soldierStrength;
+          
+          const success = ourRaidStrength > raidPower;
+          
+          let soldiersLost: number;
+          let repChange: number;
+          let officerFaceChange = 0;
+          let officerLoyaltyChange = 0;
+          let officerStatusEffect: PostConflictSummaryData['officerStatusEffect'] = 'none';
+          
+          // Find a primary officer involved (Red Pole preferred, otherwise first assigned officer)
+          const redPole = state.officers.find(o => o.rank === 'Red Pole');
+          const targetOfficer = redPole || state.officers.find(o => o.assignedBuildingId) || state.officers[0];
+          
+          if (success) {
+            repChange = 5; // Smaller rep gain for raid defense
+            officerFaceChange = 10;
+            soldiersLost = Math.floor(state.soldiers.length * (Math.random() * 0.1 + 0.05)); // 5-15% loss
+          } else {
+            repChange = -15;
+            officerLoyaltyChange = -15;
+            soldiersLost = Math.floor(state.soldiers.length * (Math.random() * 0.2 + 0.2)); // 20-40% loss
+            
+            if (Math.random() < 0.2 && targetOfficer) {
+              officerStatusEffect = Math.random() < 0.5 ? 'wounded' : 'arrested';
+            }
+          }
+          
+          // Apply consequences
+          const remainingSoldiers = state.soldiers.slice(soldiersLost);
+          
+          const updatedOfficers = state.officers.map(o => {
+            if (o.id === targetOfficer?.id) {
+              let newOfficer = { ...o };
+              if (success) {
+                  if (!newOfficer.traits.includes('Battle Hardened' as CharacterTrait)) {
+                      newOfficer.traits = [...newOfficer.traits, 'Battle Hardened' as CharacterTrait];
+                  }
+              } else {
+                  newOfficer.loyalty = Math.max(0, newOfficer.loyalty + officerLoyaltyChange);
+                  if (officerStatusEffect === 'wounded') {
+                      newOfficer.energy = Math.max(0, Math.floor(newOfficer.maxEnergy * 0.2)); 
+                  } else if (officerStatusEffect === 'arrested') {
+                      newOfficer.assignedBuildingId = null;
+                      newOfficer.energy = 0;
+                  }
+              }
+              return newOfficer;
+            }
+            return o;
+          });
+          
+          updates.reputation = Math.max(0, state.reputation + repChange);
+          updates.soldiers = remainingSoldiers;
+          updates.officers = updatedOfficers;
+          
+          // Queue summary event
+          updates.pendingEvents = [...state.pendingEvents, {
+            type: 'postConflictSummary',
+            data: {
+              type: 'raid',
+              outcome: success ? 'success' : 'failure',
+              officerId: targetOfficer?.id || null,
+              soldiersLost,
+              reputationChange: repChange,
+              faceChange: officerFaceChange,
+              loyaltyChange: officerLoyaltyChange,
+              officerStatusEffect,
+            } as PostConflictSummaryData
+          }];
+          
           break;
         case 'escape':
           const occupiedBuildings = state.buildings.filter(b => b.isOccupied && b.type !== 'Police Station');
@@ -890,432 +968,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       const rival = state.rivals.find(r => r.id === rivalId);
       if (!rival) return updates;
       
-      switch (choice) {
-        case 'bribe':
-          // Pay large bribe, reset friction, lower reputation
-          const bribeCost = Math.max(5000, rival.strength * 100);
-          if (state.cash >= bribeCost) {
-            updates.cash = state.cash - bribeCost;
-            updates.reputation = Math.max(0, state.reputation - 20);
-            updates.rivals = state.rivals.map(r => 
-              r.id === rivalId 
-                ? { ...r, relationship: Math.min(100, r.relationship + 30) } 
-                : r
-            );
-          }
-          break;
-        case 'fight':
-          // Start raid on most profitable building
-          const occupiedBuildings = state.buildings.filter(b => b.isOccupied);
-          if (occupiedBuildings.length > 0) {
-            const mostProfitableBuilding = occupiedBuildings.reduce((max, building) => 
-              building.baseRevenue > max.baseRevenue ? building : max
-            );
-            
-            updates.buildings = state.buildings.map(b => 
-              b.id === mostProfitableBuilding.id 
-                ? { ...b, inactiveUntilDay: state.currentDay + 2, isOccupied: false, assignedOfficerId: null } 
-                : b
-            );
-            
-            updates.officers = state.officers.map(o => 
-              o.assignedBuildingId === mostProfitableBuilding.id 
-                ? { ...o, assignedBuildingId: null } 
-                : o
-            );
-          }
-          break;
-      }
-      
-      // Check for pending events
-      if (state.pendingEvents.length > 0) {
-        const [nextEvent, ...rest] = state.pendingEvents;
-        return {
-          ...updates,
-          activeEvent: nextEvent.type,
-          eventData: nextEvent.data,
-          pendingEvents: rest,
-        };
-      }
-      
-      return updates;
-    });
-  },
-
-  dismissEvent: () => {
-    set((state) => {
-      if (state.pendingEvents.length > 0) {
-        const [nextEvent, ...rest] = state.pendingEvents;
-        return {
-          activeEvent: nextEvent.type,
-          eventData: nextEvent.data,
-          pendingEvents: rest,
-        };
-      }
-      return { activeEvent: null, eventData: null };
-    });
-  },
-
-  initiateDiplomacy: (rivalId: string, action: DiploAction) => {
-    set({ activeDiplomacy: { rivalId, action } });
-  },
-
-  confirmDiplomacy: () => {
-    set((state) => {
-      if (!state.activeDiplomacy) return state;
-      
-      const { rivalId, action } = state.activeDiplomacy;
-      const rival = state.rivals.find(r => r.id === rivalId);
-      if (!rival) return { ...state, activeDiplomacy: null };
-      
-      let updates: Partial<GameState> = { activeDiplomacy: null };
-      
-      switch (action) {
-        case 'trade':
-          if (state.cash < 1000) return { ...state, activeDiplomacy: null };
-          updates.cash = state.cash - 1000;
-          updates.intel = state.intel + 100;
-          updates.rivals = state.rivals.map(r => 
-            r.id === rivalId 
-              ? { ...r, hasTradeAgreement: true, relationship: r.relationship + 15 } 
-              : r
-          );
-          break;
-        case 'alliance':
-          if (rival.relationship < 30) return { ...state, activeDiplomacy: null };
-          updates.reputation = Math.min(100, state.reputation + 10);
-          updates.rivals = state.rivals.map(r => 
-            r.id === rivalId 
-              ? { ...r, hasAlliance: true, relationship: r.relationship + 25 } 
-              : r
-          );
-          break;
-        case 'turfWar':
-          // Queue a rival attack event
-          updates.pendingEvents = [...state.pendingEvents, {
-            type: 'rivalAttack' as EventType,
-            data: { rivalId }
-          }];
-          updates.rivals = state.rivals.map(r => 
-            r.id === rivalId 
-              ? { ...r, relationship: r.relationship - 40 } 
-              : r
-          );
-          break;
-      }
-      
-      return updates;
-    });
-  },
-
-  cancelDiplomacy: () => {
-    set({ activeDiplomacy: null });
-  },
-
-  upgradeBuilding: (buildingId: string) => {
-    set((state) => {
-      const building = state.buildings.find(b => b.id === buildingId);
-      if (!building || building.upgraded || state.intel < 200) return state;
-      
-      // Warehouse -> Counterfeit Lab
-      if (building.type === 'Warehouse') {
-        return {
-          intel: state.intel - 200,
-          buildings: state.buildings.map(b => 
-            b.id === buildingId 
-              ? { 
-                  ...b, 
-                  type: 'Counterfeit Lab' as BuildingType, 
-                  baseRevenue: 1500, 
-                  heatGen: 12, 
-                  isIllicit: true, 
-                  upgraded: true,
-                  name: b.name + ' (Lab)'
-                } 
-              : b
-          ),
-        };
-      }
-      
-      return state;
-    });
-  },
-
-  purchaseIntel: (cost: number) => {
-    set((state) => {
-      if (state.cash < cost) return state;
-      
-      return {
-        cash: state.cash - cost,
-        intel: state.intel + Math.floor(cost / 10),
-      };
-    });
-  },
-
-  recruitSoldier: () => {
-    set((state) => {
-      const cost = 500;
-      if (state.cash < cost) return state;
-      
-      const newSoldier: StreetSoldier = {
-        id: `sol-${Date.now()}`,
-        name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)] + ' ' + Math.floor(Math.random() * 100),
-        loyalty: 50 + Math.floor(Math.random() * 20),
-        needs: {
-          food: 80,
-          entertainment: 60,
-          pay: 50,
-        },
-        skill: 25 + Math.floor(Math.random() * 30),
-        isDeserting: false,
-      };
-      
-      return {
-        cash: state.cash - cost,
-        soldiers: [...state.soldiers, newSoldier],
-      };
-    });
-  },
-
-  recruitSyndicateMember: () => {
-    set((state) => {
-      if (state.cash < state.recruitCost) return state;
-      
-      const newMember = generateSoldier(state.currentDay);
-      
-      return {
-        cash: state.cash - state.recruitCost,
-        syndicateMembers: [...state.syndicateMembers, newMember],
-      };
-    });
-  },
-
-  // --- New Racket/Syndicate Member Logic ---
-  assignSyndicateMember: (memberId: string) => {
-    set((state) => {
-      const member = state.syndicateMembers.find(m => m.id === memberId);
-      if (!member || state.homeDistrictLeaderId) return state;
-      
-      // Mark member as inactive (assigned)
-      const updatedMembers = state.syndicateMembers.map(m => 
-        m.id === memberId 
-          ? { ...m, isActive: false } 
-          : m
-      );
-      
-      return {
-        homeDistrictLeaderId: memberId,
-        syndicateMembers: updatedMembers,
-      };
-    });
-  },
-
-  unassignSyndicateMember: () => {
-    set((state) => {
-      if (!state.homeDistrictLeaderId) return state;
-      
-      const leaderId = state.homeDistrictLeaderId;
-      
-      // Mark member as active (idle)
-      const updatedMembers = state.syndicateMembers.map(m => 
-        m.id === leaderId 
-          ? { ...m, isActive: true } 
-          : m
-      );
-      
-      return {
-        homeDistrictLeaderId: null,
-        syndicateMembers: updatedMembers,
-      };
-    });
-  },
-
-  processRacketCycle: () => {
-    set((state) => {
-      if (!state.homeDistrictLeaderId) {
-        return { homeDistrictRevenue: 0 };
-      }
-      
-      const leader = state.syndicateMembers.find(m => m.id === state.homeDistrictLeaderId);
-      if (!leader) return state;
-      
-      // Revenue: $200 * Face stat
-      const baseRevenue = 200;
-      const faceMultiplier = leader.stats.face / 100;
-      let revenue = Math.floor(baseRevenue + (baseRevenue * faceMultiplier));
-      
-      // Check for active conflict with Wo Shing Wo
-      const woShingWo = state.rivals.find(r => r.id === 'rival-3');
-      if (woShingWo?.isActiveConflict) {
-        revenue = Math.floor(revenue * 0.5); // Halve revenue during conflict
-      }
-      
-      // Heat Accumulation: +2%
-      let newHeat = Math.min(100, state.homeDistrictHeat + 2);
-      
-      // Double heat during conflict
-      if (woShingWo?.isActiveConflict) {
-        newHeat = Math.min(100, state.homeDistrictHeat + 4);
-      }
-      
-      return {
-        cash: state.cash + revenue,
-        homeDistrictHeat: newHeat,
-        homeDistrictRevenue: revenue,
-      };
-    });
-  },
-
-  scoutTerritory: (rivalId: string) => {
-    set((state) => {
-      // Assuming rivalId 'rival-3' is Wo Shing Wo (Central)
-      if (rivalId !== 'rival-3') return state;
-      
-      const ambitiousLeaderAssigned = state.syndicateMembers.find(
-        m => m.id === state.homeDistrictLeaderId && m.traits.includes('Ambitious' as CharacterTrait)
-      );
-      
-      if (!ambitiousLeaderAssigned) return state;
-      
-      return {
-        rivals: state.rivals.map(r => 
-          r.id === rivalId 
-            ? { ...r, isScouted: true } 
-            : r
-        ),
-        // Unassign the ambitious leader after scouting
-        homeDistrictLeaderId: null,
-        syndicateMembers: state.syndicateMembers.map(m => 
-          m.id === ambitiousLeaderAssigned.id 
-            ? { ...m, isActive: true } 
-            : m
-        ),
-      };
-    });
-  },
-
-  startFrictionTimer: () => {
-    set((state) => {
-      // Clear any existing interval
-      if (state.frictionInterval) {
-        clearInterval(state.frictionInterval);
-      }
-      
-      // Start new interval (5 minutes = 300000ms)
-      const interval = setInterval(() => {
-        set((state) => {
-          // Only increase friction if a member is assigned to Wan Chai
-          if (state.homeDistrictLeaderId) {
-            const newFriction = Math.min(100, state.territoryFriction + 1);
-            
-            // Check if friction has reached 100
-            if (newFriction >= 100) {
-              // Trigger ultimatum event
-              return { territoryFriction: newFriction, activeEvent: 'territoryUltimatum', eventData: {} };
-            }
-            
-            return { territoryFriction: newFriction };
-          }
-          return state;
-        });
-      }, 300000); // 5 minutes in milliseconds
-      
-      return { frictionInterval: interval };
-    });
-  },
-
-  stopFrictionTimer: () => {
-    set((state) => {
-      if (state.frictionInterval) {
-        clearInterval(state.frictionInterval);
-      }
-      return { frictionInterval: null };
-    });
-  },
-
-  resetFriction: () => {
-    set({ territoryFriction: 0 });
-  },
-  
-  // Intel actions
-  spendIntelToReduceFriction: (rivalId: string, amount: number) => {
-    set((state) => {
-      if (state.intel < amount) return state;
-      
-      return {
-        intel: state.intel - amount,
-        rivals: state.rivals.map(r => 
-          r.id === rivalId 
-            ? { ...r, relationship: Math.min(100, r.relationship + Math.floor(amount / 10)) } 
-            : r
-        )
-      };
-    });
-  },
-  
-  spendIntelToScout: (rivalId: string) => {
-    set((state) => {
-      if (state.intel < 50) return state; // Cost 50 intel to scout
-      
-      return {
-        intel: state.intel - 50,
-        rivals: state.rivals.map(r => 
-          r.id === rivalId 
-            ? { ...r, isScouted: true } 
-            : r
-        )
-      };
-    });
-  },
-  
-  // Street War actions
-  increaseFriction: () => {
-    set((state) => {
-      // Increase friction with Wo Shing Wo
-      const woShingWo = state.rivals.find(r => r.id === 'rival-3');
-      if (woShingWo && !woShingWo.isActiveConflict) {
-        const newRelationship = Math.max(-100, woShingWo.relationship - 3);
-        const shouldTriggerWar = newRelationship <= -100;
-        
-        const updatedRivals = state.rivals.map(r => 
-          r.id === 'rival-3' 
-            ? { ...r, relationship: newRelationship } 
-            : r
-        );
-        
-        if (shouldTriggerWar) {
-          return {
-            rivals: updatedRivals.map(r => 
-              r.id === 'rival-3' 
-                ? { ...r, isActiveConflict: true } 
-                : r
-            ),
-            activeEvent: 'streetWar' as EventType,
-            streetWarRivalId: 'rival-3',
-            eventData: { rivalName: woShingWo.name, rivalStrength: woShingWo.strength }
-          };
-        }
-        
-        return { rivals: updatedRivals };
-      }
-      
-      return state;
-    });
-  },
-  
-  resolveStreetWar: (choice: 'bribe' | 'fight') => {
-    set((state) => {
-      const rivalId = state.streetWarRivalId;
-      if (!rivalId) return { ...state, activeEvent: null, eventData: null };
-      
-      let updates: Partial<GameState> = { activeEvent: null, eventData: null, streetWarRivalId: null };
-      
-      const rival = state.rivals.find(r => r.id === rivalId);
-      if (!rival) return updates;
+      // Find Red Pole for combat consequences
+      const redPole = state.officers.find(o => o.rank === 'Red Pole');
       
       switch (choice) {
         case 'bribe':
-          // Pay large bribe, reset friction, lower reputation
+          // Pay large bribe, reset conflict status and friction, lower reputation
           const bribeCost = Math.max(5000, rival.strength * 100);
           if (state.cash >= bribeCost) {
             updates.cash = state.cash - bribeCost;
@@ -1325,35 +983,127 @@ export const useGameStore = create<GameState>((set, get) => ({
                 ? { ...r, relationship: Math.min(100, r.relationship + 30), isActiveConflict: false } 
                 : r
             );
+            updates.territoryFriction = 0; // Reset friction after resolution
           }
           break;
         case 'fight':
-          // Start raid on most profitable building
-          const occupiedBuildings = state.buildings.filter(b => b.isOccupied);
-          if (occupiedBuildings.length > 0) {
-            const mostProfitableBuilding = occupiedBuildings.reduce((max, building) => 
-              building.baseRevenue > max.baseRevenue ? building : max
-            );
+          // --- Combat Resolution for Street War ---
+          const ourSoldiersStrength = state.soldiers.reduce((sum, s) => sum + (s.loyalty > 30 ? s.skill : 0), 0);
+          const officerContribution = redPole ? redPole.skills.enforcement : 0;
+          const ourTotalStrength = ourSoldiersStrength + officerContribution;
+          
+          const success = ourTotalStrength > rival.strength;
+          
+          let soldiersLost: number;
+          let repChange: number;
+          let officerFaceChange = 0;
+          let officerLoyaltyChange = 0;
+          let officerStatusEffect: PostConflictSummaryData['officerStatusEffect'] = 'none';
+          
+          if (success) {
+            repChange = 15;
+            officerFaceChange = 10;
+            soldiersLost = Math.floor(state.soldiers.length * (Math.random() * 0.1 + 0.1)); // 10-20% loss
+          } else {
+            repChange = -20;
+            officerLoyaltyChange = -15;
+            soldiersLost = Math.floor(state.soldiers.length * (Math.random() * 0.2 + 0.3)); // 30-50% loss
             
-            updates.buildings = state.buildings.map(b => 
-              b.id === mostProfitableBuilding.id 
-                ? { ...b, inactiveUntilDay: state.currentDay + 2, isOccupied: false, assignedOfficerId: null } 
-                : b
-            );
-            
-            updates.officers = state.officers.map(o => 
-              o.assignedBuildingId === mostProfitableBuilding.id 
-                ? { ...o, assignedBuildingId: null } 
-                : o
-            );
+            if (Math.random() < 0.2 && redPole) {
+              officerStatusEffect = Math.random() < 0.5 ? 'wounded' : 'arrested';
+            }
           }
-          // Keep conflict active
-          updates.rivals = state.rivals.map(r => 
+          
+          // Apply consequences
+          const remainingSoldiers = state.soldiers.slice(soldiersLost);
+          
+          let updatedOfficers = state.officers.map(o => {
+            if (o.id === redPole?.id) {
+              let newOfficer = { ...o };
+              if (success) {
+                  if (!newOfficer.traits.includes('Battle Hardened' as CharacterTrait)) {
+                      newOfficer.traits = [...newOfficer.traits, 'Battle Hardened' as CharacterTrait];
+                  }
+              } else {
+                  newOfficer.loyalty = Math.max(0, newOfficer.loyalty + officerLoyaltyChange);
+                  if (officerStatusEffect === 'wounded') {
+                      newOfficer.energy = Math.max(0, Math.floor(newOfficer.maxEnergy * 0.2)); 
+                  } else if (officerStatusEffect === 'arrested') {
+                      newOfficer.assignedBuildingId = null;
+                      newOfficer.energy = 0;
+                  }
+              }
+              return newOfficer;
+            }
+            return o;
+          });
+          
+          // If failure, lose most profitable building (as per original logic)
+          let updatedBuildings = state.buildings;
+          if (!success) {
+            const occupiedBuildings = state.buildings.filter(b => b.isOccupied);
+            if (occupiedBuildings.length > 0) {
+              const mostProfitableBuilding = occupiedBuildings.reduce((max, building) => 
+                building.baseRevenue > max.baseRevenue ? building : max
+              );
+              
+              updatedBuildings = state.buildings.map(b => 
+                b.id === mostProfitableBuilding.id 
+                  ? { ...b, inactiveUntilDay: state.currentDay + 2, isOccupied: false, assignedOfficerId: null } 
+                  : b
+              );
+              
+              // Unassign officer from lost building
+              updatedOfficers = updatedOfficers.map(o => 
+                o.assignedBuildingId === mostProfitableBuilding.id 
+                  ? { ...o, assignedBuildingId: null } 
+                  : o
+              );
+            }
+          }
+          
+          // Reset conflict status and friction
+          const updatedRivals = state.rivals.map(r => 
             r.id === rivalId 
-              ? { ...r, relationship: Math.max(-100, r.relationship - 20) } 
+              ? { ...r, isActiveConflict: false } 
               : r
           );
+          
+          updates.reputation = Math.max(0, state.reputation + repChange);
+          updates.soldiers = remainingSoldiers;
+          updates.officers = updatedOfficers;
+          updates.buildings = updatedBuildings;
+          updates.rivals = updatedRivals;
+          updates.territoryFriction = 0; // Reset friction after conflict resolution
+          
+          // Queue summary event
+          updates.pendingEvents = [...state.pendingEvents, {
+            type: 'postConflictSummary',
+            data: {
+              type: 'streetWar',
+              outcome: success ? 'success' : 'failure',
+              officerId: redPole?.id || null,
+              soldiersLost,
+              reputationChange: repChange,
+              faceChange: officerFaceChange,
+              loyaltyChange: officerLoyaltyChange,
+              officerStatusEffect,
+              rivalName: rival.name,
+            } as PostConflictSummaryData
+          }];
+          
           break;
+      }
+      
+      // Check for pending events
+      if (updates.pendingEvents?.length > 0) {
+        const [nextEvent, ...rest] = updates.pendingEvents;
+        return {
+          ...updates,
+          activeEvent: nextEvent.type,
+          eventData: nextEvent.data,
+          pendingEvents: rest,
+        };
       }
       
       return updates;
