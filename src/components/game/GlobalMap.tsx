@@ -27,10 +27,10 @@ const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: 
     coords: [
       [22.3150, 114.1750],
       [22.3150, 114.1950],
-      [22.3250, 114.2050],
-      [22.3400, 114.2000],
-      [22.3420, 114.1800],
-      [22.3300, 114.1700]
+      [22.3250, 114.1950],
+      [22.3400, 114.1900],
+      [22.3420, 114.1700],
+      [22.3300, 114.1600]
     ]
   },
   'rival-2': {
@@ -463,6 +463,9 @@ export const GlobalMap = () => {
                       }} 
                     />
                     <span className="text-sm">{rival.name}</span>
+                    {rival.isActiveConflict && (
+                      <AlertTriangle className="w-3 h-3 text-neon-red animate-pulse" />
+                    )}
                   </div>
                   <span className={cn(
                     "text-xs font-medium",

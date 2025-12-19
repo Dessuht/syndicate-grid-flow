@@ -1,7 +1,8 @@
-import { Building, Globe, Users, TrendingUp, Shield, Menu } from 'lucide-react';
+import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { useGameStore } from '@/stores/gameStore';
 
 export type ViewType = 'district' | 'global';
 
@@ -27,6 +28,10 @@ const NAV_ITEMS = [
 
 export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { rivals } = useGameStore();
+  
+  // Check if there's an active street war
+  const hasActiveStreetWar = rivals.some(r => r.isActiveConflict);
 
   return (
     <motion.aside
@@ -62,12 +67,14 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
         <div className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const isActive = activeView === item.id;
+            const showWarning = item.id === 'district' && hasActiveStreetWar;
+            
             return (
               <button
                 key={item.id}
                 onClick={() => onViewChange(item.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200",
+                  "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 relative",
                   isActive 
                     ? "bg-sidebar-accent text-sidebar-primary neon-glow-cyan" 
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-primary"
@@ -80,8 +87,13 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
                   )} 
                 />
                 {!isCollapsed && (
-                  <div className="text-left">
-                    <p className="font-medium text-sm">{item.label}</p>
+                  <div className="text-left flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{item.label}</p>
+                      {showWarning && (
+                        <AlertTriangle className="w-4 h-4 text-neon-red animate-pulse" />
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{item.description}</p>
                   </div>
                 )}

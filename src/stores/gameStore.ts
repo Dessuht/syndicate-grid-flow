@@ -6,7 +6,7 @@ import { generateSoldier } from '@/lib/characterGenerator';
 export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blue Lantern';
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | null;
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | null;
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -346,6 +346,9 @@ export interface GameState {
   territoryInfluence: number;
   frictionInterval: NodeJS.Timeout | null;
 
+  // Street War System
+  streetWarRivalId: string | null;
+
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => void;
   unassignOfficer: (officerId: string) => void;
@@ -360,6 +363,7 @@ export interface GameState {
   handleCriminalChoice: (choice: 'execute' | 'enslave' | 'spy') => void;
   handleRivalAttackChoice: (choice: 'fight' | 'negotiate' | 'retreat') => void;
   handleTerritoryUltimatum: (choice: 'pay' | 'refuse') => void;
+  handleStreetWarChoice: (choice: 'bribe' | 'fight') => void;
   dismissEvent: () => void;
 
   // Diplomacy
@@ -389,6 +393,10 @@ export interface GameState {
   // Intel actions
   spendIntelToReduceFriction: (rivalId: string, amount: number) => void;
   spendIntelToScout: (rivalId: string) => void;
+  
+  // Street War actions
+  increaseFriction: () => void;
+  resolveStreetWar: (choice: 'bribe' | 'fight') => void;
 }
 
 // ==================== STORE ====================
@@ -422,6 +430,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   territoryFriction: 0,
   territoryInfluence: 20,
   frictionInterval: null,
+  
+  // Street War System
+  streetWarRivalId: null,
 
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
@@ -501,8 +512,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       
       switch (state.currentPhase) {
         case 'morning':
-          // Morning -> Day: Nothing special, just advance
+          // Morning -> Day: Increase friction when starting operations
           updates.currentPhase = 'day';
+          // Increase friction with Wo Shing Wo when starting operations
+          const woShingWo = state.rivals.find(r => r.id === 'rival-3');
+          if (woShingWo && !woShingWo.isActiveConflict) {
+            updates.rivals = state.rivals.map(r => 
+              r.id === 'rival-3' 
+                ? { ...r, relationship: Math.max(-100, r.relationship - 5) } 
+                : r
+            );
+          }
           break;
         case 'day':
           // Day -> Evening: Process operations
@@ -860,6 +880,68 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  handleStreetWarChoice: (choice: 'bribe' | 'fight') => {
+    set((state) => {
+      const rivalId = state.streetWarRivalId;
+      if (!rivalId) return { ...state, activeEvent: null, eventData: null };
+      
+      let updates: Partial<GameState> = { activeEvent: null, eventData: null, streetWarRivalId: null };
+      
+      const rival = state.rivals.find(r => r.id === rivalId);
+      if (!rival) return updates;
+      
+      switch (choice) {
+        case 'bribe':
+          // Pay large bribe, reset friction, lower reputation
+          const bribeCost = Math.max(5000, rival.strength * 100);
+          if (state.cash >= bribeCost) {
+            updates.cash = state.cash - bribeCost;
+            updates.reputation = Math.max(0, state.reputation - 20);
+            updates.rivals = state.rivals.map(r => 
+              r.id === rivalId 
+                ? { ...r, relationship: Math.min(100, r.relationship + 30) } 
+                : r
+            );
+          }
+          break;
+        case 'fight':
+          // Start raid on most profitable building
+          const occupiedBuildings = state.buildings.filter(b => b.isOccupied);
+          if (occupiedBuildings.length > 0) {
+            const mostProfitableBuilding = occupiedBuildings.reduce((max, building) => 
+              building.baseRevenue > max.baseRevenue ? building : max
+            );
+            
+            updates.buildings = state.buildings.map(b => 
+              b.id === mostProfitableBuilding.id 
+                ? { ...b, inactiveUntilDay: state.currentDay + 2, isOccupied: false, assignedOfficerId: null } 
+                : b
+            );
+            
+            updates.officers = state.officers.map(o => 
+              o.assignedBuildingId === mostProfitableBuilding.id 
+                ? { ...o, assignedBuildingId: null } 
+                : o
+            );
+          }
+          break;
+      }
+      
+      // Check for pending events
+      if (state.pendingEvents.length > 0) {
+        const [nextEvent, ...rest] = state.pendingEvents;
+        return {
+          ...updates,
+          activeEvent: nextEvent.type,
+          eventData: nextEvent.data,
+          pendingEvents: rest,
+        };
+      }
+      
+      return updates;
+    });
+  },
+
   dismissEvent: () => {
     set((state) => {
       if (state.pendingEvents.length > 0) {
@@ -1183,6 +1265,98 @@ export const useGameStore = create<GameState>((set, get) => ({
             : r
         )
       };
+    });
+  },
+  
+  // Street War actions
+  increaseFriction: () => {
+    set((state) => {
+      // Increase friction with Wo Shing Wo
+      const woShingWo = state.rivals.find(r => r.id === 'rival-3');
+      if (woShingWo && !woShingWo.isActiveConflict) {
+        const newRelationship = Math.max(-100, woShingWo.relationship - 3);
+        const shouldTriggerWar = newRelationship <= -100;
+        
+        const updatedRivals = state.rivals.map(r => 
+          r.id === 'rival-3' 
+            ? { ...r, relationship: newRelationship } 
+            : r
+        );
+        
+        if (shouldTriggerWar) {
+          return {
+            rivals: updatedRivals.map(r => 
+              r.id === 'rival-3' 
+                ? { ...r, isActiveConflict: true } 
+                : r
+            ),
+            activeEvent: 'streetWar' as EventType,
+            streetWarRivalId: 'rival-3',
+            eventData: { rivalName: woShingWo.name, rivalStrength: woShingWo.strength }
+          };
+        }
+        
+        return { rivals: updatedRivals };
+      }
+      
+      return state;
+    });
+  },
+  
+  resolveStreetWar: (choice: 'bribe' | 'fight') => {
+    set((state) => {
+      const rivalId = state.streetWarRivalId;
+      if (!rivalId) return { ...state, activeEvent: null, eventData: null };
+      
+      let updates: Partial<GameState> = { activeEvent: null, eventData: null, streetWarRivalId: null };
+      
+      const rival = state.rivals.find(r => r.id === rivalId);
+      if (!rival) return updates;
+      
+      switch (choice) {
+        case 'bribe':
+          // Pay large bribe, reset friction, lower reputation
+          const bribeCost = Math.max(5000, rival.strength * 100);
+          if (state.cash >= bribeCost) {
+            updates.cash = state.cash - bribeCost;
+            updates.reputation = Math.max(0, state.reputation - 20);
+            updates.rivals = state.rivals.map(r => 
+              r.id === rivalId 
+                ? { ...r, relationship: Math.min(100, r.relationship + 30), isActiveConflict: false } 
+                : r
+            );
+          }
+          break;
+        case 'fight':
+          // Start raid on most profitable building
+          const occupiedBuildings = state.buildings.filter(b => b.isOccupied);
+          if (occupiedBuildings.length > 0) {
+            const mostProfitableBuilding = occupiedBuildings.reduce((max, building) => 
+              building.baseRevenue > max.baseRevenue ? building : max
+            );
+            
+            updates.buildings = state.buildings.map(b => 
+              b.id === mostProfitableBuilding.id 
+                ? { ...b, inactiveUntilDay: state.currentDay + 2, isOccupied: false, assignedOfficerId: null } 
+                : b
+            );
+            
+            updates.officers = state.officers.map(o => 
+              o.assignedBuildingId === mostProfitableBuilding.id 
+                ? { ...o, assignedBuildingId: null } 
+                : o
+            );
+          }
+          // Keep conflict active
+          updates.rivals = state.rivals.map(r => 
+            r.id === rivalId 
+              ? { ...r, relationship: Math.max(-100, r.relationship - 20) } 
+              : r
+          );
+          break;
+      }
+      
+      return updates;
     });
   }
 }));
