@@ -79,17 +79,28 @@ export const GlobalMap = () => {
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
+    // Hong Kong bounds - restrict map to this region
+    const hongKongBounds = L.latLngBounds(
+      [22.15, 113.82], // Southwest corner
+      [22.56, 114.45]  // Northeast corner
+    );
+
     // Create map - centered to show all territories
     mapRef.current = L.map(mapContainer.current, {
       center: [22.305, 114.175],
       zoom: 13,
       zoomControl: true,
       attributionControl: false,
+      maxBounds: hongKongBounds,
+      maxBoundsViscosity: 1.0,
+      minZoom: 11,
+      maxZoom: 16,
     });
 
     // Dark map tiles (CartoDB Dark Matter - free, no key needed)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
+      maxZoom: 16,
+      bounds: hongKongBounds,
     }).addTo(mapRef.current);
 
     // Add territory polygons
