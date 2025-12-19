@@ -48,6 +48,11 @@
     --neon-green: 142 80% 50%;
     --neon-red: 0 90% 55%;
     --neon-purple: 270 100% 60%;
+    
+    /* Jianghu/Triad Theme Colors */
+    --jianghu-gold: 45 90% 50%;
+    --jianghu-amber: 35 100% 45%;
+    --jianghu-crimson: 0 75% 45%;
 
     /* Glow intensities */
     --glow-sm: 0 0 10px;
