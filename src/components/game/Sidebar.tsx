@@ -1,4 +1,4 @@
-import { Map, Globe, Users, TrendingUp, Shield, Menu } from 'lucide-react';
+import { Map, Globe, Users, TrendingUp, Shield, Menu, Building } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
@@ -11,13 +11,13 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'district' as ViewType, label: 'District', icon: Map, description: 'Manage buildings' },
+  { id: 'district' as ViewType, label: 'District', icon: Building, description: 'Manage buildings' },
   { id: 'global' as ViewType, label: 'Territory', icon: Globe, description: 'Expand influence' },
 ];
 
 export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+  
   return (
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
@@ -46,7 +46,7 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           )}
         </div>
       </div>
-
+      
       {/* Navigation */}
       <nav className="flex-1 p-2">
         <div className="space-y-1">
@@ -58,8 +58,8 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
                 onClick={() => onViewChange(item.id)}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary neon-glow-cyan"
+                  isActive 
+                    ? "bg-sidebar-accent text-sidebar-primary neon-glow-cyan" 
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-primary"
                 )}
               >
@@ -78,7 +78,7 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           })}
         </div>
       </nav>
-
+      
       {/* Stats Preview */}
       {!isCollapsed && (
         <div className="p-4 border-t border-sidebar-border">
@@ -100,7 +100,7 @@ export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
           </div>
         </div>
       )}
-
+      
       {/* Collapse Toggle */}
       <div className="p-2 border-t border-sidebar-border">
         <button

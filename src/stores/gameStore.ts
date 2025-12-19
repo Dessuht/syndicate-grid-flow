@@ -335,8 +335,9 @@ export interface GameState {
   homeDistrictHeat: number;
   homeDistrictRevenue: number;
   
-  // Territory Friction System
+  // Territory Stats
   territoryFriction: number;
+  territoryInfluence: number;
   frictionInterval: NodeJS.Timeout | null;
 
   // Actions
@@ -374,7 +375,7 @@ export interface GameState {
   processRacketCycle: () => void;
   scoutTerritory: (rivalId: string) => void;
   
-  // Territory Friction
+  // Territory Management
   startFrictionTimer: () => void;
   stopFrictionTimer: () => void;
   resetFriction: () => void;
@@ -407,8 +408,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   homeDistrictHeat: 10,
   homeDistrictRevenue: 0,
   
-  // Territory Friction System
+  // Territory Stats
   territoryFriction: 0,
+  territoryInfluence: 20,
   frictionInterval: null,
 
   assignOfficer: (officerId: string, buildingId: string) => {

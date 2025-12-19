@@ -5,24 +5,16 @@ import { OfficersPanel } from './OfficersPanel';
 import { SoldiersPanel } from './SoldiersPanel';
 import { DayCycle } from './DayCycle';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Play, PartyPopper, SkipForward } from 'lucide-react';
+import { Map, Play, PartyPopper, SkipForward, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Sidebar } from './Sidebar';
 
 export const DistrictMap = () => {
-  const { 
-    buildings, 
-    officers, 
-    currentDay, 
-    currentPhase,
-    advancePhase, 
-    hostNightclub, 
-    cash,
-    intel 
-  } = useGameStore();
+  const { buildings, officers, currentDay, currentPhase, advancePhase, hostNightclub, cash, intel } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
   const assignOfficer = useGameStore(state => state.assignOfficer);
   const unassignOfficer = useGameStore(state => state.unassignOfficer);
-
+  
   const handleAssign = (buildingId: string) => {
     if (selectedOfficerId && currentPhase === 'morning') {
       const officer = officers.find(o => o.id === selectedOfficerId);
@@ -32,7 +24,7 @@ export const DistrictMap = () => {
       }
     }
   };
-
+  
   const handleUnassign = (buildingId: string) => {
     if (currentPhase === 'morning') {
       const building = buildings.find(b => b.id === buildingId);
@@ -41,7 +33,7 @@ export const DistrictMap = () => {
       }
     }
   };
-
+  
   const getOfficerForBuilding = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     if (building?.assignedOfficerId) {
@@ -49,20 +41,28 @@ export const DistrictMap = () => {
     }
     return null;
   };
-
+  
   const phaseButtonText = {
     morning: 'Start Operations',
     day: 'End Work Day',
     evening: 'Begin Night',
     night: 'Next Day',
   };
-
+  
   return (
     <div className="flex gap-4 p-4 h-full">
       {/* Main Grid */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => console.log("Navigate to Territory View")}
+              className="gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Territory
+            </Button>
             <div className="p-2 rounded-lg bg-primary/10 border border-primary/30">
               <Map className="w-5 h-5 text-primary" />
             </div>
@@ -73,32 +73,18 @@ export const DistrictMap = () => {
               </p>
             </div>
           </div>
-
           <DayCycle />
-
           <div className="flex items-center gap-2">
-            <Button
-              variant="nightclub"
-              size="default"
-              onClick={hostNightclub}
-              disabled={cash < 1000}
-              className="gap-2"
-            >
-              <PartyPopper className="w-4 h-4" />
-              Party ($1k)
+            <Button variant="nightclub" size="default" onClick={hostNightclub} disabled={cash < 1000} className="gap-2">
+              <PartyPopper className="w-4 h-4" /> Party ($1k)
             </Button>
-            <Button
-              variant="cyber"
-              size="default"
-              onClick={advancePhase}
-              className="gap-2"
-            >
+            <Button variant="cyber" size="default" onClick={advancePhase} className="gap-2">
               {currentPhase === 'night' ? <SkipForward className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               {phaseButtonText[currentPhase]}
             </Button>
           </div>
         </div>
-
+        
         {/* Selection hint */}
         <AnimatePresence>
           {selectedOfficerId && currentPhase === 'morning' && (
@@ -126,12 +112,9 @@ export const DistrictMap = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
+        
         {/* Building Grid */}
-        <motion.div 
-          className="command-grid flex-1 overflow-auto"
-          layout
-        >
+        <motion.div className="command-grid flex-1 overflow-auto" layout>
           <AnimatePresence mode="popLayout">
             {buildings.map((building, index) => {
               const isInactive = building.inactiveUntilDay ? building.inactiveUntilDay > currentDay : false;
@@ -157,12 +140,12 @@ export const DistrictMap = () => {
           </AnimatePresence>
         </motion.div>
       </div>
-
+      
       {/* Right Sidebar */}
       <div className="w-72 shrink-0 flex flex-col gap-4 overflow-auto">
-        <OfficersPanel
-          selectedOfficerId={selectedOfficerId}
-          onSelectOfficer={currentPhase === 'morning' ? setSelectedOfficerId : () => {}}
+        <OfficersPanel 
+          selectedOfficerId={selectedOfficerId} 
+          onSelectOfficer={currentPhase === 'morning' ? setSelectedOfficerId : () => {}} 
         />
         <SoldiersPanel />
       </div>

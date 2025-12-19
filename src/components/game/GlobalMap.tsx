@@ -1,13 +1,12 @@
 import { useGameStore } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin, DollarSign, Brain, AlertTriangle } from 'lucide-react';
+import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin, DollarSign, Brain, AlertTriangle, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { DistrictHub } from './DistrictHub';
-import { getFullName } from '@/lib/characterGenerator';
 
 // Territory polygon boundaries in Hong Kong (lat, lng) - approximate district boundaries
 const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: string; center: [number, number] }> = {
@@ -48,7 +47,7 @@ const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: 
     ]
   },
   'rival-3': {
-    label: 'Central', // Changed label to Central to match store data (Wo Shing Wo)
+    label: 'Central',
     center: [22.2800, 114.1580],
     coords: [
       [22.2900, 114.1650],
@@ -69,28 +68,6 @@ const GANG_COLORS: Record<string, string> = {
   'rival-3': '#44FF44',
 };
 
-// Custom marker for active leader/profit
-const createProfitMarker = (revenue: number, leaderName: string) => {
-  const iconHtml = `
-    <div class="flex flex-col items-center">
-      <div class="p-1 rounded-full bg-neon-green/80 border border-neon-green text-xs font-bold text-background shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
-      <div class="mt-1 text-[10px] font-display font-bold text-neon-green text-shadow-lg animate-pulse">
-        +$${revenue}
-      </div>
-      <div class="text-[8px] text-foreground/70 mt-0.5">${leaderName}</div>
-    </div>
-  `;
-  
-  return L.divIcon({
-    className: 'custom-profit-marker',
-    html: iconHtml,
-    iconSize: [50, 50],
-    iconAnchor: [25, 50],
-  });
-};
-
 export const GlobalMap = () => {
   const { 
     cash, 
@@ -101,18 +78,20 @@ export const GlobalMap = () => {
     initiateDiplomacy, 
     confirmDiplomacy, 
     cancelDiplomacy, 
-    purchaseIntel, 
-    homeDistrictLeaderId, 
-    syndicateMembers, 
-    processRacketCycle, 
-    homeDistrictRevenue, 
+    purchaseIntel,
+    buildings,
+    homeDistrictLeaderId,
+    syndicateMembers,
+    processRacketCycle,
+    homeDistrictRevenue,
     homeDistrictHeat,
+    territoryFriction,
+    territoryInfluence
   } = useGameStore();
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const polygonsRef = useRef<L.Polygon[]>([]);
-  const markersRef = useRef<L.Marker[]>([]);
   const [selectedRival, setSelectedRival] = useState<string | null>(null);
   const [isHubOpen, setIsHubOpen] = useState(false);
   
@@ -121,18 +100,14 @@ export const GlobalMap = () => {
   const assignedLeader = syndicateMembers.find(m => m.id === homeDistrictLeaderId);
   const ourStrength = soldiers.reduce((sum, s) => sum + (s.loyalty > 30 ? s.skill : 0), 0);
   
-  // --- Racket Cycle Loop ---
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (homeDistrictLeaderId) {
-        processRacketCycle();
-      }
-    }, 5000); // 5 seconds cycle
-    
-    return () => clearInterval(interval);
-  }, [homeDistrictLeaderId, processRacketCycle]);
+  // Calculate passive income based on buildings owned
+  const calculatePassiveIncome = () => {
+    return buildings
+      .filter(b => b.isOccupied)
+      .reduce((sum, b) => sum + b.baseRevenue, 0);
+  };
   
-  // -------------------------
+  const passiveIncome = calculatePassiveIncome();
   
   // Initialize map
   useEffect(() => {
@@ -172,9 +147,7 @@ export const GlobalMap = () => {
     
     // Clear existing layers
     polygonsRef.current.forEach(p => p.remove());
-    markersRef.current.forEach(m => m.remove());
     polygonsRef.current = [];
-    markersRef.current = [];
     
     // Player territory polygon (Wan Chai)
     const playerTerritory = TERRITORY_BOUNDARIES['player'];
@@ -197,16 +170,6 @@ export const GlobalMap = () => {
     });
     
     polygonsRef.current.push(playerPolygon);
-    
-    // Add active leader marker if assigned
-    if (assignedLeader) {
-      const marker = L.marker(playerTerritory.center, {
-        icon: createProfitMarker(homeDistrictRevenue, getFullName(assignedLeader)),
-        interactive: false,
-      }).addTo(mapRef.current);
-      
-      markersRef.current.push(marker);
-    }
     
     // Rival territory polygons
     rivals.forEach((rival, index) => {
@@ -264,12 +227,12 @@ export const GlobalMap = () => {
     });
   };
   
-  // Update polygons when data changes (rivals, leader assignment, revenue)
+  // Update polygons when data changes
   useEffect(() => {
     if (mapRef.current) {
       addTerritoryPolygons();
     }
-  }, [rivals, selectedRival, homeDistrictLeaderId, homeDistrictRevenue]);
+  }, [rivals, selectedRival]);
   
   const canConfirmDiplomacy = () => {
     if (!activeDiplomacy || !activeRival) return false;
@@ -458,7 +421,7 @@ export const GlobalMap = () => {
                   Click a territory marker on the map
                 </p>
                 <Button variant="cyber" size="sm" className="mt-4" onClick={() => setIsHubOpen(true)}>
-                  Open Wan Chai Hub
+                  <Home className="w-4 h-4 mr-1" /> Open Wan Chai Hub
                 </Button>
               </motion.div>
             )}

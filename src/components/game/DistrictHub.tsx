@@ -2,7 +2,7 @@ import { useGameStore } from '@/stores/gameStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, MapPin, DollarSign, Flame, TrendingUp, Skull, Handshake, Users, AlertTriangle } from 'lucide-react';
+import { User, MapPin, DollarSign, Flame, TrendingUp, Skull, Handshake, Users, AlertTriangle, Building, Shield, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getFullName } from '@/lib/characterGenerator';
@@ -13,75 +13,6 @@ interface DistrictHubProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const MemberAssignmentCard = ({ 
-  member, 
-  isAssigned, 
-  onAssign, 
-  onUnassign 
-}: { 
-  member: Character; 
-  isAssigned: boolean; 
-  onAssign: (id: string) => void; 
-  onUnassign: () => void; 
-}) => {
-  const revenueEstimate = Math.floor(200 + (200 * (member.stats.face / 100)));
-  const isAmbitious = member.traits.includes('Ambitious');
-  
-  return (
-    <motion.div 
-      layout 
-      className={cn(
-        "p-3 rounded-lg border transition-all duration-200",
-        isAssigned 
-          ? "bg-neon-green/10 border-neon-green/50" 
-          : "bg-card/50 border-border hover:border-primary/50"
-      )}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 flex items-center justify-center text-xs font-bold">
-            {member.surname[0]}{member.name[0]}
-          </div>
-          <div>
-            <h4 className="font-display text-sm font-semibold">{getFullName(member)}</h4>
-            <p className="text-[10px] text-muted-foreground">{member.rank}</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-neon-amber flex items-center gap-1">
-            <DollarSign className="w-3 h-3" /> ~${revenueEstimate}/cycle
-          </p>
-          <p className="text-[10px] text-muted-foreground">Face: {member.stats.face}</p>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between pt-2 border-t border-border">
-        <div className="flex gap-2">
-          {isAmbitious && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-red/20 text-neon-red border border-neon-red/30">
-              Ambitious
-            </span>
-          )}
-        </div>
-        {isAssigned ? (
-          <Button variant="destructive" size="sm" onClick={onUnassign}>
-            <Skull className="w-3 h-3 mr-1" /> Unassign
-          </Button>
-        ) : (
-          <Button 
-            variant="cyber" 
-            size="sm" 
-            onClick={() => onAssign(member.id)} 
-            disabled={!member.isActive}
-          >
-            <TrendingUp className="w-3 h-3 mr-1" /> Assign Racket
-          </Button>
-        )}
-      </div>
-    </motion.div>
-  );
-};
 
 const DiplomacyTab = () => {
   const { rivals } = useGameStore();
@@ -150,65 +81,163 @@ const DiplomacyTab = () => {
   );
 };
 
-export const DistrictHub = ({ isOpen, onClose }: DistrictHubProps) => {
+const TerritoryTab = () => {
   const { 
-    syndicateMembers, 
+    buildings, 
     homeDistrictLeaderId, 
-    homeDistrictHeat, 
-    homeDistrictRevenue, 
+    syndicateMembers, 
     assignSyndicateMember, 
     unassignSyndicateMember,
-    scoutTerritory,
-    rivals,
-    intel,
     territoryFriction,
-    startFrictionTimer,
-    stopFrictionTimer
+    territoryInfluence,
+    cash
   } = useGameStore();
-  
-  const [activeTab, setActiveTab] = useState<'racket' | 'diplomacy'>('racket');
   
   const assignedLeader = syndicateMembers.find(m => m.id === homeDistrictLeaderId);
   const idleMembers = syndicateMembers.filter(m => m.isActive);
-  const woShingWo = rivals.find(r => r.id === 'rival-3');
-  const canScout = assignedLeader?.traits.includes('Ambitious') && woShingWo && !woShingWo.isScouted;
+  const occupiedBuildings = buildings.filter(b => b.isOccupied).length;
+  const totalBuildings = buildings.length;
   
-  // Start/stop friction timer based on assignment
-  useEffect(() => {
-    if (homeDistrictLeaderId) {
-      startFrictionTimer();
-    } else {
-      stopFrictionTimer();
-    }
-    
-    return () => {
-      stopFrictionTimer();
-    };
-  }, [homeDistrictLeaderId, startFrictionTimer, stopFrictionTimer]);
+  // Calculate passive income based on buildings
+  const calculatePassiveIncome = () => {
+    return buildings
+      .filter(b => b.isOccupied)
+      .reduce((sum, b) => sum + b.baseRevenue, 0);
+  };
+  
+  const passiveIncome = calculatePassiveIncome();
   
   const handleAssign = (memberId: string) => {
     if (homeDistrictLeaderId) {
-      // If someone is already assigned, unassign them first
       unassignSyndicateMember();
     }
     assignSyndicateMember(memberId);
   };
   
-  const handleScout = () => {
-    if (woShingWo) {
-      scoutTerritory(woShingWo.id);
-      onClose();
-    }
-  };
+  return (
+    <div className="space-y-4">
+      {/* Territory Stats */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-3 rounded-lg bg-card/50 border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <Building className="w-4 h-4 text-neon-cyan" />
+            <h4 className="text-sm font-semibold">Buildings</h4>
+          </div>
+          <p className="text-2xl font-bold neon-text-cyan">{occupiedBuildings}<span className="text-muted-foreground">/{totalBuildings}</span></p>
+          <p className="text-xs text-muted-foreground">Territory control</p>
+        </div>
+        
+        <div className="p-3 rounded-lg bg-card/50 border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-neon-amber" />
+            <h4 className="text-sm font-semibold">Passive Income</h4>
+          </div>
+          <p className="text-2xl font-bold neon-text-amber">${passiveIncome}</p>
+          <p className="text-xs text-muted-foreground">Per day</p>
+        </div>
+        
+        <div className="p-3 rounded-lg bg-card/50 border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <Flame className="w-4 h-4 text-neon-red" />
+            <h4 className="text-sm font-semibold">Friction</h4>
+          </div>
+          <p className="text-2xl font-bold neon-text-red">{territoryFriction}%</p>
+          <p className="text-xs text-muted-foreground">War risk</p>
+        </div>
+        
+        <div className="p-3 rounded-lg bg-card/50 border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4 text-neon-green" />
+            <h4 className="text-sm font-semibold">Influence</h4>
+          </div>
+          <p className="text-2xl font-bold neon-text-green">{territoryInfluence}%</p>
+          <p className="text-xs text-muted-foreground">Diplomatic power</p>
+        </div>
+      </div>
+      
+      {/* Territory Leader Assignment */}
+      <div className="p-3 rounded-lg bg-card/50 border border-border">
+        <h4 className="text-sm font-semibold mb-3">Territory Leader</h4>
+        
+        {assignedLeader ? (
+          <div className="flex items-center justify-between p-2 rounded-lg bg-neon-green/10 border border-neon-green/30">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 flex items-center justify-center text-xs font-bold">
+                {assignedLeader.surname[0]}{assignedLeader.name[0]}
+              </div>
+              <div>
+                <p className="text-sm font-medium">{getFullName(assignedLeader)}</p>
+                <p className="text-xs text-muted-foreground">{assignedLeader.rank}</p>
+              </div>
+            </div>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={unassignSyndicateMember}
+            >
+              <Skull className="w-3 h-3 mr-1" /> Unassign
+            </Button>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground mb-2">No territory leader assigned</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Assign a syndicate member to provide diplomatic bonuses and reduce friction
+            </p>
+          </div>
+        )}
+        
+        {/* Idle Members List */}
+        {idleMembers.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <h5 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Available Members</h5>
+            <div className="space-y-2">
+              {idleMembers.map(member => (
+                <div 
+                  key={member.id} 
+                  className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer"
+                  onClick={() => handleAssign(member.id)}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 flex items-center justify-center text-[10px] font-bold">
+                      {member.surname[0]}{member.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium">{getFullName(member)}</p>
+                      <p className="text-[10px] text-muted-foreground">{member.rank}</p>
+                    </div>
+                  </div>
+                  <Button variant="cyber" size="sm">
+                    Assign
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const DistrictHub = ({ isOpen, onClose }: DistrictHubProps) => {
+  const { 
+    cash,
+    homeDistrictLeaderId,
+    territoryFriction,
+    territoryInfluence
+  } = useGameStore();
+  
+  const [activeTab, setActiveTab] = useState<'territory' | 'diplomacy'>('territory');
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px] bg-card border-neon-cyan/50 neon-glow-cyan">
+      <DialogContent className="sm:max-w-[600px] bg-card border-neon-cyan/50 neon-glow-cyan">
         <DialogHeader>
           <DialogTitle className="font-display text-xl neon-text-cyan flex items-center gap-2">
-            <MapPin className="w-5 h-5" /> Wan Chai District Hub
+            <MapPin className="w-5 h-5" /> Wan Chai Territory Hub
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">Manage your primary territory racket.</p>
+          <p className="text-sm text-muted-foreground">Manage your territory at the macro level.</p>
         </DialogHeader>
         
         {/* Tab Navigation */}
@@ -216,13 +245,13 @@ export const DistrictHub = ({ isOpen, onClose }: DistrictHubProps) => {
           <button
             className={cn(
               "px-4 py-2 text-sm font-medium transition-colors",
-              activeTab === 'racket' 
+              activeTab === 'territory' 
                 ? "text-neon-cyan border-b-2 border-neon-cyan" 
                 : "text-muted-foreground hover:text-foreground"
             )}
-            onClick={() => setActiveTab('racket')}
+            onClick={() => setActiveTab('territory')}
           >
-            Racket Management
+            Territory Management
           </button>
           <button
             className={cn(
@@ -239,105 +268,15 @@ export const DistrictHub = ({ isOpen, onClose }: DistrictHubProps) => {
         
         <div className="space-y-4 mt-2">
           <AnimatePresence mode="wait">
-            {activeTab === 'racket' ? (
+            {activeTab === 'territory' ? (
               <motion.div
-                key="racket"
+                key="territory"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="space-y-4"
               >
-                {/* Current Status */}
-                <div className="p-3 rounded-lg bg-secondary/50 border border-border">
-                  <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Racket Status</h4>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-neon-cyan" />
-                      <span className="text-sm font-medium">Leader:</span>
-                      <span className={cn(
-                        "text-sm font-bold",
-                        assignedLeader ? "text-neon-green" : "text-neon-red"
-                      )}>
-                        {assignedLeader ? getFullName(assignedLeader) : 'Unassigned'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-neon-red" />
-                      <span className="text-sm font-medium">Heat:</span>
-                      <span className="text-sm font-bold text-neon-red">{homeDistrictHeat}%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-neon-amber" />
-                      <span className="text-sm font-medium">Last Cycle:</span>
-                      <span className="text-sm font-bold text-neon-amber">${homeDistrictRevenue}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Friction Indicator */}
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">Territory Friction</span>
-                      <span className="text-xs font-medium text-neon-red">{territoryFriction}/100</span>
-                    </div>
-                    <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-neon-red rounded-full transition-all duration-500"
-                        style={{ width: `${territoryFriction}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Expansion Logic */}
-                {canScout && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
-                    className="p-3 rounded-lg bg-neon-red/10 border border-neon-red/30 space-y-2"
-                  >
-                    <h4 className="text-sm font-semibold text-neon-red flex items-center gap-2">
-                      <MapPin className="w-4 h-4" /> Expansion Opportunity
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      {assignedLeader?.name} is ambitious and suggests scouting the adjacent {woShingWo?.name} territory. 
-                      This will unassign them but provide valuable intel for future expansion.
-                    </p>
-                    <Button variant="destructive" size="sm" onClick={handleScout} className="w-full">
-                      Scout {woShingWo?.district} (Unassign {assignedLeader?.name})
-                    </Button>
-                  </motion.div>
-                )}
-                
-                {/* Idle Members List */}
-                <h4 className="text-sm font-semibold text-foreground">Idle Family Members ({idleMembers.length})</h4>
-                <ScrollArea className="h-[200px] pr-4">
-                  <div className="space-y-2">
-                    {assignedLeader && (
-                      <MemberAssignmentCard 
-                        key={assignedLeader.id} 
-                        member={assignedLeader} 
-                        isAssigned={true} 
-                        onAssign={handleAssign} 
-                        onUnassign={unassignSyndicateMember} 
-                      />
-                    )}
-                    {idleMembers.length > 0 ? (
-                      idleMembers.map(member => (
-                        <MemberAssignmentCard 
-                          key={member.id} 
-                          member={member} 
-                          isAssigned={false} 
-                          onAssign={handleAssign} 
-                          onUnassign={unassignSyndicateMember} 
-                        />
-                      ))
-                    ) : !assignedLeader && (
-                      <p className="text-center text-muted-foreground text-xs py-4">
-                        All syndicate members are currently assigned or you need to recruit one.
-                      </p>
-                    )}
-                  </div>
-                </ScrollArea>
+                <TerritoryTab />
               </motion.div>
             ) : (
               <motion.div
@@ -351,6 +290,22 @@ export const DistrictHub = ({ isOpen, onClose }: DistrictHubProps) => {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+        
+        {/* Footer with District View Button */}
+        <div className="pt-4 border-t border-border">
+          <Button 
+            variant="cyber" 
+            className="w-full"
+            onClick={() => {
+              onClose();
+              // TODO: Navigate to District View
+              console.log("Navigate to District View");
+            }}
+          >
+            <Building className="w-4 h-4 mr-2" />
+            Manage District Buildings
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
