@@ -1,11 +1,13 @@
 import { useGameStore } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin } from 'lucide-react';
+import { Globe, TrendingUp, Handshake, Swords, ShoppingCart, X, Check, Users, MapPin, DollarSign, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { DistrictHub } from './DistrictHub';
+import { getFullName } from '@/lib/characterGenerator';
 
 // Territory polygon boundaries in Hong Kong (lat, lng) - approximate district boundaries
 const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: string; center: [number, number] }> = {
@@ -34,8 +36,8 @@ const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: 
     ]
   },
   'rival-3': { 
-    label: 'Tsim Sha Tsui',
-    center: [22.2988, 114.1722],
+    label: 'Central', // Changed label to Central to match store data (Wo Shing Wo)
+    center: [22.2800, 114.1580],
     coords: [
       [22.2900, 114.1650], [22.2920, 114.1800], [22.3050, 114.1850],
       [22.3100, 114.1750], [22.3080, 114.1600], [22.2980, 114.1550]
@@ -51,6 +53,27 @@ const GANG_COLORS: Record<string, string> = {
   'rival-3': '#44FF44',
 };
 
+// Custom marker for active leader/profit
+const createProfitMarker = (revenue: number, leaderName: string) => {
+  const iconHtml = `
+    <div class="flex flex-col items-center">
+      <div class="p-1 rounded-full bg-neon-green/80 border border-neon-green text-xs font-bold text-background shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="mt-1 text-[10px] font-display font-bold text-neon-green text-shadow-lg animate-pulse">
+        +${revenue}
+      </div>
+      <div class="text-[8px] text-foreground/70 mt-0.5">${leaderName}</div>
+    </div>
+  `;
+  return L.divIcon({
+    className: 'custom-profit-marker',
+    html: iconHtml,
+    iconSize: [50, 50],
+    iconAnchor: [25, 50],
+  });
+};
+
 export const GlobalMap = () => {
   const { 
     cash, 
@@ -61,31 +84,49 @@ export const GlobalMap = () => {
     initiateDiplomacy, 
     confirmDiplomacy,
     cancelDiplomacy,
-    purchaseIntel 
+    purchaseIntel,
+    homeDistrictLeaderId,
+    syndicateMembers,
+    processRacketCycle,
+    homeDistrictRevenue,
+    homeDistrictHeat,
   } = useGameStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const polygonsRef = useRef<L.Polygon[]>([]);
+  const markersRef = useRef<L.Marker[]>([]);
   
   const [selectedRival, setSelectedRival] = useState<string | null>(null);
+  const [isHubOpen, setIsHubOpen] = useState(false);
 
   const activeRival = activeDiplomacy ? rivals.find(r => r.id === activeDiplomacy.rivalId) : null;
   const selectedRivalData = selectedRival ? rivals.find(r => r.id === selectedRival) : null;
+  const assignedLeader = syndicateMembers.find(m => m.id === homeDistrictLeaderId);
 
   const ourStrength = soldiers.reduce((sum, s) => sum + (s.loyalty > 30 ? s.skill : 0), 0);
+
+  // --- Racket Cycle Loop ---
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (homeDistrictLeaderId) {
+        processRacketCycle();
+      }
+    }, 5000); // 5 seconds cycle
+
+    return () => clearInterval(interval);
+  }, [homeDistrictLeaderId, processRacketCycle]);
+  // -------------------------
 
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
-    // Hong Kong bounds - restrict map to this region
     const hongKongBounds = L.latLngBounds(
-      [22.15, 113.82], // Southwest corner
-      [22.56, 114.45]  // Northeast corner
+      [22.15, 113.82],
+      [22.56, 114.45]
     );
 
-    // Create map - centered to show all territories
     mapRef.current = L.map(mapContainer.current, {
       center: [22.305, 114.175],
       zoom: 13,
@@ -97,13 +138,11 @@ export const GlobalMap = () => {
       maxZoom: 16,
     });
 
-    // Dark map tiles (CartoDB Dark Matter - free, no key needed)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 16,
       bounds: hongKongBounds,
     }).addTo(mapRef.current);
 
-    // Add territory polygons
     addTerritoryPolygons();
 
     return () => {
@@ -115,11 +154,13 @@ export const GlobalMap = () => {
   const addTerritoryPolygons = () => {
     if (!mapRef.current) return;
 
-    // Clear existing polygons
+    // Clear existing layers
     polygonsRef.current.forEach(p => p.remove());
+    markersRef.current.forEach(m => m.remove());
     polygonsRef.current = [];
+    markersRef.current = [];
 
-    // Player territory polygon
+    // Player territory polygon (Wan Chai)
     const playerTerritory = TERRITORY_BOUNDARIES['player'];
     const playerPolygon = L.polygon(playerTerritory.coords, {
       fillColor: GANG_COLORS['player'],
@@ -134,7 +175,21 @@ export const GlobalMap = () => {
       direction: 'center',
       className: 'territory-label',
     });
+    
+    playerPolygon.on('click', () => {
+      setIsHubOpen(true);
+    });
+    
     polygonsRef.current.push(playerPolygon);
+
+    // Add active leader marker if assigned
+    if (assignedLeader) {
+      const marker = L.marker(playerTerritory.center, {
+        icon: createProfitMarker(homeDistrictRevenue, getFullName(assignedLeader)),
+        interactive: false,
+      }).addTo(mapRef.current);
+      markersRef.current.push(marker);
+    }
 
     // Rival territory polygons
     rivals.forEach((rival, index) => {
@@ -155,7 +210,9 @@ export const GlobalMap = () => {
         weight: 2,
       }).addTo(mapRef.current);
 
-      polygon.bindTooltip(`${rival.name}`, {
+      const labelText = rival.isScouted ? `${rival.name} (Scouted)` : rival.name;
+
+      polygon.bindTooltip(labelText, {
         permanent: true,
         direction: 'center',
         className: 'territory-label',
@@ -177,12 +234,12 @@ export const GlobalMap = () => {
     });
   };
 
-  // Update polygons when data changes
+  // Update polygons when data changes (rivals, leader assignment, revenue)
   useEffect(() => {
     if (mapRef.current) {
       addTerritoryPolygons();
     }
-  }, [rivals, selectedRival]);
+  }, [rivals, selectedRival, homeDistrictLeaderId, homeDistrictRevenue]);
 
   const canConfirmDiplomacy = () => {
     if (!activeDiplomacy || !activeRival) return false;
@@ -225,7 +282,7 @@ export const GlobalMap = () => {
       <div className="flex items-center gap-4 mb-4 p-2 rounded-lg bg-card/50 border border-border">
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#00FFFF' }} />
-          <span className="text-xs text-muted-foreground">You</span>
+          <span className="text-xs text-muted-foreground">You (Wan Chai)</span>
         </div>
         {rivals.map((rival, index) => (
           <div key={rival.id} className="flex items-center gap-2">
@@ -285,6 +342,12 @@ export const GlobalMap = () => {
                     <Users className="w-4 h-4 text-neon-cyan" />
                     <span className="text-sm">Strength: <span className="font-bold text-neon-cyan">{selectedRivalData.strength}</span></span>
                   </div>
+                  {selectedRivalData.isScouted && (
+                    <div className="flex items-center gap-1.5">
+                      <Brain className="w-4 h-4 text-neon-amber" />
+                      <span className="text-sm text-neon-amber">Scouted</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -350,6 +413,14 @@ export const GlobalMap = () => {
                 <p className="text-sm text-muted-foreground">
                   Click a territory marker on the map
                 </p>
+                <Button 
+                  variant="cyber" 
+                  size="sm" 
+                  className="mt-4"
+                  onClick={() => setIsHubOpen(true)}
+                >
+                  Open Wan Chai Hub
+                </Button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -416,7 +487,7 @@ export const GlobalMap = () => {
                   <X className="w-4 h-4 mr-1" /> Cancel
                 </Button>
                 <Button
-                  variant={activeDiplomacy.action === 'turfWar' ? 'danger' : 'cyber'}
+                  variant={activeDiplomacy.action === 'turfWar' ? 'destructive' : 'cyber'}
                   className="flex-1"
                   onClick={confirmDiplomacy}
                   disabled={!canConfirmDiplomacy()}
@@ -428,6 +499,9 @@ export const GlobalMap = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* District Hub Modal */}
+      <DistrictHub isOpen={isHubOpen} onClose={() => setIsHubOpen(false)} />
     </div>
   );
 };

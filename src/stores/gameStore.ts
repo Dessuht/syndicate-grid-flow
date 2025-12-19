@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { Character } from '@/types/character';
-import { generateSoldier } from '@/lib/characterGenerator';
+import { Character, CharacterTrait, generateSoldier } from '@/types/character';
 
 // ==================== TYPES ====================
 
@@ -72,6 +71,7 @@ export interface RivalGang {
   relationship: number; // -100 to 100
   hasTradeAgreement: boolean;
   hasAlliance: boolean;
+  isScouted: boolean; // New property for expansion logic
 }
 
 export interface CapturedCriminal {
@@ -191,9 +191,9 @@ const INITIAL_SOLDIERS: StreetSoldier[] = Array.from({ length: 6 }, (_, i) => ({
 }));
 
 const INITIAL_RIVALS: RivalGang[] = [
-  { id: 'rival-1', name: '14K Triad', district: 'Mong Kok', strength: 45, relationship: -20, hasTradeAgreement: false, hasAlliance: false },
-  { id: 'rival-2', name: 'Sun Yee On', district: 'Tsim Sha Tsui', strength: 60, relationship: 10, hasTradeAgreement: false, hasAlliance: false },
-  { id: 'rival-3', name: 'Wo Shing Wo', district: 'Central', strength: 75, relationship: -40, hasTradeAgreement: false, hasAlliance: false },
+  { id: 'rival-1', name: '14K Triad', district: 'Mong Kok', strength: 45, relationship: -20, hasTradeAgreement: false, hasAlliance: false, isScouted: false },
+  { id: 'rival-2', name: 'Sun Yee On', district: 'Tsim Sha Tsui', strength: 60, relationship: 10, hasTradeAgreement: false, hasAlliance: false, isScouted: false },
+  { id: 'rival-3', name: 'Wo Shing Wo', district: 'Central', strength: 75, relationship: -40, hasTradeAgreement: false, hasAlliance: false, isScouted: false },
 ];
 
 // ==================== GAME STATE ====================
@@ -228,6 +228,11 @@ export interface GameState {
   // Family Council - Character System
   syndicateMembers: Character[];
   recruitCost: number;
+  
+  // Home District Racket
+  homeDistrictLeaderId: string | null;
+  homeDistrictHeat: number;
+  homeDistrictRevenue: number; // Revenue generated in the last cycle
 
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => void;
@@ -258,6 +263,10 @@ export interface GameState {
   
   // Character System
   recruitSyndicateMember: () => void;
+  assignSyndicateMember: (memberId: string) => void;
+  unassignSyndicateMember: () => void;
+  processRacketCycle: () => void;
+  scoutTerritory: (rivalId: string) => void;
 }
 
 // ==================== STORE ====================
@@ -282,6 +291,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeDiplomacy: null,
   syndicateMembers: [],
   recruitCost: 500,
+  
+  // Home District Racket
+  homeDistrictLeaderId: null,
+  homeDistrictHeat: 10,
+  homeDistrictRevenue: 0,
 
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
@@ -794,6 +808,92 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         cash: state.cash - state.recruitCost,
         syndicateMembers: [...state.syndicateMembers, newMember],
+      };
+    });
+  },
+  
+  // --- New Racket/Syndicate Member Logic ---
+  
+  assignSyndicateMember: (memberId: string) => {
+    set((state) => {
+      const member = state.syndicateMembers.find(m => m.id === memberId);
+      if (!member || state.homeDistrictLeaderId) return state;
+      
+      // Mark member as inactive (assigned)
+      const updatedMembers = state.syndicateMembers.map(m => 
+        m.id === memberId ? { ...m, isActive: false } : m
+      );
+      
+      return {
+        homeDistrictLeaderId: memberId,
+        syndicateMembers: updatedMembers,
+      };
+    });
+  },
+  
+  unassignSyndicateMember: () => {
+    set((state) => {
+      if (!state.homeDistrictLeaderId) return state;
+      
+      const leaderId = state.homeDistrictLeaderId;
+      
+      // Mark member as active (idle)
+      const updatedMembers = state.syndicateMembers.map(m => 
+        m.id === leaderId ? { ...m, isActive: true } : m
+      );
+      
+      return {
+        homeDistrictLeaderId: null,
+        syndicateMembers: updatedMembers,
+      };
+    });
+  },
+  
+  processRacketCycle: () => {
+    set((state) => {
+      if (!state.homeDistrictLeaderId) {
+        return { homeDistrictRevenue: 0 };
+      }
+      
+      const leader = state.syndicateMembers.find(m => m.id === state.homeDistrictLeaderId);
+      if (!leader) return state;
+      
+      // Revenue: $200 * Face stat
+      const baseRevenue = 200;
+      const faceMultiplier = leader.stats.face / 100;
+      const revenue = Math.floor(baseRevenue + (baseRevenue * faceMultiplier));
+      
+      // Heat Accumulation: +2%
+      const newHeat = Math.min(100, state.homeDistrictHeat + 2);
+      
+      return {
+        cash: state.cash + revenue,
+        homeDistrictHeat: newHeat,
+        homeDistrictRevenue: revenue,
+      };
+    });
+  },
+  
+  scoutTerritory: (rivalId: string) => {
+    set((state) => {
+      // Assuming rivalId 'rival-3' is Wo Shing Wo (Central)
+      if (rivalId !== 'rival-3') return state;
+      
+      const ambitiousLeaderAssigned = state.syndicateMembers.find(
+        m => m.id === state.homeDistrictLeaderId && m.traits.includes('Ambitious' as CharacterTrait)
+      );
+      
+      if (!ambitiousLeaderAssigned) return state;
+      
+      return {
+        rivals: state.rivals.map(r => 
+          r.id === rivalId ? { ...r, isScouted: true } : r
+        ),
+        // Unassign the ambitious leader after scouting
+        homeDistrictLeaderId: null,
+        syndicateMembers: state.syndicateMembers.map(m => 
+          m.id === ambitiousLeaderAssigned.id ? { ...m, isActive: true } : m
+        ),
       };
     });
   },
