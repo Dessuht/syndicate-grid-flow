@@ -7,7 +7,7 @@ export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blu
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL'; // Added COUNCIL
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | null; // Added 'dailyBriefing'
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | null; // Added 'policeShakedown'
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -484,6 +484,7 @@ export interface GameState {
   handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void;
   handleLeaderDeath: (officerId: string) => void; // NEW
   handleDailyBriefingChoice: (choice: 'passive' | 'financial' | 'authoritarian') => void; // NEW
+  handleShakedownChoice: (choice: 'bribe' | 'layLow' | 'resist') => void; // NEW
   dismissEvent: () => void;
 
   // Diplomacy
@@ -1170,7 +1171,84 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { ...updates, cash: newCash, officers: updatedOfficers };
     });
   },
-  // --- END EVENT ACTIONS ---
+  
+  handleShakedownChoice: (choice: 'bribe' | 'layLow' | 'resist') => {
+    set((state) => {
+      const { buildingId, officerId, bribeCost } = state.eventData;
+      const officer = state.officers.find(o => o.id === officerId);
+      
+      if (!officer) return { ...state, activeEvent: null, eventData: null };
+
+      let updates: Partial<GameState> = { activeEvent: null, eventData: null };
+      let updatedOfficers = state.officers;
+      let updatedBuildings = state.buildings;
+      let newCash = state.cash;
+      let newHeat = state.policeHeat;
+
+      switch (choice) {
+        case 'bribe':
+          if (newCash < bribeCost) return state;
+          
+          newCash -= bribeCost;
+          newHeat = 0; // Heat reset to 0
+          break;
+
+        case 'layLow':
+          // Close building for 2 days
+          updatedBuildings = state.buildings.map(b => 
+            b.id === buildingId 
+              ? { ...b, inactiveUntilDay: state.currentDay + 2, isOccupied: false, assignedOfficerId: null } 
+              : b
+          );
+          // Unassign officer
+          updatedOfficers = state.officers.map(o => 
+            o.id === officerId 
+              ? { ...o, assignedBuildingId: null } 
+              : o
+          );
+          break;
+
+        case 'resist':
+          if (Math.random() < 0.5) {
+            // Success: Avoid fine, no penalty
+            newHeat = Math.max(0, newHeat - 10); // Slight heat reduction for standing firm
+          } else {
+            // Failure: Officer arrested
+            updatedOfficers = state.officers.map(o => 
+              o.id === officerId 
+                ? { ...o, isArrested: true, assignedBuildingId: null, energy: 0 } 
+                : o
+            );
+            // Building is also closed for 1 day due to police activity
+            updatedBuildings = state.buildings.map(b => 
+              b.id === buildingId 
+                ? { ...b, inactiveUntilDay: state.currentDay + 1, isOccupied: false, assignedOfficerId: null } 
+                : b
+            );
+            newHeat = Math.min(100, newHeat + 10); // Heat increase due to arrest
+          }
+          break;
+      }
+
+      updates.cash = newCash;
+      updates.policeHeat = newHeat;
+      updates.officers = updatedOfficers;
+      updates.buildings = updatedBuildings;
+
+      // Check for pending events
+      if (state.pendingEvents.length > 0) {
+        const [nextEvent, ...rest] = state.pendingEvents;
+        return {
+          ...updates,
+          activeEvent: nextEvent.type,
+          eventData: nextEvent.data,
+          pendingEvents: rest,
+        };
+      }
+
+      return updates;
+    });
+  },
 
   advancePhase: (/* ... existing implementation ... */) => {
     set((state) => {
@@ -2219,6 +2297,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   const events: { type: EventType; data: any }[] = [];
   
   const briefingOfficerId = state.dailyBriefingIgnored ? state.eventData?.officerId : null;
+  let shakedownTriggered = false;
 
   // Calculate revenue and heat from occupied buildings
   let updatedOfficers = state.officers.map(officer => {
@@ -2257,6 +2336,23 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
         // Generate Intel based on Street Smart trait
         if (officer.traits.includes('Street Smart')) {
           totalIntel += 5;  // 5 Intel per day for Street Smart officers
+        }
+        
+        // --- Police Shakedown Check ---
+        if (state.policeHeat > 50 && Math.random() < 0.20 && !shakedownTriggered) {
+            // Trigger shakedown event for this building/officer
+            const bribeCost = Math.floor(state.policeHeat * 50); // Cost based on current heat
+            events.push({
+                type: 'policeShakedown',
+                data: {
+                    buildingId: building.id,
+                    buildingName: building.name,
+                    officerId: officer.id,
+                    officerName: officer.name,
+                    bribeCost: bribeCost,
+                }
+            });
+            shakedownTriggered = true;
         }
 
         // Increase days assigned
@@ -2321,7 +2417,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   // Calculate new heat
   const newHeat = Math.max(0, Math.min(100, state.policeHeat + totalHeat));
 
-  // Police raid check
+  // Police raid check (This is the global raid, separate from shakedown)
   if (newHeat > 70 && Math.random() < 0.25) {
     events.push({ type: 'policeRaid', data: {} });
   }

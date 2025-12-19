@@ -10,6 +10,7 @@ import { PostWarSummaryModal } from './modals/PostWarSummaryModal';
 import { CoupAttemptModal } from './modals/CoupAttemptModal';
 import { NewEraModal } from './modals/NewEraModal';
 import { DailyBriefingModal } from './modals/DailyBriefingModal';
+import { PoliceShakedownModal } from './modals/PoliceShakedownModal';
 
 export const EventManager = () => {
   const { activeEvent, eventData } = useGameStore();
@@ -37,6 +38,8 @@ export const EventManager = () => {
       return <NewEraModal data={eventData} />;
     case 'dailyBriefing':
       return <DailyBriefingModal data={eventData} />;
+    case 'policeShakedown':
+      return <PoliceShakedownModal />;
     default:
       return null;
   }
