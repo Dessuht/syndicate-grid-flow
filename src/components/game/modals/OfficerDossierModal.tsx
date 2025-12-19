@@ -1,6 +1,6 @@
 import { useGameStore, Officer, OfficerRank } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase, Star, TrendingUp } from 'lucide-react';
+import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase, Star, TrendingUp, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,8 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
     shareTea, 
     giveBonus, 
     reprimandOfficer,
-    promoteOfficer
+    promoteOfficer,
+    designateSuccessor
   } = useGameStore();
 
   const isMorning = currentPhase === 'morning';
@@ -29,8 +30,10 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
   
   const canPromote = officer.face >= PROMOTION_FACE_REQUIREMENT && cash >= PROMOTION_COST;
   const isMaxRank = officer.rank === 'Deputy (438)' || officer.rank === 'Dragonhead (489)';
-  const nextRank = officer.rank === 'Red Pole' || officer.rank === 'White Paper Fan' ? 'Deputy (438)' : 'Dragonhead (489)';
   const promotionAvailable = !isMaxRank && (officer.rank === 'Red Pole' || officer.rank === 'White Paper Fan' || officer.rank === 'Straw Sandal' || officer.rank === 'Blue Lantern');
+  const nextRank = officer.rank === 'Red Pole' || officer.rank === 'White Paper Fan' ? 'Deputy (438)' : 'Dragonhead (489)';
+  
+  const isSuccessor = officer.isSuccessor;
 
   const handleShareTea = () => {
     shareTea(officer.id);
@@ -51,6 +54,11 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
   
   const handlePromote = (rank: OfficerRank) => {
     promoteOfficer(officer.id, rank);
+    onClose();
+  };
+  
+  const handleDesignateSuccessor = () => {
+    designateSuccessor(officer.id);
     onClose();
   };
 
@@ -187,6 +195,31 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
           {/* Interaction Actions */}
           <h3 className="font-display text-lg font-bold mb-3">Interactions</h3>
           <div className="space-y-3">
+            {/* Designate Successor */}
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start gap-3 h-auto py-3",
+                isSuccessor 
+                  ? "border-jianghu-gold/50 bg-jianghu-gold/10 text-jianghu-gold" 
+                  : "border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
+              )}
+              onClick={handleDesignateSuccessor}
+              disabled={!canInteract}
+            >
+              <div className={cn("p-2 rounded", isSuccessor ? "bg-jianghu-gold/20" : "bg-neon-cyan/20")}>
+                <Crown className={cn("w-5 h-5", isSuccessor ? "text-jianghu-gold" : "text-neon-cyan")} />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">
+                  {isSuccessor ? 'Successor Designated' : 'Designate Successor'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isSuccessor ? 'This officer will take over if you fall.' : 'Name this officer as your Vanguard.'}
+                </p>
+              </div>
+            </Button>
+            
             {/* Share Tea */}
             <Button
               variant="outline"
@@ -250,7 +283,7 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
               <Button
                 variant="cyber"
                 className="w-full justify-start gap-3 h-auto py-3"
-                onClick={() => handlePromote(nextRank)}
+                onClick={() => handlePromote(nextRank as OfficerRank)}
                 disabled={!canPromote}
               >
                 <div className="p-2 rounded bg-jianghu-gold/20">

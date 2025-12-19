@@ -7,7 +7,7 @@ export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blu
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL'; // Added COUNCIL
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | null;
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | null; // Added 'newEra'
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -43,6 +43,8 @@ export interface Officer {
   face: number; // ADDED
   grudge: boolean; // NEW: Officer holds a grudge
   isTraitor: boolean; // NEW: Officer is leading a rebellion
+  isSuccessor: boolean; // NEW: Designated successor
+  isTestingWaters: boolean; // NEW: Loyalty penalty applied until successful operation
 }
 
 export interface Building {
@@ -155,6 +157,8 @@ const INITIAL_OFFICERS: Officer[] = [
     face: 30, 
     grudge: false,
     isTraitor: false,
+    isSuccessor: false,
+    isTestingWaters: false,
   },
   {
     id: 'off-2',
@@ -181,6 +185,8 @@ const INITIAL_OFFICERS: Officer[] = [
     face: 35, 
     grudge: false,
     isTraitor: false,
+    isSuccessor: false,
+    isTestingWaters: false,
   },
   {
     id: 'off-3',
@@ -207,6 +213,8 @@ const INITIAL_OFFICERS: Officer[] = [
     face: 25, 
     grudge: false,
     isTraitor: false,
+    isSuccessor: false,
+    isTestingWaters: false,
   },
   {
     id: 'off-4',
@@ -233,6 +241,8 @@ const INITIAL_OFFICERS: Officer[] = [
     face: 40, 
     grudge: false,
     isTraitor: false,
+    isSuccessor: true, // Tommy Fist is the initial successor for testing
+    isTestingWaters: false,
   },
 ];
 
@@ -453,6 +463,7 @@ export interface GameState {
   giveBonus: (officerId: string) => void;
   reprimandOfficer: (officerId: string) => void;
   promoteOfficer: (officerId: string, newRank: OfficerRank) => void;
+  designateSuccessor: (officerId: string) => void; // NEW
 
   // Council Actions
   generateCouncilMotions: () => void;
@@ -467,7 +478,8 @@ export interface GameState {
   handleRivalAttackChoice: (choice: 'fight' | 'negotiate' | 'retreat') => void;
   handleTerritoryUltimatum: (choice: 'pay' | 'refuse') => void;
   handleStreetWarChoice: (choice: 'bribe' | 'fight') => void;
-  handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void; // NEW
+  handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void;
+  handleLeaderDeath: (officerId: string) => void; // NEW
   dismissEvent: () => void;
 
   // Diplomacy
@@ -788,6 +800,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         };
     });
   },
+  
+  designateSuccessor: (officerId: string) => {
+    set((state) => ({
+      officers: state.officers.map(o => ({
+        ...o,
+        isSuccessor: o.id === officerId,
+      })),
+    }));
+  },
   // --- END OFFICER INTERACTION ACTIONS ---
 
   // --- COUNCIL ACTIONS ---
@@ -969,7 +990,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             updates.officers = state.officers.filter(o => o.id !== officerId);
             if (!execution) {
               // If imprisoned, re-add officer as arrested
-              updates.officers = [...(updates.officers || state.officers), { ...rebelOfficer, isTraitor: false, isArrested: true, assignedBuildingId: null, loyalty: 0 }];
+              updates.officers = [...(updates.officers || state.officers), { ...rebelOfficer, isTraitor: false, isArrested: true, assignedBuildingId: null, loyalty: 0, isSuccessor: false, isTestingWaters: false }];
             }
             
             updates.buildings = state.buildings.map(b =>
@@ -1028,6 +1049,66 @@ export const useGameStore = create<GameState>((set, get) => ({
       return updates;
     });
   },
+  
+  handleLeaderDeath: (officerId: string) => {
+    set((state) => {
+      const successor = state.officers.find(o => o.isSuccessor);
+      const deceasedOfficer = state.officers.find(o => o.id === officerId);
+
+      if (!successor) {
+        // No successor: Game Over (Total Collapse)
+        // In a real game, this would trigger a Game Over screen. For now, we log and reset.
+        console.error("GAME OVER: Leader died and no successor was designated.");
+        return {
+          // Resetting state for simulation purposes, replace with actual Game Over logic
+          cash: 1000,
+          reputation: 10,
+          officers: INITIAL_OFFICERS.map(o => ({...o, isSuccessor: false})),
+          soldiers: INITIAL_SOLDIERS,
+          currentDay: 1,
+          activeEvent: null,
+          eventData: { type: 'collapse' },
+        };
+      }
+
+      // Succession Logic
+      const newLeader = { ...successor };
+      const eulogy = `${deceasedOfficer?.name || 'The Dragonhead'} has fallen. Long live the new boss, ${newLeader.name}.`;
+
+      // 1. Apply Loyalty Shock to all remaining officers
+      const updatedOfficers = state.officers
+        .filter(o => o.id !== officerId) // Remove deceased leader
+        .map(o => {
+          let newLoyalty = Math.max(0, o.loyalty - 30);
+          return {
+            ...o,
+            loyalty: newLoyalty,
+            isTestingWaters: true, // Start loyalty decay
+            isSuccessor: false, // Clear successor flag from everyone
+          };
+        });
+
+      // 2. Promote successor (reset face, clear successor flag)
+      const promotedLeader = {
+        ...newLeader,
+        face: Math.floor(newLeader.face * 0.5), // 50% Face reset
+        isSuccessor: false,
+        isTestingWaters: false, // New leader is exempt from testing waters
+      };
+      
+      // 3. Update state and trigger modal
+      return {
+        officers: [...updatedOfficers, promotedLeader],
+        reputation: Math.max(0, state.reputation - 10), // Slight rep hit for instability
+        activeEvent: 'newEra',
+        eventData: {
+          eulogy: eulogy,
+          newLeaderName: promotedLeader.name,
+          newLeaderRank: promotedLeader.rank,
+        },
+      };
+    });
+  },
   // --- END CIVIL WAR ACTIONS ---
 
   advancePhase: (/* ... existing implementation ... */) => {
@@ -1066,6 +1147,15 @@ export const useGameStore = create<GameState>((set, get) => ({
           const dayResults = processDayOperations(state);
           updates = { ...updates, ...dayResults.updates, currentPhase: 'evening' };
           newEvents = dayResults.events;
+          
+          // Check for successful operation to clear 'Testing the Waters'
+          const successfulOperation = state.officers.some(o => o.assignedBuildingId && o.energy > 0);
+          if (successfulOperation) {
+            updates.officers = (updates.officers || state.officers).map(o => ({
+              ...o,
+              isTestingWaters: false,
+            }));
+          }
           break;
 
         case 'evening':
@@ -1080,6 +1170,14 @@ export const useGameStore = create<GameState>((set, get) => ({
           const nightResults = processNightEvents(state);
           updates = { ...updates, ...nightResults.updates, currentPhase: 'morning', currentDay: state.currentDay + 1 };
           newEvents = nightResults.events;
+          
+          // Apply 'Testing the Waters' penalty
+          updates.officers = (updates.officers || state.officers).map(o => {
+            if (o.isTestingWaters) {
+              return { ...o, loyalty: Math.max(0, o.loyalty - 5) }; // -5% loyalty decay
+            }
+            return o;
+          });
           
           // Check for Coup Attempt
           if (!state.isCivilWarActive) {
@@ -2015,6 +2113,12 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
     if (officer.assignedBuildingId) {
       const building = state.buildings.find(b => b.id === officer.assignedBuildingId);
       if (building && (!building.inactiveUntilDay || building.inactiveUntilDay <= state.currentDay) && !building.isRebelBase) {
+        // Check if officer is testing waters and successfully completed an operation
+        if (officer.isTestingWaters) {
+          // Clear testing waters flag upon successful operation
+          return { ...officer, isTestingWaters: false };
+        }
+        
         // Calculate revenue based on officer skills
         let revenueMultiplier = 1;
         if (building.isIllicit && officer.rank === 'Red Pole') {

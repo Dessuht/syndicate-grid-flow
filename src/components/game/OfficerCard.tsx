@@ -1,6 +1,6 @@
 import { Officer, OfficerRank } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
-import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star, X, Lock, Skull } from 'lucide-react';
+import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star, X, Lock, Skull, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface OfficerCardProps {
@@ -72,6 +72,12 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
       {officer.isArrested && (
         <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-neon-amber border-2 border-background flex items-center justify-center">
           <Lock className="w-2.5 h-2.5 text-background" />
+        </div>
+      )}
+      
+      {officer.isSuccessor && (
+        <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-jianghu-gold border-2 border-background flex items-center justify-center">
+          <Crown className="w-2.5 h-2.5 text-background" />
         </div>
       )}
 
@@ -182,8 +188,14 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
           </span>
         </div>
       )}
+      
+      {officer.isTestingWaters && (
+        <div className="mt-1.5 pt-1.5 border-t border-border">
+          <span className="text-[10px] text-neon-amber">Testing the Waters (-5 Loyalty/Day)</span>
+        </div>
+      )}
 
-      {officer.loyalty < 40 && !isExhausted && !isUnavailable && (
+      {officer.loyalty < 40 && !isExhausted && !isUnavailable && !officer.isTestingWaters && (
         <div className="mt-1.5 pt-1.5 border-t border-border">
           <span className="text-[10px] text-neon-amber">Low loyalty - risk of betrayal</span>
         </div>
