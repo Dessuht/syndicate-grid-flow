@@ -17,9 +17,8 @@ import { Button } from '@/components/ui/button';
 import { X, Users } from 'lucide-react';
 
 export const GameLayout = () => {
-  const { currentScene, currentPhase } = useGameStore();
+  const { currentScene, currentPhase, setCurrentScene } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<string>('district');
   const [showRelationshipPanel, setShowRelationshipPanel] = useState(false);
   const [showOfficersPanel, setShowOfficersPanel] = useState(false);
 
@@ -27,12 +26,12 @@ export const GameLayout = () => {
     switch (currentScene) {
       case 'DISTRICT':
         return (
-          <DistrictMap 
-            selectedOfficerId={selectedOfficerId} 
+          <DistrictMap
+            selectedOfficerId={selectedOfficerId}
             onSelectOfficer={(id) => {
               setSelectedOfficerId(id);
               setShowRelationshipPanel(!!id);
-            }} 
+            }}
           />
         );
       case 'GLOBAL':
@@ -43,14 +42,26 @@ export const GameLayout = () => {
         return <FamilyCouncilScene />;
       default:
         return (
-          <DistrictMap 
-            selectedOfficerId={selectedOfficerId} 
+          <DistrictMap
+            selectedOfficerId={selectedOfficerId}
             onSelectOfficer={(id) => {
               setSelectedOfficerId(id);
               setShowRelationshipPanel(!!id);
-            }} 
+            }}
           />
         );
+    }
+  };
+
+  const handleViewChange = (view: string) => {
+    const sceneMap: Record<string, any> = {
+      'district': 'DISTRICT',
+      'global': 'GLOBAL',
+      'legal': 'LEGAL'
+    };
+    
+    if (sceneMap[view]) {
+      setCurrentScene(sceneMap[view]);
     }
   };
 
@@ -67,8 +78,8 @@ export const GameLayout = () => {
         {/* Left Sidebar */}
         <aside className="w-64 border-r border-slate-700 bg-slate-900/30 backdrop-blur-sm">
           <Sidebar
-            activeView={activeView as any}
-            onViewChange={setActiveView as any}
+            activeView={currentScene.toLowerCase() as any}
+            onViewChange={handleViewChange}
             onOfficersPanelOpen={() => {
               setShowOfficersPanel(true);
               setShowRelationshipPanel(false);
