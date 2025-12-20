@@ -1,5 +1,5 @@
 import { useGameStore } from '@/stores/gameStore';
-import type { Officer, Building } from '@/stores/gameStoreTypes';
+import type { Officer, Building as BuildingType } from '@/stores/gameStoreTypes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BuildingCard } from './BuildingCard';
 import { OfficersPanel } from './OfficersPanel';
@@ -7,7 +7,7 @@ import { SoldiersPanel } from './SoldiersPanel';
 import { DayCycle } from './DayCycle';
 import { Button } from '@/components/ui/button';
 import { 
-  Building, 
+  Building as BuildingIcon, 
   PartyPopper, 
   Swords, 
   AlertTriangle, 
@@ -86,7 +86,7 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
         <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10 border border-primary/30">
-              <Building className="w-5 h-5 text-primary" />
+              <BuildingIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h2 className="font-display text-lg font-bold gradient-text">Kowloon District</h2>

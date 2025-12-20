@@ -171,6 +171,7 @@ export interface GameState {
   assignOfficer: (officerId: string, buildingId: string) => void;
   unassignOfficer: (officerId: string) => void;
   advancePhase: () => void;
+  hostNightclub: () => void;
 
   // Autonomous character actions
   updateAutonomousBehavior: () => void;
@@ -624,25 +625,30 @@ export const useGameStore = create<GameState>((set, get) => {
 
     hostNightclub: () => {
       set((state) => {
-        const cost = 1000;
-        if (state.cash < cost) return state;
+        const nightclub = state.buildings.find(b => b.type === 'Nightclub');
+        if (!nightclub || !nightclub.assignedOfficerId) return state;
+
+        const officer = state.officers.find(o => o.id === nightclub.assignedOfficerId);
+        if (!officer) return state;
+
+        // Calculate revenue based on officer's skills
+        const baseRevenue = 500;
+        const diplomacyBonus = Math.floor(officer.skills.diplomacy * 5);
+        const logisticsBonus = Math.floor(officer.skills.logistics * 3);
+        const totalRevenue = baseRevenue + diplomacyBonus + logisticsBonus;
+
+        // Increase heat slightly
+        const heatIncrease = 5;
 
         return {
-          cash: state.cash - cost,
-          reputation: Math.min(100, state.reputation + 10),
-          officers: state.officers.map(o => ({
-            ...o,
-            energy: Math.min(o.maxEnergy, o.energy + 30),
-            loyalty: Math.min(100, o.loyalty + 5),
-          })),
-          soldiers: state.soldiers.map(s => ({
-            ...s,
-            needs: {
-              ...s.needs,
-              entertainment: Math.min(100, s.needs.entertainment + 40),
-            },
-            loyalty: Math.min(100, s.loyalty + 10),
-          })),
+          cash: state.cash + totalRevenue,
+          homeDistrictHeat: Math.min(100, state.homeDistrictHeat + heatIncrease),
+          activeEvent: 'nightclubSuccess' as const,
+          eventData: {
+            officerName: officer.name,
+            revenue: totalRevenue,
+            heatIncrease: heatIncrease
+          }
         };
       });
     },
