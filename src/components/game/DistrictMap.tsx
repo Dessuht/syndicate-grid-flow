@@ -5,7 +5,7 @@ import { OfficersPanel } from './OfficersPanel';
 import { SoldiersPanel } from './SoldiersPanel';
 import { DayCycle } from './DayCycle';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Play, PartyPopper, SkipForward, ArrowLeft, Building, Swords, AlertTriangle } from 'lucide-react';
+import { Map, Play, PartyPopper, SkipForward, ArrowLeft, Building, Swords, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const DistrictMap = () => {
@@ -122,6 +122,24 @@ export const DistrictMap = () => {
             )}
           </div>
         </div>
+
+        {/* Police Activity Warning */}
+        <AnimatePresence>
+          {activeEvent === 'policeShakedown' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-3 p-3 rounded-lg bg-gradient-to-r from-blue-600/30 via-neon-red/30 to-blue-600/30 border border-blue-500/50 flex items-center justify-between police-activity-warning"
+            >
+              <p className="text-sm text-foreground flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-blue-400 police-siren-icon" />
+                <span className="font-bold text-blue-400">POLICE ACTIVITY</span>
+                <span className="text-muted-foreground">— Shakedown in progress. Resolve immediately.</span>
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Civil War Warning */}
         <AnimatePresence>

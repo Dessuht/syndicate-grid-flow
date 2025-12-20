@@ -426,3 +426,33 @@
 .territory-label::before {
   display: none !important;
 }
+
+/* Police Activity Warning Animations */
+@keyframes police-siren {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes siren-flash {
+  0%, 100% {
+    color: hsl(210 100% 60%);
+    text-shadow: 0 0 10px hsl(210 100% 60% / 0.8);
+  }
+  50% {
+    color: hsl(0 90% 55%);
+    text-shadow: 0 0 10px hsl(0 90% 55% / 0.8);
+  }
+}
+
+.police-activity-warning {
+  background-size: 200% 200%;
+  animation: police-siren 1.5s ease infinite;
+}
+
+.police-siren-icon {
+  animation: siren-flash 0.8s ease-in-out infinite;
+}
