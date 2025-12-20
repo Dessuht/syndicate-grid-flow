@@ -334,28 +334,7 @@ export class RelationshipSystem {
     };
   }
 
-  private addToSocialFeed(interaction: SocialInteraction) {
-    const descriptions: Record<SocialInteraction['type'], string> = {
-      'DEEP_CONVERSATION': 'had a deep conversation',
-      'JOKE_TELLING': 'shared a laugh',
-      'FLIRTATION': 'flirted with',
-      'ARGUMENT': 'argued with',
-      'INTRIGUE': 'plotted with',
-      'FLATTERY_GIFT': 'exchanged gifts with',
-      'DATE': 'went on a date with',
-      'GIFT_EXCHANGE': 'exchanged gifts with'
-    };
-
-    const entry: SocialFeedEntry = {
-      id: `feed-${Date.now()}`,
-      timestamp: Date.now(),
-      type: 'interaction',
-      description: `${interaction.initiatorId} ${descriptions[interaction.type]} ${interaction.targetId}`,
-      participants: interaction.participants,
-      impact: interaction.outcome.relationshipChange > 0 ? 'positive' :
-               interaction.outcome.relationshipChange < 0 ? 'negative' : 'neutral'
-    };
-
+  private addToSocialFeedCustom(entry: SocialFeedEntry) {
     this.socialFeed.unshift(entry);
     // Keep only last 50 entries
     if (this.socialFeed.length > 50) {
@@ -467,28 +446,7 @@ export class RelationshipSystem {
     return this.createInteraction(type, initiator.id, target.id, location);
   }
 
-  private addToSocialFeedCustom(interaction: SocialInteraction) {
-    const descriptions: Record<SocialInteraction['type'], string> = {
-      'DEEP_CONVERSATION': 'had a deep conversation',
-      'JOKE_TELLING': 'shared a laugh',
-      'FLIRTATION': 'flirted with',
-      'ARGUMENT': 'argued with',
-      'INTRIGUE': 'plotted with',
-      'FLATTERY_GIFT': 'exchanged gifts with',
-      'DATE': 'went on a date with',
-      'GIFT_EXCHANGE': 'exchanged gifts with'
-    };
-
-    const entry: SocialFeedEntry = {
-      id: `feed-${Date.now()}`,
-      timestamp: Date.now(),
-      type: 'interaction',
-      description: `${interaction.initiatorId} ${descriptions[interaction.type]} ${interaction.targetId}`,
-      participants: interaction.participants,
-      impact: interaction.outcome.relationshipChange > 0 ? 'positive' :
-               interaction.outcome.relationshipChange < 0 ? 'negative' : 'neutral'
-    };
-
+  private addToSocialFeedCustom(entry: SocialFeedEntry) {
     this.socialFeed.unshift(entry);
     // Keep only last 50 entries
     if (this.socialFeed.length > 50) {
