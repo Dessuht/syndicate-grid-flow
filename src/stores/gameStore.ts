@@ -454,6 +454,7 @@ export interface GameState {
   homeDistrictLeaderId: string | null;
   homeDistrictHeat: number;
   homeDistrictRevenue: number;
+  officerCutIncreased: boolean; // ADDED: Tracks if the officer cut motion passed
 
   // Territory Stats
   territoryFriction: number;
@@ -579,6 +580,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   homeDistrictLeaderId: null,
   homeDistrictHeat: 10,
   homeDistrictRevenue: 0,
+  officerCutIncreased: false, // ADDED
 
   // Territory Stats
   territoryFriction: 0,
@@ -881,7 +883,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       type: 'internal',
       effect: (s) => ({
         officers: s.officers.map(o => ({ ...o, loyalty: Math.min(100, o.loyalty + 30) })),
-        // Note: Revenue cut logic would be applied in processDayOperations based on a flag, but for simplicity, we apply the loyalty boost here.
+        officerCutIncreased: true, // ADDED: Set flag for revenue penalty
       }),
       officerVotes: {},
       isVetoed: false,
@@ -927,7 +929,49 @@ export const useGameStore = create<GameState>((set, get) => ({
       let updates: Partial<GameState> = {};
       let updatedOfficers = state.officers;
 
-      if (isVeto) {
+      // --- Street Beef Resolution Logic ---
+      if (motionId.startsWith('BEEF_RESOLUTION_')) {
+        const [_, __, officer1Id, officer2Id] = motionId.split('_');
+        const officer1 = state.officers.find(o => o.id === officer1Id);
+        const officer2 = state.officers.find(o => o.id === officer2Id);
+        
+        if (officer1 && officer2) {
+          let punishedOfficerId: string;
+          let favoredOfficerId: string;
+          
+          // YES vote means Punish Officer 1 (as per motion description)
+          if (playerVote === 'yes') {
+            punishedOfficerId = officer1Id;
+            favoredOfficerId = officer2Id;
+          } else {
+            // NO vote means Punish Officer 2
+            punishedOfficerId = officer2Id;
+            favoredOfficerId = officer1Id;
+          }
+          
+          updatedOfficers = state.officers.map(o => {
+            if (o.id === punishedOfficerId) {
+              // Punished officer loses loyalty and gains a grudge
+              return { ...o, loyalty: Math.max(0, o.loyalty - 20), grudge: true };
+            }
+            if (o.id === favoredOfficerId) {
+              // Favored officer gains loyalty
+              return { ...o, loyalty: Math.min(100, o.loyalty + 10) };
+            }
+            return o;
+          });
+          
+          // Resolution is complete, no further action needed for this motion type.
+          updates.influence = Math.min(100, state.influence + 5); // Consensus reached
+          
+        } else {
+          // Officers not found, treat as normal motion resolution failure
+          console.error("Street Beef officers not found.");
+        }
+      } 
+      // --- End Street Beef Resolution Logic ---
+      
+      else if (isVeto) {
         // Player vetoed the council majority
         updatedOfficers = state.officers.map(o => {
           if (motion.officerVotes[o.id] === councilMajorityVote) {
@@ -1152,6 +1196,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => {
       const { officerId, eventType } = state.eventData;
       const officer = state.officers.find(o => o.id === officerId);
+
       if (!officer) return { ...state, activeEvent: null, eventData: null };
 
       let updates: Partial<GameState> = { activeEvent: null, eventData: null, dailyBriefingIgnored: false };
@@ -1292,7 +1337,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       let updatedOfficers = [...state.officers];
       let updatedBuildings = [...state.buildings];
       
-      // Remove the beef from active beefs
+      // Remove the beef from active beefs (resolution is immediate for all choices)
       const updatedBeefs = state.activeStreetBeefs.filter(
         beef => !(beef.officer1Id === officer1Id && beef.officer2Id === officer2Id)
       );
@@ -1313,8 +1358,33 @@ export const useGameStore = create<GameState>((set, get) => ({
           break;
 
         case 'council':
-          // Queue a council meeting to resolve - no immediate cost but triggers council
+          // Queue a council meeting to resolve
           updates.currentScene = 'COUNCIL';
+          
+          // Generate a specific motion for this beef
+          const motionId = `BEEF_RESOLUTION_${officer1Id}_${officer2Id}`;
+          
+          const councilMembers = state.officers.filter(o => o.rank !== 'Blue Lantern').slice(0, 3);
+          const officerVotes: Record<string, 'yes' | 'no'> = {};
+          
+          // Determine officer votes (simplified: random bias)
+          councilMembers.forEach(o => {
+            // 50/50 chance for council members to side with officer 1 or 2
+            const vote = Math.random() < 0.5 ? 'yes' : 'no';
+            officerVotes[o.id] = vote as 'yes' | 'no';
+          });
+          
+          const beefMotion: CouncilMotion = {
+            id: motionId,
+            title: `Resolve Feud: ${officer1.name} vs ${officer2.name}`,
+            description: `The council must decide who is at fault. YES: Punish ${officer1.name}. NO: Punish ${officer2.name}.`,
+            type: 'internal',
+            effect: (s) => ({}), // Effect handled in handleCouncilVote
+            officerVotes: officerVotes,
+            isVetoed: false,
+          };
+          
+          updates.councilMotions = [...state.councilMotions, beefMotion];
           break;
 
         case 'fire':
@@ -2629,7 +2699,12 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
 
   // Apply Street Beef revenue penalty (15% reduction if any unresolved beefs)
   const hasActiveBeef = state.activeStreetBeefs.some(beef => !beef.isResolved);
-  const finalRevenue = hasActiveBeef ? Math.floor(totalRevenue * 0.85) : totalRevenue;
+  let finalRevenue = hasActiveBeef ? Math.floor(totalRevenue * 0.85) : totalRevenue;
+
+  // Apply Officer Cut penalty (20% cut if motion passed)
+  if (state.officerCutIncreased) {
+      finalRevenue = Math.floor(finalRevenue * 0.80);
+  }
 
   // Police raid check (This is the global raid, separate from shakedown)
   if (newHeat > 70 && Math.random() < 0.25) {
