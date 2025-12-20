@@ -1,9 +1,9 @@
-import { useGameStore } from '@/stores/gameStore';
+import { useGameStore } from '../../stores/gameStore';
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Progress } from '../ui/progress';
+import { Badge } from '../ui/badge';
 import { 
   Home, 
   DollarSign, 
