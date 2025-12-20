@@ -730,26 +730,41 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     advancePhase: () => {
+      console.log('advancePhase called');
+      
       try {
+        const currentState = get();
+        console.log('Current state:', { phase: currentState.currentPhase, day: currentState.currentDay });
+        
         set((state) => {
+          console.log('Inside set callback');
+          
           const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
           const currentIndex = phases.indexOf(state.currentPhase);
+          
+          if (currentIndex === -1) {
+            console.error('Invalid current phase:', state.currentPhase);
+            return state;
+          }
 
           // Process social interactions at phase changes with error handling
           let interactions = [];
           let socialFeed = [];
           
           try {
+            console.log('Processing social interactions...');
             if (state.relationshipSystem && typeof state.relationshipSystem.processAutomaticInteractions === 'function') {
               interactions = state.relationshipSystem.processAutomaticInteractions(
                 state.officers,
                 state.currentPhase,
                 Date.now()
               ) || [];
+              console.log('Social interactions processed:', interactions.length);
             }
             
             if (state.relationshipSystem && typeof state.relationshipSystem.getSocialFeed === 'function') {
               socialFeed = state.relationshipSystem.getSocialFeed() || [];
+              console.log('Social feed retrieved:', socialFeed.length);
             }
           } catch (error) {
             console.warn('Error processing social interactions:', error);
@@ -759,9 +774,11 @@ export const useGameStore = create<GameState>((set, get) => {
 
           // Check for Council Trigger (Every 10 days, at the start of the day cycle)
           if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
+            console.log('Council trigger detected');
             try {
               // Queue council meeting for the next morning
               get().generateCouncilMotions();
+              console.log('Council motions generated');
               return {
                 currentScene: 'COUNCIL',
                 currentPhase: 'morning',
@@ -776,27 +793,41 @@ export const useGameStore = create<GameState>((set, get) => {
           }
 
           const nextPhase = phases[(currentIndex + 1) % phases.length];
+          const nextDay = nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay;
+          
+          console.log('Advancing to:', { phase: nextPhase, day: nextDay });
           
           return {
             currentPhase: nextPhase,
-            currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
+            currentDay: nextDay,
             recentInteractions: interactions,
             socialFeed: socialFeed
           };
         });
+        
+        console.log('advancePhase completed successfully');
       } catch (error) {
         console.error('Critical error in advancePhase:', error);
+        console.error('Error stack:', error.stack);
+        
         // Fallback to basic phase progression
-        set((state) => {
-          const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
-          const currentIndex = phases.indexOf(state.currentPhase);
-          const nextPhase = phases[(currentIndex + 1) % phases.length];
-          
-          return {
-            currentPhase: nextPhase,
-            currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
-          };
-        });
+        try {
+          set((state) => {
+            const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
+            const currentIndex = phases.indexOf(state.currentPhase);
+            const nextPhase = currentIndex >= 0 ? phases[(currentIndex + 1) % phases.length] : 'morning';
+            const nextDay = nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay;
+            
+            console.log('Fallback progression to:', { phase: nextPhase, day: nextDay });
+            
+            return {
+              currentPhase: nextPhase,
+              currentDay: nextDay,
+            };
+          });
+        } catch (fallbackError) {
+          console.error('Even fallback failed:', fallbackError);
+        }
       }
     },
 
