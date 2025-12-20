@@ -317,6 +317,7 @@ export interface GameState {
   unassignOfficer: (officerId: string) => void;
   advancePhase: () => void;
   hostNightclub: () => void;
+  setCurrentScene: (scene: GameScene) => void;
 
   // Autonomous character actions
   updateAutonomousBehavior: () => void;

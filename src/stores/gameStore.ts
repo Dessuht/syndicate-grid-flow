@@ -163,6 +163,7 @@ export interface GameState extends BaseGameState {
   unassignOfficer: (officerId: string) => void;
   advancePhase: () => void;
   hostNightclub: () => void;
+  setCurrentScene: (scene: GameScene) => void;
 
   // Autonomous character actions
   updateAutonomousBehavior: () => void;
@@ -800,6 +801,10 @@ export const useGameStore = create<GameState>((set, get) => {
           }
         };
       });
+    },
+
+    setCurrentScene: (scene: GameScene) => {
+      set({ currentScene: scene });
     },
 
     // Officer Interaction Actions
