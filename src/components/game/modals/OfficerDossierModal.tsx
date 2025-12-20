@@ -37,8 +37,12 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
 
   const handleShareTea = () => {
     shareTea(officer.id);
-    if (officer.energy - 10 <= 0) {
+    // Close immediately after action, unless energy hit 0 (which might trigger unassignment)
+    if (officer.energy - 10 > 0) {
         onClose();
+    } else {
+        // If energy hits 0, wait a moment for state update to propagate before closing
+        setTimeout(onClose, 100);
     }
   };
 
@@ -86,7 +90,8 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+          // Increased size and visibility of the close button
+          className="absolute top-3 right-3 p-2 rounded-full bg-secondary/50 text-foreground hover:bg-secondary transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
