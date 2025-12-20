@@ -194,7 +194,15 @@ export class RelationshipSystem {
     }
 
     // Add to social feed
-    this.addToSocialFeed(interaction);
+    this.addToSocialFeedCustom({
+      id: `feed-${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'interaction',
+      description: `${interaction.initiatorId} ${interaction.type.toLowerCase().replace(/_/g, ' ')} with ${interaction.targetId}`,
+      participants: interaction.participants,
+      impact: interaction.outcome.relationshipChange > 0 ? 'positive' :
+               interaction.outcome.relationshipChange < 0 ? 'negative' : 'neutral'
+    });
   }
 
   private processDeepConversation(
