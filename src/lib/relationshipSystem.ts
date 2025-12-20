@@ -220,7 +220,7 @@ export class RelationshipSystem {
       this.addToSocialFeed({
         id: `feed-${Date.now()}`,
         timestamp: Date.now(),
-        type: 'interaction',
+        type: 'relationship_change',
         description: `${interaction.initiatorId} and ${interaction.targetId} became friends!`,
         participants: interaction.participants,
         impact: 'positive'
@@ -352,7 +352,7 @@ export class RelationshipSystem {
       type: 'interaction',
       description: `${interaction.initiatorId} ${descriptions[interaction.type]} ${interaction.targetId}`,
       participants: interaction.participants,
-      impact: interaction.outcome.relationshipChange > 0 ? 'positive' : 
+      impact: interaction.outcome.relationshipChange > 0 ? 'positive' :
                interaction.outcome.relationshipChange < 0 ? 'negative' : 'neutral'
     };
 
