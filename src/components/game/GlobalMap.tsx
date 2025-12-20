@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { FaGlobe, FaChartLine, FaHandshake, FaShoppingCart, FaTimes, FaCheck, FaUsers, FaMapMarkerAlt, FaDollarSign, FaBrain, FaExclamationTriangle, FaHome, FaEye, FaBolt } from 'react-icons/fa';
-import { GiSwords } from 'react-icons/gi';
+import { Swords } from 'lucide-react';
 
 // Territory polygon boundaries in Hong Kong (lat, lng) - approximate district boundaries
 const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: string; center: [number, number] }> = {
@@ -394,7 +394,7 @@ export const GlobalMap = () => {
                       className="w-full justify-start gap-2 border-neon-red/30 text-neon-red hover:bg-neon-red/10"
                       onClick={() => initiateDiplomacy(selectedRivalData.id, 'turfWar')}
                     >
-                      <GiSwords className="w-4 h-4" /> Turf War
+                      <Swords className="w-4 h-4" /> Turf War
                     </Button>
                   )}
                 </div>
