@@ -1,6 +1,7 @@
 export interface Character {
   id: string;
   name: string;
+  rank?: string;        // Add rank property
   role: 'officer' | 'member' | 'civilian';
   title?: string;
   avatar?: string;
@@ -38,6 +39,8 @@ export interface Character {
   location?: string;
   assignedBuilding?: string;
   personalHistory: string[];
+  joinedDay?: number;      // Add joinedDay property
+  isActive?: boolean;      // Add isActive property
 }
 
 export interface Relationship {

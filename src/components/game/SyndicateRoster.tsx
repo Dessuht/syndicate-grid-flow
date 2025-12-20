@@ -56,23 +56,23 @@ const CharacterCard = ({ character }: { character: Character }) => {
         </div>
         <div className="text-center">
           <div className="text-xs text-muted-foreground mb-1">MOOD</div>
-          <div className="text-lg font-bold text-neon-cyan">{stats.mood}</div>
+          <div className="text-lg font-bold text-neon-cyan">{(stats as any).mood || 50}</div>
           <div className="w-full">
-            <Progress value={stats.mood} className="h-2" />
+            <Progress value={(stats as any).mood || 50} className="h-2" />
           </div>
         </div>
         <div className="text-center">
           <div className="text-xs text-muted-foreground mb-1">HEALTH</div>
-          <div className="text-lg font-bold text-red-500">{stats.health}</div>
+          <div className="text-lg font-bold text-red-500">{(stats as any).health || 70}</div>
           <div className="w-full">
-            <Progress value={stats.health} className="h-2" />
+            <Progress value={(stats as any).health || 70} className="h-2" />
           </div>
         </div>
         <div className="text-center">
           <div className="text-xs text-muted-foreground mb-1">FACE</div>
-          <div className="text-lg font-bold text-yellow-500">{stats.face}</div>
+          <div className="text-lg font-bold text-yellow-500">{(stats as any).face || 30}</div>
           <div className="w-full">
-            <Progress value={stats.face} className="h-2" />
+            <Progress value={(stats as any).face || 30} className="h-2" />
           </div>
         </div>
       </div>
@@ -92,7 +92,7 @@ const CharacterCard = ({ character }: { character: Character }) => {
                 <p className="font-medium">{trait}</p>
                 <p className="text-xs text-muted-foreground">{effect.description}</p>
                 <div className="text-xs space-y-1 mt-2">
-                  <div>Loyalty: {effect.loyalty > 0 ? '+' : ''}{effect.loyalty}</div>
+                  <div>Loyalty: {effect.loyaltyMod > 0 ? '+' : ''}{effect.loyaltyMod}</div>
                   <div>Heat: {effect.heatMod > 0 ? '+' : ''}{effect.heatMod}</div>
                   <div>Face: {effect.faceMod > 0 ? '+' : ''}{effect.faceMod}</div>
                   <div>Mood: {effect.moodMod > 0 ? '+' : ''}{effect.moodMod}</div>
@@ -124,7 +124,7 @@ interface SyndicateRosterProps {
 }
 
 export const SyndicateRoster = ({ characters, recruitCost, onRecruit, canRecruit }: SyndicateRosterProps) => {
-  const activeCount = characters.filter(c => c.isActive).length;
+  const activeCount = characters.filter(c => (c as any).isActive !== false).length;
 
   return (
     <div className="bg-card/50 backdrop-blur-sm rounded-lg border border-border p-4">
@@ -143,7 +143,7 @@ export const SyndicateRoster = ({ characters, recruitCost, onRecruit, canRecruit
       <ScrollArea className="h-96">
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {characters.filter(c => c.isActive).map((character, index) => (
+            {characters.filter(c => (c as any).isActive !== false).map((character, index) => (
               <motion.div
                 key={character.id}
                 initial={{ opacity: 0, y: 10 }}

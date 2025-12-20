@@ -1,4 +1,5 @@
-import { useGameStore, Officer, OfficerRank } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
+import type { Officer, OfficerRank } from '@/stores/gameStoreTypes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase, Star, TrendingUp, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';

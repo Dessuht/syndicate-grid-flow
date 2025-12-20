@@ -1,7 +1,19 @@
-import { Officer, OfficerRank } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
-import { Swords, BookOpen, Footprints, Lamp, Zap, Building2, Heart, Star, X, Lock, Skull, Crown } from 'lucide-react';
+import type { Officer, OfficerRank } from '@/stores/gameStoreTypes';
 import { cn } from '@/lib/utils';
+import { 
+  Swords, 
+  BookOpen, 
+  Footprints, 
+  Lamp, 
+  Star, 
+  Skull, 
+  X, 
+  Lock, 
+  Crown, 
+  Heart, 
+  Building2 
+} from 'lucide-react';
 
 interface OfficerCardProps {
   officer: Officer;

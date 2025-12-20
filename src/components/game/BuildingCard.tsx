@@ -1,7 +1,23 @@
-import { Building, Officer } from '@/stores/gameStore';
 import { motion } from 'framer-motion';
-import { Store, Dices, Warehouse, Music, Beaker, User, Lock, DollarSign, Flame, Shield, Utensils, PartyPopper, Zap, Skull, Swords } from 'lucide-react';
+import type { Building, Officer } from '@/stores/gameStoreTypes';
 import { cn } from '@/lib/utils';
+import { 
+  Store, 
+  Dice1 as Dices, 
+  Warehouse, 
+  Music, 
+  Beaker, 
+  Shield, 
+  Skull, 
+  DollarSign, 
+  Flame, 
+  Utensils, 
+  PartyPopper, 
+  Swords, 
+  Lock, 
+  User, 
+  Zap 
+} from 'lucide-react';
 
 interface BuildingCardProps {
   building: Building;

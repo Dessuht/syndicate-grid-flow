@@ -1,4 +1,5 @@
-import { useGameStore, CouncilMotion, Officer } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
+import type { CouncilMotion, Officer } from '@/stores/gameStoreTypes';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

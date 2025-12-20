@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Swords, BookOpen, Footprints, Lamp, Heart, Star, Activity, AlertTriangle, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { AutonomousCharacter } from '@/stores/gameStore';
 
 interface AutonomousOfficerCardProps {
   officer: AutonomousCharacter;
@@ -106,16 +107,17 @@ export const AutonomousOfficerCard = ({
           {/* Needs Display */}
           <div className="grid grid-cols-3 gap-1 mb-2">
             {Object.entries(officer.needs).slice(0, 6).map(([need, value]) => {
-              const isCritical = value < 30;
+              const needValue = value as number; // Cast to number
+              const isCritical = needValue < 30;
               return (
                 <div key={need} className="flex flex-col items-center">
                   <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
                     <div 
                       className={cn(
                         "h-full transition-all duration-300",
-                        isCritical ? "bg-neon-red" : value > 60 ? "bg-neon-green" : "bg-neon-amber"
+                        isCritical ? "bg-neon-red" : needValue > 60 ? "bg-neon-green" : "bg-neon-amber"
                       )}
-                      style={{ width: `${value}%` }}
+                      style={{ width: `${needValue}%` }}
                     />
                   </div>
                   <span className="text-[8px] text-muted-foreground capitalize">

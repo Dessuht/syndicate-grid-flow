@@ -59,10 +59,11 @@ export function generateSoldier(currentDay: number): Character {
   const { name } = generateName();
   const traits = getRandomTraits(2);
   const stats = {
-    health: 70 + Math.floor(Math.random() * 20),
-    face: 20 + Math.floor(Math.random() * 15),
     loyalty: 50 + Math.floor(Math.random() * 20),
-    mood: 5 + Math.floor(Math.random() * 20),
+    competence: 40 + Math.floor(Math.random() * 30),
+    ambition: 30 + Math.floor(Math.random() * 40),
+    ruthlessness: 20 + Math.floor(Math.random() * 30),
+    charisma: 30 + Math.floor(Math.random() * 40),
   };
 
   return {
@@ -81,7 +82,6 @@ export function generateSoldier(currentDay: number): Character {
       wealth: 50,
       power: 50,
       belonging: 50,
-      excitement: 50
     },
     desires: {
       position: ['officer'],

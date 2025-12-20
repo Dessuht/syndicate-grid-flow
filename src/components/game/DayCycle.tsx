@@ -1,4 +1,5 @@
-import { useGameStore, DayPhase } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
+import type { DayPhase } from '@/stores/gameStoreTypes';
 import { motion } from 'framer-motion';
 import { Sun, Sunset, Moon, Coffee } from 'lucide-react';
 import { cn } from '@/lib/utils';

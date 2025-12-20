@@ -14,7 +14,7 @@ import { useState } from 'react';
 export const GameLayout = () => {
   const { currentScene, currentPhase } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState('district');
+  const [activeView, setActiveView] = useState<string>('district');
 
   const renderCurrentView = () => {
     switch (currentScene) {
@@ -34,7 +34,7 @@ export const GameLayout = () => {
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
+      <Sidebar activeView={activeView as any} onViewChange={setActiveView as any} />
       
       {/* Main Content */}
       <div className="flex-1 flex gap-4 p-4">

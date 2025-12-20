@@ -1607,13 +1607,15 @@ export const useGameStore = create<GameState>((set, get) => {
           isTestingWaters: false, // New leader is exempt from testing waters
         };
 
-        updates.officers = [...updatedOfficers, promotedLeader];
-        updates.reputation = Math.max(0, state.reputation - 10); // Slight rep hit for instability
-        updates.activeEvent = 'newEra';
-        updates.eventData = {
-          eulogy: eulogy,
-          newLeaderName: promotedLeader.name,
-          newLeaderRank: promotedLeader.rank,
+        const updates: Partial<GameState> = {
+          officers: [...updatedOfficers, promotedLeader],
+          reputation: Math.max(0, state.reputation - 10), // Slight rep hit for instability
+          activeEvent: 'newEra',
+          eventData: {
+            eulogy: eulogy,
+            newLeaderName: promotedLeader.name,
+            newLeaderRank: promotedLeader.rank,
+          },
         };
 
         // Check for pending events
@@ -2042,7 +2044,7 @@ export const useGameStore = create<GameState>((set, get) => {
         // Calculate revenue based on member's stats
         const baseRevenue = 300;
         const loyaltyBonus = Math.floor(member.stats.loyalty * 2);
-        const faceBonus = Math.floor(member.stats.face * 1);
+        const faceBonus = Math.floor((member.stats as any).face * 1); // Cast to any for face access
         const totalRevenue = baseRevenue + loyaltyBonus + faceBonus;
 
         // Apply friction reduction (negative relationship with Wo Shing Wo)

@@ -1,4 +1,5 @@
-import { useGameStore, Officer } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
+import type { Officer } from '@/stores/gameStoreTypes';
 import { OfficerCard } from './OfficerCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';

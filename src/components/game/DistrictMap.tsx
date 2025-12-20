@@ -1,30 +1,39 @@
-import { useState } from 'react';
 import { useGameStore } from '@/stores/gameStore';
+import type { Officer, Building } from '@/stores/gameStoreTypes';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BuildingCard } from './BuildingCard';
 import { OfficersPanel } from './OfficersPanel';
 import { SoldiersPanel } from './SoldiersPanel';
 import { DayCycle } from './DayCycle';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Play, PartyPopper, SkipForward, ArrowLeft, Building, Swords, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { 
+  Building, 
+  PartyPopper, 
+  Swords, 
+  AlertTriangle, 
+  SkipForward, 
+  Play, 
+  ShieldAlert 
+} from 'lucide-react';
+import { useState } from 'react';
 
-export const DistrictMap = () => {
+export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOfficerId: string | null; onSelectOfficer: (id: string | null) => void }) => {
   const { 
-    buildings, 
     officers, 
+    buildings, 
     currentDay, 
     currentPhase, 
     advancePhase, 
-    hostNightclub, 
-    cash, 
+    hostNightclub,
+    cash,
     intel,
     isCivilWarActive,
     rebelOfficerId,
-    activeEvent
+    activeEvent,
+    eventData,
+    assignOfficer,
+    unassignOfficer,
   } = useGameStore();
-  const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
-  const assignOfficer = useGameStore(state => state.assignOfficer);
-  const unassignOfficer = useGameStore(state => state.unassignOfficer);
 
   const handleAssign = (buildingId: string) => {
     if (selectedOfficerId && currentPhase === 'morning') {
@@ -37,7 +46,7 @@ export const DistrictMap = () => {
       // Check if officer is available for assignment
       if (officer && !officer.assignedBuildingId && !officer.isWounded && !officer.isArrested) {
         assignOfficer(selectedOfficerId, buildingId);
-        setSelectedOfficerId(null);
+        onSelectOfficer(null);
       }
     }
   };
@@ -220,7 +229,7 @@ export const DistrictMap = () => {
       <div className="w-72 shrink-0 flex flex-col gap-4 overflow-auto">
         <OfficersPanel 
           selectedOfficerId={selectedOfficerId} 
-          onSelectOfficer={currentPhase === 'morning' && !isPhaseBlocked ? setSelectedOfficerId : () => {}} 
+          onSelectOfficer={currentPhase === 'morning' && !isPhaseBlocked ? onSelectOfficer : () => {}} 
         />
         <SoldiersPanel />
       </div>
