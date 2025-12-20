@@ -43,6 +43,9 @@ export const EmergencyFix = () => {
     }
   };
 
+  const isDay9NightStuck = currentDay === 9 && currentPhase === 'night' && activeEvent !== null;
+  const hasStuckEvent = activeEvent !== null || (pendingEvents && pendingEvents.length > 0);
+
   // Auto-fix for Day 9 Night issue
   React.useEffect(() => {
     if (isDay9NightStuck) {
@@ -54,8 +57,16 @@ export const EmergencyFix = () => {
     }
   }, [isDay9NightStuck]);
 
-  const isDay9NightStuck = currentDay === 9 && currentPhase === 'night' && activeEvent !== null;
-  const hasStuckEvent = activeEvent !== null || (pendingEvents && pendingEvents.length > 0);
+  // Auto-fix for Day 9 Night issue
+  React.useEffect(() => {
+    if (isDay9NightStuck) {
+      console.log('Auto-fixing Day 9 Night bug');
+      setTimeout(() => {
+        forceClearEvents();
+        setTimeout(() => advancePhase(), 100);
+      }, 1000);
+    }
+  }, [isDay9NightStuck]);
 
   return (
     <div className="fixed bottom-4 right-4 z-[100]">
