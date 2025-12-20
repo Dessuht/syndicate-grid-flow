@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BuildingCard } from './BuildingCard';
 import { OfficersPanel } from './OfficersPanel';
 import { SoldiersPanel } from './SoldiersPanel';
-import { DayCycle } from './DayCycle';
 import { Button } from '@/components/ui/button';
 import { 
   Building as BuildingIcon, 
@@ -95,7 +94,6 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
               </p>
             </div>
           </div>
-          <DayCycle />
           <div className="flex items-center gap-2">
             <Button 
               variant="nightclub" 
