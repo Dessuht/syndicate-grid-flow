@@ -172,7 +172,7 @@ export const Sidebar = ({ activeView, onViewChange, onOfficersPanelOpen }: Sideb
                 <Users className="w-4 h-4 text-neon-magenta" />
                 <span className="text-muted-foreground">Officers</span>
               </div>
-              <span className="font-medium">4</span>
+              <span className="font-medium">{officers.length}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
