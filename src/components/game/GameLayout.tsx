@@ -9,17 +9,19 @@ import { EventManager } from './EventManager';
 import { DistrictHub } from './DistrictHub';
 import { Sidebar } from './Sidebar';
 import { RelationshipPanel } from './RelationshipPanel';
+import { OfficersPanel } from './OfficersPanel';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, Users } from 'lucide-react';
 
 export const GameLayout = () => {
   const { currentScene, currentPhase } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<string>('district');
   const [showRelationshipPanel, setShowRelationshipPanel] = useState(false);
+  const [showOfficersPanel, setShowOfficersPanel] = useState(false);
 
   const renderCurrentView = () => {
     switch (currentScene) {
@@ -84,12 +86,41 @@ export const GameLayout = () => {
           </div>
         </main>
 
-        {/* Right Panel - Relationship Panel */}
+        {/* Right Panel - Officers Panel or Relationship Panel */}
         <aside className={`
           border-l border-slate-700 bg-slate-900/30 backdrop-blur-sm transition-all duration-300
-          ${showRelationshipPanel ? 'w-96' : 'w-0 overflow-hidden'}
+          ${showOfficersPanel || showRelationshipPanel ? 'w-96' : 'w-0 overflow-hidden'}
         `}>
-          {showRelationshipPanel && (
+          {showOfficersPanel && (
+            <div className="h-full flex flex-col">
+              {/* Panel Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-700">
+                <h3 className="text-lg font-bold text-white">Officers</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowOfficersPanel(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* Officers Panel Content */}
+              <div className="flex-1 overflow-auto p-4">
+                <OfficersPanel
+                  selectedOfficerId={selectedOfficerId}
+                  onSelectOfficer={(id) => {
+                    setSelectedOfficerId(id);
+                    setShowRelationshipPanel(!!id);
+                    setShowOfficersPanel(false);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {showRelationshipPanel && !showOfficersPanel && (
             <div className="h-full flex flex-col">
               {/* Panel Header */}
               <div className="flex items-center justify-between p-4 border-b border-slate-700">
