@@ -47,8 +47,8 @@ export interface GameState extends BaseGameState {
   behaviorSystem: AutonomousBehaviorSystem;
   autonomousOfficers: AutonomousCharacter[];
   lastBehaviorUpdate: number;
-  socialFeed: any[];
-  recentInteractions: any[];
+  socialFeed: SocialFeedEntry[];
+  recentInteractions: SocialInteraction[];
 
   // Intel & Upgrades
   unlockedUpgrades: string[];
@@ -60,6 +60,11 @@ export interface GameState extends BaseGameState {
 
   // Diplomacy
   activeDiplomacy: { rivalId: string; action: DiploAction } | null;
+
+  // Civil War State (explicitly declared)
+  recentlyResolvedCivilWar: boolean;
+  recentlyResolvedCivilWarCooldown: number;
+  lastCivilWarCheckDay: number;
 
   // Family Council - Character System
   syndicateMembers: Character[];
@@ -944,7 +949,7 @@ export const useGameStore = create<GameState>((set, get) => {
         }
       }
       
-      // Apply the phase change
+      // Apply phase change
       set({
         currentPhase: nextPhase,
         currentDay: nextDay,
@@ -953,6 +958,13 @@ export const useGameStore = create<GameState>((set, get) => {
         activeEvent: newEvent?.type || null,
         eventData: newEvent?.data || null
       });
+      
+      // Auto-dismiss temporary notification events
+      if (newEvent?.type === 'nightclubSuccess') {
+        setTimeout(() => {
+          set({ activeEvent: null, eventData: null });
+        }, 3000);
+      }
       
       console.log(`Advanced to day ${nextDay}, phase ${nextPhase}`);
     },

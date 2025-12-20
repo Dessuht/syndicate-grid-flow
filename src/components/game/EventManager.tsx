@@ -43,6 +43,9 @@ export const EventManager = () => {
       return <PoliceShakedownModal />;
     case 'streetBeef':
       return <StreetBeefModal />;
+    case 'nightclubSuccess':
+      // This is a temporary notification event, auto-dismiss it
+      return null;
     default:
       return null;
   }

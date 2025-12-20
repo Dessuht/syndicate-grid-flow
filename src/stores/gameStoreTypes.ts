@@ -236,6 +236,9 @@ export interface GameState {
   // Civil War State
   isCivilWarActive: boolean;
   rebelOfficerId: string | null;
+  recentlyResolvedCivilWar: boolean;
+  recentlyResolvedCivilWarCooldown: number;
+  lastCivilWarCheckDay: number;
 
   // Council System
   currentScene: GameScene;
