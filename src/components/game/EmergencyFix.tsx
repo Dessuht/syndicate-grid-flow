@@ -1,3 +1,4 @@
+import React from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
@@ -42,15 +43,29 @@ export const EmergencyFix = () => {
     }
   };
 
+  // Auto-fix for Day 9 Night issue
+  React.useEffect(() => {
+    if (isDay9NightStuck) {
+      console.log('Auto-fixing Day 9 Night bug');
+      setTimeout(() => {
+        forceClearEvents();
+        setTimeout(() => advancePhase(), 100);
+      }, 1000);
+    }
+  }, [isDay9NightStuck]);
+
+  const isDay9NightStuck = currentDay === 9 && currentPhase === 'night' && activeEvent !== null;
   const hasStuckEvent = activeEvent !== null || (pendingEvents && pendingEvents.length > 0);
 
   return (
     <div className="fixed bottom-4 right-4 z-[100]">
-      {hasStuckEvent && (
+      {(hasStuckEvent || isDay9NightStuck) && (
         <div className="mb-2 p-3 bg-red-900/90 border border-red-500 rounded-lg text-white">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-sm font-semibold">Game Stuck on Day {currentDay}</span>
+            <span className="text-sm font-semibold">
+              {isDay9NightStuck ? 'Day 9 Night Bug Detected!' : `Game Stuck on Day ${currentDay}`}
+            </span>
           </div>
           <div className="text-xs mb-2">
             Active Event: {activeEvent || 'None'}

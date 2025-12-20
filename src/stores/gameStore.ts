@@ -803,10 +803,24 @@ export const useGameStore = create<GameState>((set, get) => {
           return;
         }
         
-        // Emergency: Clear stuck events that prevent progression
-        if (currentState.activeEvent && !['dailyBriefing', 'policeShakedown', 'streetBeef'].includes(currentState.activeEvent)) {
+        // Emergency: Clear any stuck events that prevent progression
+        // Only allow these specific events to block advancement
+        const allowedBlockingEvents = ['dailyBriefing', 'policeShakedown', 'streetBeef', 'coupAttempt', 'newEra'];
+        if (currentState.activeEvent && !allowedBlockingEvents.includes(currentState.activeEvent)) {
           console.warn('Clearing stuck event:', currentState.activeEvent);
           set({ activeEvent: null, eventData: null });
+        }
+        
+        // Additional safety: Force clear problematic events on specific days
+        if (currentState.currentDay === 9 && currentState.currentPhase === 'night' && currentState.activeEvent) {
+          console.warn('Force clearing stuck event on Day 9 Night:', currentState.activeEvent);
+          set({
+            activeEvent: null,
+            eventData: null,
+            pendingEvents: [],
+            isCivilWarActive: false,
+            streetWarRivalId: null
+          });
         }
         
         const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
