@@ -342,7 +342,14 @@ export class RelationshipSystem {
     };
   }
 
-}
+  private addToSocialFeedCustom(entry: SocialFeedEntry) {
+    this.socialFeed.unshift(entry);
+    // Keep only last 50 entries
+    if (this.socialFeed.length > 50) {
+      this.socialFeed = this.socialFeed.slice(0, 50);
+    }
+  }
+
   public getSocialFeed(): SocialFeedEntry[] {
     return [...this.socialFeed];
   }
