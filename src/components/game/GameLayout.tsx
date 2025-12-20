@@ -12,16 +12,27 @@ import { RelationshipPanel } from './RelationshipPanel';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 export const GameLayout = () => {
   const { currentScene, currentPhase } = useGameStore();
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<string>('district');
+  const [showRelationshipPanel, setShowRelationshipPanel] = useState(false);
 
   const renderCurrentView = () => {
     switch (currentScene) {
       case 'DISTRICT':
-        return <DistrictMap selectedOfficerId={selectedOfficerId} onSelectOfficer={setSelectedOfficerId} />;
+        return (
+          <DistrictMap 
+            selectedOfficerId={selectedOfficerId} 
+            onSelectOfficer={(id) => {
+              setSelectedOfficerId(id);
+              setShowRelationshipPanel(!!id);
+            }} 
+          />
+        );
       case 'GLOBAL':
         return <GlobalMap />;
       case 'LEGAL':
@@ -29,7 +40,15 @@ export const GameLayout = () => {
       case 'COUNCIL':
         return <FamilyCouncilScene />;
       default:
-        return <DistrictMap selectedOfficerId={selectedOfficerId} onSelectOfficer={setSelectedOfficerId} />;
+        return (
+          <DistrictMap 
+            selectedOfficerId={selectedOfficerId} 
+            onSelectOfficer={(id) => {
+              setSelectedOfficerId(id);
+              setShowRelationshipPanel(!!id);
+            }} 
+          />
+        );
     }
   };
 
@@ -65,14 +84,35 @@ export const GameLayout = () => {
           </div>
         </main>
 
-        {/* Right Panel */}
-        <aside className="w-96 border-l border-slate-700 bg-slate-900/30 backdrop-blur-sm overflow-hidden">
-          <div className="h-full flex flex-col">
-            {/* Relationship Panel */}
-            <div className="flex-1 overflow-auto p-4">
-              <RelationshipPanel selectedOfficerId={selectedOfficerId} />
+        {/* Right Panel - Relationship Panel */}
+        <aside className={`
+          border-l border-slate-700 bg-slate-900/30 backdrop-blur-sm transition-all duration-300
+          ${showRelationshipPanel ? 'w-96' : 'w-0 overflow-hidden'}
+        `}>
+          {showRelationshipPanel && (
+            <div className="h-full flex flex-col">
+              {/* Panel Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-700">
+                <h3 className="text-lg font-bold text-white">Officer Details</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowRelationshipPanel(false);
+                    setSelectedOfficerId(null);
+                  }}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* Relationship Panel Content */}
+              <div className="flex-1 overflow-auto">
+                <RelationshipPanel selectedOfficerId={selectedOfficerId} />
+              </div>
             </div>
-          </div>
+          )}
         </aside>
       </div>
       
