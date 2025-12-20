@@ -730,39 +730,74 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     advancePhase: () => {
-      set((state) => {
-        const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
-        const currentIndex = phases.indexOf(state.currentPhase);
+      try {
+        set((state) => {
+          const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
+          const currentIndex = phases.indexOf(state.currentPhase);
 
-        // Process social interactions at phase changes
-        const interactions = state.relationshipSystem?.processAutomaticInteractions?.(
-          state.officers,
-          state.currentPhase,
-          Date.now()
-        ) || [];
+          // Process social interactions at phase changes with error handling
+          let interactions = [];
+          let socialFeed = [];
+          
+          try {
+            if (state.relationshipSystem && typeof state.relationshipSystem.processAutomaticInteractions === 'function') {
+              interactions = state.relationshipSystem.processAutomaticInteractions(
+                state.officers,
+                state.currentPhase,
+                Date.now()
+              ) || [];
+            }
+            
+            if (state.relationshipSystem && typeof state.relationshipSystem.getSocialFeed === 'function') {
+              socialFeed = state.relationshipSystem.getSocialFeed() || [];
+            }
+          } catch (error) {
+            console.warn('Error processing social interactions:', error);
+            interactions = [];
+            socialFeed = [];
+          }
 
-        // Check for Council Trigger (Every 10 days, at the start of the day cycle)
-        if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
-          // Queue council meeting for the next morning
-          get().generateCouncilMotions();
-          return { 
-            currentScene: 'COUNCIL', 
-            currentPhase: 'morning', 
-            currentDay: state.currentDay + 1,
+          // Check for Council Trigger (Every 10 days, at the start of the day cycle)
+          if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
+            try {
+              // Queue council meeting for the next morning
+              get().generateCouncilMotions();
+              return {
+                currentScene: 'COUNCIL',
+                currentPhase: 'morning',
+                currentDay: state.currentDay + 1,
+                recentInteractions: interactions,
+                socialFeed: socialFeed
+              };
+            } catch (error) {
+              console.warn('Error generating council motions:', error);
+              // Continue with normal phase progression if council fails
+            }
+          }
+
+          const nextPhase = phases[(currentIndex + 1) % phases.length];
+          
+          return {
+            currentPhase: nextPhase,
+            currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
             recentInteractions: interactions,
-            socialFeed: state.relationshipSystem?.getSocialFeed?.() || []
+            socialFeed: socialFeed
           };
-        }
-
-        const nextPhase = phases[(currentIndex + 1) % phases.length];
-        
-        return {
-          currentPhase: nextPhase,
-          currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
-          recentInteractions: interactions,
-          socialFeed: state.relationshipSystem?.getSocialFeed?.() || []
-        };
-      });
+        });
+      } catch (error) {
+        console.error('Critical error in advancePhase:', error);
+        // Fallback to basic phase progression
+        set((state) => {
+          const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
+          const currentIndex = phases.indexOf(state.currentPhase);
+          const nextPhase = phases[(currentIndex + 1) % phases.length];
+          
+          return {
+            currentPhase: nextPhase,
+            currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
+          };
+        });
+      }
     },
 
     setStipend: (amount: number) => {
