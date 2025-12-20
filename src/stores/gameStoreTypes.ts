@@ -1,6 +1,6 @@
-import { OfficerRelationship as ComplexRelationship } from '@/types/relationships';
+import { OfficerRelationship as ComplexRelationship, SharedMemory, Grudge } from '@/types/relationships';
 
-// Types for original gameStore implementation
+// Core Game Types
 export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blue Lantern' | 'Deputy (438)' | 'Dragonhead (489)';
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL';
@@ -10,16 +10,12 @@ export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCau
 export type CompatibilityLike = 'Respects Red Poles' | 'Values Loyalty' | 'Admires Ambition' | 'Appreciates Cunning' | 'Respects Old School';
 export type CompatibilityDislike = 'Hates Ambitious' | 'Distrusts Calculating' | 'Despises Hot-headed' | 'Resents Ruthless' | 'Scorns Silver Tongue';
 
+// Skills and Relationships
 export interface OfficerSkills {
   enforcement: number;
   diplomacy: number;
   logistics: number;
   recruitment: number;
-}
-
-export interface OfficerRelationship {
-  targetId: string;
-  respect: number;
 }
 
 export interface StreetBeef {
@@ -31,33 +27,60 @@ export interface StreetBeef {
 
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
+// Unified Officer Interface - combines simple and complex systems
 export interface Officer {
+  // Core Identity
   id: string;
   name: string;
   rank: OfficerRank;
+  
+  // Status and Assignment
   energy: number;
   maxEnergy: number;
   assignedBuildingId: string | null;
-  skills: OfficerSkills;
-  loyalty: number;
-  daysAssigned: number;
-  daysIdle: number;
-  relationships: ComplexRelationship[];
-  isBetraying: boolean;
-  traits: string[];
   isWounded: boolean;
   isArrested: boolean;
   daysToRecovery: number;
-  currentAgenda: string | null;
+  
+  // Skills and Performance
+  skills: OfficerSkills;
+  loyalty: number;
   face: number;
+  
+  // Behavioral State
+  currentAgenda: string | null;
+  traits: string[];
+  likes: CompatibilityLike[];
+  dislikes: CompatibilityDislike[];
+  
+  // Relationship System (integrated from complex system)
+  relationships: ComplexRelationship[];
+  
+  // Autonomous Features (optional, enabled as game progresses)
+  needs?: {
+    safety: number;
+    respect: number;
+    wealth: number;
+    power: number;
+    belonging: number;
+    excitement: number;
+  };
+  currentMood?: 'loyal' | 'content' | 'restless' | 'ambitious' | 'disloyal' | 'desperate';
+  personalAmbitions?: string[];
+  lastActionTime?: number;
+  isAutonomous?: boolean;
+  
+  // State Tracking
+  daysAssigned: number;
+  daysIdle: number;
+  isBetraying: boolean;
   grudge: boolean;
   isTraitor: boolean;
   isSuccessor: boolean;
   isTestingWaters: boolean;
-  likes: CompatibilityLike[];
-  dislikes: CompatibilityDislike[];
 }
 
+// Building Interface
 export interface Building {
   id: string;
   name: string;
@@ -75,6 +98,7 @@ export interface Building {
   rebelSoldierCount: number;
 }
 
+// Soldier Interface
 export interface StreetSoldier {
   id: string;
   name: string;
@@ -88,6 +112,7 @@ export interface StreetSoldier {
   isDeserting: boolean;
 }
 
+// Rival Gang Interface
 export interface RivalGang {
   id: string;
   name: string;
@@ -100,6 +125,7 @@ export interface RivalGang {
   isActiveConflict: boolean;
 }
 
+// Conflict Resolution Data
 export interface PostConflictSummaryData {
   type: 'raid' | 'streetWar' | 'civilWar';
   outcome: 'success' | 'failure';
@@ -112,6 +138,7 @@ export interface PostConflictSummaryData {
   rivalName?: string;
 }
 
+// Council System
 export interface CouncilMotion {
   id: string;
   title: string;
@@ -122,8 +149,37 @@ export interface CouncilMotion {
   isVetoed: boolean;
 }
 
+// Social System Types
+export interface SocialInteraction {
+  id: string;
+  type: 'DEEP_CONVERSATION' | 'JOKE_TELLING' | 'FLIRTATION' | 'ARGUMENT' | 'INTRIGUE' | 'FLATTERY_GIFT' | 'DATE' | 'GIFT_EXCHANGE';
+  participants: string[];
+  initiatorId: string;
+  targetId: string;
+  timestamp: number;
+  location: string;
+  outcome: {
+    success: boolean;
+    relationshipChange: number;
+    interestChange: number;
+    respectChange: number;
+    memory?: SharedMemory;
+    grudge?: Grudge;
+  };
+}
+
+export interface SocialFeedEntry {
+  id: string;
+  timestamp: number;
+  type: 'interaction' | 'relationship_change' | 'romantic_event' | 'conflict';
+  description: string;
+  participants: string[];
+  impact: 'positive' | 'negative' | 'neutral';
+}
+
+// Main Game State Interface
 export interface GameState {
-  // Resources
+  // Core Resources
   cash: number;
   reputation: number;
   policeHeat: number;
@@ -133,21 +189,25 @@ export interface GameState {
   intel: number;
   influence: number;
 
-  // Entities
+  // Game Entities
   officers: Officer[];
   buildings: Building[];
   soldiers: StreetSoldier[];
   rivals: RivalGang[];
 
-  // Relationship system
-  relationshipSystem: any;
-  socialFeed: any[];
-  recentInteractions: any[];
+  // Social and Relationship System
+  relationshipSystem: any; // Will be properly typed as RelationshipSystem
+  socialFeed: SocialFeedEntry[];
+  recentInteractions: SocialInteraction[];
+
+  // Autonomous Behavior System
+  behaviorSystem: any; // Will be properly typed as AutonomousBehaviorSystem
+  lastBehaviorUpdate: number;
 
   // Intel & Upgrades
   unlockedUpgrades: string[];
 
-  // Event system
+  // Event System
   activeEvent: EventType;
   eventData: any;
   pendingEvents: { type: EventType; data: any }[];
@@ -156,7 +216,7 @@ export interface GameState {
   activeDiplomacy: { rivalId: string; action: DiploAction } | null;
 
   // Family Council - Character System
-  syndicateMembers: any[];
+  syndicateMembers: any[]; // Will be properly typed as Character[]
   recruitCost: number;
 
   // Home District Racket
@@ -266,6 +326,6 @@ export interface GameState {
 
   // Relationship system actions
   processSocialInteractions: () => void;
-  getOfficerRelationships: (officerId: string) => any;
+  getOfficerRelationships: (officerId: string) => { nodes: string[], edges: string[] };
   createManualInteraction: (initiatorId: string, targetId: string, type: string) => void;
 }
