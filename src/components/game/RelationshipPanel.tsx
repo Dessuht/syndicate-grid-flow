@@ -34,7 +34,7 @@ export const RelationshipPanel: React.FC<RelationshipPanelProps> = ({ selectedOf
 
     officers.forEach(officer => {
       if (officer.id !== selectedOfficerId) {
-        const relationship = relationshipSystem.getRelationship(selectedOfficerId, officer.id);
+        const relationship = relationshipSystem?.getRelationship?.(selectedOfficerId, officer.id);
         if (relationship) {
           relationships.push({ officer, relationship });
         }

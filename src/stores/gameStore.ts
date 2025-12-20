@@ -605,11 +605,11 @@ export const useGameStore = create<GameState>((set, get) => {
         const currentIndex = phases.indexOf(state.currentPhase);
 
         // Process social interactions at phase changes
-        const interactions = state.relationshipSystem.processAutomaticInteractions(
+        const interactions = state.relationshipSystem?.processAutomaticInteractions?.(
           state.officers,
           state.currentPhase,
           Date.now()
-        );
+        ) || [];
 
         // Check for Council Trigger (Every 10 days, at the start of the day cycle)
         if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
@@ -620,7 +620,7 @@ export const useGameStore = create<GameState>((set, get) => {
             currentPhase: 'morning', 
             currentDay: state.currentDay + 1,
             recentInteractions: interactions,
-            socialFeed: state.relationshipSystem.getSocialFeed()
+            socialFeed: state.relationshipSystem?.getSocialFeed?.() || []
           };
         }
 
@@ -630,7 +630,7 @@ export const useGameStore = create<GameState>((set, get) => {
           currentPhase: nextPhase,
           currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
           recentInteractions: interactions,
-          socialFeed: state.relationshipSystem.getSocialFeed()
+          socialFeed: state.relationshipSystem?.getSocialFeed?.() || []
         };
       });
     },

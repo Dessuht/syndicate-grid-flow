@@ -6,6 +6,20 @@ interface RelationshipNetworkProps {
   selectedOfficerId: string | null;
 }
 
+interface Edge {
+  source: string;
+  target: string;
+  relationship: number;
+  interest: number;
+  type: 'friendship' | 'enmity' | 'romantic' | 'professional';
+}
+
+interface Node {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export const RelationshipNetwork: React.FC<RelationshipNetworkProps> = ({ selectedOfficerId }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { getOfficerRelationships, officers } = useGameStore();
@@ -22,15 +36,15 @@ export const RelationshipNetwork: React.FC<RelationshipNetworkProps> = ({ select
     canvas.height = canvas.offsetHeight;
 
     // Get relationship data
-    const network = getOfficerRelationships(selectedOfficerId);
+    const network = getOfficerRelationships(selectedOfficerId) as unknown as RelationshipNetworkType;
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw edges (relationships)
-    network.edges.forEach(edge => {
-      const sourceNode = network.nodes.find(n => n.id === edge.source);
-      const targetNode = network.nodes.find(n => n.id === edge.target);
+    (network.edges as Edge[]).forEach((edge: Edge) => {
+      const sourceNode = (network.nodes as Node[]).find((n: Node) => n.id === edge.source);
+      const targetNode = (network.nodes as Node[]).find((n: Node) => n.id === edge.target);
       
       if (sourceNode && targetNode) {
         const sourceX = (canvas.width / 2) + Math.cos(0) * 100;
@@ -54,7 +68,7 @@ export const RelationshipNetwork: React.FC<RelationshipNetworkProps> = ({ select
     });
 
     // Draw nodes (officers)
-    network.nodes.forEach(node => {
+    (network.nodes as Node[]).forEach((node: Node) => {
       const x = canvas.width / 2;
       const y = canvas.height / 2;
       const radius = 20;

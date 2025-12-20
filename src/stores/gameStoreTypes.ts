@@ -1,3 +1,5 @@
+import { OfficerRelationship as ComplexRelationship } from '@/types/relationships';
+
 // Types for original gameStore implementation
 export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blue Lantern' | 'Deputy (438)' | 'Dragonhead (489)';
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
@@ -40,7 +42,7 @@ export interface Officer {
   loyalty: number;
   daysAssigned: number;
   daysIdle: number;
-  relationships: OfficerRelationship[];
+  relationships: ComplexRelationship[];
   isBetraying: boolean;
   traits: string[];
   isWounded: boolean;
@@ -118,4 +120,152 @@ export interface CouncilMotion {
   effect: (state: any) => Partial<any>;
   officerVotes: Record<string, 'yes' | 'no'>;
   isVetoed: boolean;
+}
+
+export interface GameState {
+  // Resources
+  cash: number;
+  reputation: number;
+  policeHeat: number;
+  currentDay: number;
+  currentPhase: DayPhase;
+  stipend: number;
+  intel: number;
+  influence: number;
+
+  // Entities
+  officers: Officer[];
+  buildings: Building[];
+  soldiers: StreetSoldier[];
+  rivals: RivalGang[];
+
+  // Relationship system
+  relationshipSystem: any;
+  socialFeed: any[];
+  recentInteractions: any[];
+
+  // Intel & Upgrades
+  unlockedUpgrades: string[];
+
+  // Event system
+  activeEvent: EventType;
+  eventData: any;
+  pendingEvents: { type: EventType; data: any }[];
+
+  // Diplomacy
+  activeDiplomacy: { rivalId: string; action: DiploAction } | null;
+
+  // Family Council - Character System
+  syndicateMembers: any[];
+  recruitCost: number;
+
+  // Home District Racket
+  homeDistrictLeaderId: string | null;
+  homeDistrictHeat: number;
+  homeDistrictRevenue: number;
+  officerCutIncreased: boolean;
+
+  // Territory Stats
+  territoryFriction: number;
+  territoryInfluence: number;
+  frictionInterval: NodeJS.Timeout | null;
+
+  // Street War System
+  streetWarRivalId: string | null;
+
+  // Civil War State
+  isCivilWarActive: boolean;
+  rebelOfficerId: string | null;
+
+  // Council System
+  currentScene: GameScene;
+  councilMotions: CouncilMotion[];
+  
+  // Daily Briefing State
+  dailyBriefingIgnored: boolean;
+  
+  // Street Beef (Officer Friction) State
+  activeStreetBeefs: StreetBeef[];
+  beefDaysTracker: Record<string, number>;
+
+  // Officer Interaction Actions
+  shareTea: (officerId: string) => void;
+  giveBonus: (officerId: string) => void;
+  reprimandOfficer: (officerId: string) => void;
+  promoteOfficer: (officerId: string, newRank: OfficerRank) => void;
+  designateSuccessor: (officerId: string) => void;
+
+  // Council Actions
+  generateCouncilMotions: () => void;
+  handleCouncilVote: (motionId: string, playerVote: 'yes' | 'no') => void;
+  useInfluenceToOrderVote: (motionId: string, officerId: string, vote: 'yes' | 'no') => void;
+  exitCouncil: () => void;
+
+  // Event handlers
+  handleRaidChoice: (choice: 'bribe' | 'stand' | 'escape') => void;
+  handleBetrayalChoice: (choice: 'forgive' | 'punish' | 'exile') => void;
+  handleCriminalChoice: (choice: 'execute' | 'enslave' | 'spy') => void;
+  handleRivalAttackChoice: (choice: 'fight' | 'negotiate' | 'retreat') => void;
+  handleTerritoryUltimatum: (choice: 'pay' | 'refuse') => void;
+  handleStreetWarChoice: (choice: 'bribe' | 'fight') => void;
+  handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void;
+  handleLeaderDeath: (officerId: string) => void;
+  handleDailyBriefingChoice: (choice: 'passive' | 'financial' | 'authoritarian') => void;
+  handleShakedownChoice: (choice: 'bribe' | 'layLow' | 'resist') => void;
+  handleStreetBeefChoice: (choice: 'talk' | 'council' | 'fire', fireOfficerId?: string) => void;
+  dismissEvent: () => void;
+
+  // Diplomacy
+  initiateDiplomacy: (rivalId: string, action: DiploAction) => void;
+  confirmDiplomacy: () => void;
+  cancelDiplomacy: () => void;
+
+  // Upgrades
+  upgradeBuilding: (buildingId: string) => void;
+  purchaseIntel: (cost: number) => void;
+
+  // Soldiers
+  recruitSoldier: () => void;
+  setStipend: (amount: number) => void;
+
+  // Character System
+  recruitSyndicateMember: () => void;
+  assignSyndicateMember: (memberId: string) => void;
+  unassignSyndicateMember: () => void;
+  processRacketCycle: () => void;
+  scoutTerritory: (rivalId: string) => void;
+
+  // Territory Management
+  startFrictionTimer: () => void;
+  stopFrictionTimer: () => void;
+  resetFriction: () => void;
+
+  // Intel actions
+  spendIntelToReduceFriction: (rivalId: string, amount: number) => void;
+  spendIntelToScout: (rivalId: string) => void;
+
+  // Street War actions
+  increaseFriction: () => void;
+
+  // Hospital/Jail Recovery System
+  healOfficer: (officerId: string) => void;
+  releaseOfficer: (officerId: string) => void;
+  processRecovery: () => void;
+
+  // Basic actions
+  assignOfficer: (officerId: string, buildingId: string) => void;
+  unassignOfficer: (officerId: string) => void;
+  advancePhase: () => void;
+  hostNightclub: () => void;
+
+  // Autonomous character actions
+  updateAutonomousBehavior: () => void;
+  getCharacterCurrentAction: (officerId: string) => string | null;
+  canForceWork: (officerId: string) => { canWork: boolean; reason?: string };
+  getPlayerInfluenceLevel: () => number;
+
+  // Relationship system actions
+  processSocialInteractions: () => void;
+  getOfficerRelationships: (officerId: string) => any;
+  createManualInteraction: (initiatorId: string, targetId: string, type: string) => void;
 }

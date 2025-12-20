@@ -4,7 +4,7 @@ import { SocialFeedEntry } from '@/types/relationships';
 import { formatDistanceToNow } from 'date-fns';
 
 export const SocialFeed: React.FC = () => {
-  const { socialFeed, officers } = useGameStore();
+  const { socialFeed = [], officers } = useGameStore();
 
   const getOfficerName = (officerId: string) => {
     const officer = officers.find(o => o.id === officerId);
@@ -38,7 +38,7 @@ export const SocialFeed: React.FC = () => {
         {socialFeed.length === 0 ? (
           <p className="text-gray-500 text-sm">No recent social activity</p>
         ) : (
-          socialFeed.map(entry => (
+          socialFeed.map((entry: SocialFeedEntry) => (
             <div
               key={entry.id}
               className="bg-gray-800 rounded p-2 text-sm"
