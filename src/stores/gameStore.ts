@@ -2728,11 +2728,12 @@ export const useGameStore = create<GameState>((set, get) => {
     // Civil war actions
     checkForCivilWar: () => {
       set((state) => {
-        if (state.isCivilWarActive) return state;
+        // Prevent civil war if already active or event is pending
+        if (state.isCivilWarActive || state.activeEvent) return state;
 
         // Check for civil war conditions
-        const disloyalOfficers = state.officers.filter(o => o.loyalty < 30 && o.rank !== 'Blue Lantern');
-        const highRankOfficers = state.officers.filter(o => o.rank === 'Red Pole' || o.rank === 'White Paper Fan');
+        const disloyalOfficers = state.officers.filter(o => o.loyalty < 30 && o.rank !== 'Blue Lantern' && !o.isTraitor);
+        const highRankOfficers = state.officers.filter(o => (o.rank === 'Red Pole' || o.rank === 'White Paper Fan') && !o.isTraitor);
         
         // Civil war triggers if:
         // 1. Multiple high-ranking officers are disloyal
@@ -2745,27 +2746,33 @@ export const useGameStore = create<GameState>((set, get) => {
           state.influence < 20
         );
 
-        if (shouldTrigger && !state.activeEvent) {
-        const rebelOfficer = disloyalOfficers.length > 0
-          ? disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)]
-          : highRankOfficers[Math.floor(Math.random() * highRankOfficers.length)];
-
-        if (rebelOfficer) {
-          // Find an available building for the rebel base
-          const randomBuilding = state.buildings.find(b => !b.isOccupied && b.type !== 'Police Station');
+        if (shouldTrigger) {
+          // Additional safety check: ensure we have available building
+          const availableBuilding = state.buildings.find(b => !b.isOccupied && b.type !== 'Police Station' && !b.isRebelBase);
           
-          return {
-            activeEvent: 'coupAttempt' as const,
-            eventData: {
-              officerId: rebelOfficer.id,
-              officerName: rebelOfficer.name,
-              buildingName: randomBuilding?.name || 'Unknown Location'
-            },
-            isCivilWarActive: true,
-            rebelOfficerId: rebelOfficer.id
-          };
+          if (!availableBuilding) {
+            console.log('Civil war prevented: No available buildings for rebel base');
+            return state;
+          }
+
+          const rebelOfficer = disloyalOfficers.length > 0
+            ? disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)]
+            : highRankOfficers[Math.floor(Math.random() * highRankOfficers.length)];
+
+          if (rebelOfficer) {
+            console.log(`Civil war triggered by ${rebelOfficer.name}`);
+            return {
+              activeEvent: 'coupAttempt' as const,
+              eventData: {
+                officerId: rebelOfficer.id,
+                officerName: rebelOfficer.name,
+                buildingName: availableBuilding.name
+              },
+              isCivilWarActive: true,
+              rebelOfficerId: rebelOfficer.id
+            };
+          }
         }
-      }
 
         return state;
       });
