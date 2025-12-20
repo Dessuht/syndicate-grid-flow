@@ -342,14 +342,7 @@ export class RelationshipSystem {
     };
   }
 
-  private addToSocialFeedCustom(entry: SocialFeedEntry) {
-    this.socialFeed.unshift(entry);
-    // Keep only last 50 entries
-    if (this.socialFeed.length > 50) {
-      this.socialFeed = this.socialFeed.slice(0, 50);
-    }
-  }
-
+}
   public getSocialFeed(): SocialFeedEntry[] {
     return [...this.socialFeed];
   }
@@ -445,20 +438,12 @@ export class RelationshipSystem {
     const target = availableTargets[Math.floor(Math.random() * availableTargets.length)];
 
     const interactionTypes: SocialInteraction['type'][] = [
-      'DEEP_CONVERSATION', 'JOKE_TELLING', 'FLIRTATION', 'ARGUMENT', 
+      'DEEP_CONVERSATION', 'JOKE_TELLING', 'FLIRTATION', 'ARGUMENT',
       'INTRIGUE', 'FLATTERY_GIFT'
     ];
 
     const type = interactionTypes[Math.floor(Math.random() * interactionTypes.length)];
     
     return this.createInteraction(type, initiator.id, target.id, location);
-  }
-
-  private addToSocialFeedCustom(entry: SocialFeedEntry) {
-    this.socialFeed.unshift(entry);
-    // Keep only last 50 entries
-    if (this.socialFeed.length > 50) {
-      this.socialFeed = this.socialFeed.slice(0, 50);
-    }
   }
 }
