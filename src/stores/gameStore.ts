@@ -3,6 +3,7 @@ import { Character, CharacterTrait } from '@/types/character';
 import { AutonomousBehaviorSystem } from '@/lib/autonomousBehavior';
 import { CharacterNeedsManager, CharacterNeeds } from '@/lib/characterNeeds';
 import { generateSoldier } from '@/lib/characterGenerator';
+import { RelationshipSystem } from '@/lib/relationshipSystem';
 
 // Import all original types from separate file
 import type {
@@ -24,8 +25,8 @@ import type {
   StreetBeef
 } from './gameStoreTypes';
 
-// Import OfficerRelationship directly from relationships types
-import type { OfficerRelationship } from '@/types/relationships';
+// Import OfficerRelationship and SocialInteraction from relationships types
+import type { OfficerRelationship, SocialInteraction } from '@/types/relationships';
 
 // Autonomous Character interface
 export interface AutonomousCharacter extends Officer {
@@ -610,6 +611,7 @@ const convertOfficerToAutonomous = (officer: Officer): AutonomousCharacter => {
 
 export const useGameStore = create<GameState>((set, get) => {
   const behaviorSystem = new AutonomousBehaviorSystem();
+  const relationshipSystem = new RelationshipSystem(INITIAL_OFFICERS);
   
   return {
     // Initial state
@@ -637,8 +639,8 @@ export const useGameStore = create<GameState>((set, get) => {
     lastBehaviorUpdate: Date.now(),
     
     // Relationship system
-    relationshipSystem: null,
-    socialFeed: [],
+    relationshipSystem,
+    socialFeed: relationshipSystem.getSocialFeed(),
     recentInteractions: [],
 
     // Intel & Upgrades
@@ -2409,16 +2411,52 @@ export const useGameStore = create<GameState>((set, get) => {
 
     // Relationship system actions
     processSocialInteractions: () => {
-      // Placeholder implementation
+      const state = get();
+      if (!state.relationshipSystem) return;
+      
+      const interactions = state.relationshipSystem.processAutomaticInteractions(
+        state.officers,
+        state.currentPhase,
+        Date.now()
+      );
+      
+      set({
+        recentInteractions: interactions,
+        socialFeed: state.relationshipSystem.getSocialFeed()
+      });
     },
 
     getOfficerRelationships: (officerId: string) => {
-      // Placeholder implementation
-      return { nodes: [], edges: [] };
+      const state = get();
+      if (!state.relationshipSystem) return { nodes: [], edges: [] };
+      
+      const officerIds = state.officers.map(o => o.id);
+      const network = state.relationshipSystem.getRelationshipNetwork(officerIds);
+      
+      return {
+        nodes: network.nodes.map(n => n.id),
+        edges: network.edges.map(e => `${e.source}-${e.target}`)
+      };
     },
 
     createManualInteraction: (initiatorId: string, targetId: string, type: string) => {
-      // Placeholder implementation
+      const state = get();
+      if (!state.relationshipSystem) return;
+      
+      const interactionType = type as SocialInteraction['type'];
+      const interaction = state.relationshipSystem.createInteraction(
+        interactionType,
+        initiatorId,
+        targetId,
+        'manual'
+      );
+      
+      if (interaction) {
+        set({
+          recentInteractions: [...state.recentInteractions, interaction],
+          socialFeed: state.relationshipSystem.getSocialFeed()
+        });
+      }
     },
   };
 });
