@@ -129,6 +129,8 @@ export interface GameState extends BaseGameState {
   // Upgrades
   upgradeBuilding: (buildingId: string) => void;
   purchaseIntel: (cost: number) => void;
+  purchaseUpgrade: (upgradeId: string) => void;
+  purchaseUpgrade: (upgradeId: string) => void;
 
   // Soldiers
   recruitSoldier: () => void;
@@ -614,7 +616,7 @@ export const useGameStore = create<GameState>((set, get) => {
   const behaviorSystem = new AutonomousBehaviorSystem();
   const relationshipSystem = new RelationshipSystem(INITIAL_OFFICERS);
   
-  return {
+  const store = {
     // Initial state
     cash: 5000,
     reputation: 50,
@@ -646,6 +648,52 @@ export const useGameStore = create<GameState>((set, get) => {
 
     // Intel & Upgrades
     unlockedUpgrades: [],
+    
+    // Upgrade actions
+    purchaseUpgrade: (upgradeId: string) => {
+      set((state) => {
+        const UPGRADES = {
+          'betterIntel': { cost: 2000, intelBonus: 25 },
+          'reducedHeat': { cost: 3000, heatReduction: 10 },
+          'loyaltyBoost': { cost: 1500, loyaltyBonus: 15 },
+          'revenueBonus': { cost: 2500, revenueBonus: 20 }
+        };
+        
+        const upgrade = UPGRADES[upgradeId as keyof typeof UPGRADES];
+        if (!upgrade || state.unlockedUpgrades.includes(upgradeId) || state.cash < upgrade.cost) {
+          return state;
+        }
+        
+        let updates: Partial<GameState> = {
+          cash: state.cash - upgrade.cost,
+          unlockedUpgrades: [...state.unlockedUpgrades, upgradeId]
+        };
+        
+        // Apply upgrade effects
+        switch (upgradeId) {
+          case 'betterIntel':
+            updates.intel = state.intel + upgrade.intelBonus;
+            break;
+          case 'reducedHeat':
+            updates.policeHeat = Math.max(0, state.policeHeat - upgrade.heatReduction);
+            break;
+          case 'loyaltyBoost':
+            updates.officers = state.officers.map(o => ({
+              ...o,
+              loyalty: Math.min(100, o.loyalty + upgrade.loyaltyBonus)
+            }));
+            break;
+          case 'revenueBonus':
+            updates.buildings = state.buildings.map(b => ({
+              ...b,
+              baseRevenue: Math.floor(b.baseRevenue * (1 + upgrade.revenueBonus / 100))
+            }));
+            break;
+        }
+        
+        return updates;
+      });
+    },
 
     // Diplomacy
     activeDiplomacy: null,
@@ -758,27 +806,50 @@ export const useGameStore = create<GameState>((set, get) => {
           currentDay: nextDay,
         };
         
+        // Process daily revenue at the start of each day
+        if (currentState.currentPhase === 'night' && nextPhase === 'morning') {
+          const dailyRevenue = currentState.buildings
+            .filter(b => b.isOccupied && !b.inactiveUntilDay)
+            .reduce((sum, b) => sum + b.baseRevenue, 0);
+          
+          basicUpdate.cash = currentState.cash + dailyRevenue;
+          
+          // Pay soldier stipends
+          const stipendCost = currentState.soldiers.length * currentState.stipend;
+          basicUpdate.cash = (basicUpdate.cash as number) - stipendCost;
+          
+          // Process home district racket if leader assigned
+          if (currentState.homeDistrictLeaderId) {
+            const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
+            if (member) {
+              const baseRevenue = 300;
+              const loyaltyBonus = Math.floor(member.stats.loyalty * 2);
+              const totalRacketRevenue = baseRevenue + loyaltyBonus;
+              basicUpdate.cash = (basicUpdate.cash as number) + totalRacketRevenue;
+              basicUpdate.homeDistrictHeat = Math.min(100, currentState.homeDistrictHeat + 2);
+            }
+          }
+        }
+        
         // Check for Council Trigger (Every 10 days, at the start of the day cycle)
         if (currentState.currentPhase === 'night' && (currentState.currentDay + 1) % 10 === 0) {
-          try {
-            // Queue council meeting for the next morning
-            get().generateCouncilMotions();
-            console.log('Council meeting triggered for day', nextDay);
-            return {
-              currentScene: 'COUNCIL',
-              currentPhase: 'morning',
-              currentDay: nextDay
-            };
-          } catch (councilError) {
-            console.warn('Council system failed, continuing with normal progression:', councilError);
-            // Continue with normal phase progression if council fails
-          }
+          // Queue council meeting for the next morning
+          get().generateCouncilMotions();
+          console.log('Council meeting triggered for day', nextDay);
+          return {
+            currentScene: 'COUNCIL',
+            currentPhase: 'morning',
+            currentDay: nextDay,
+            cash: (basicUpdate.cash as number) || currentState.cash,
+            homeDistrictHeat: (basicUpdate.homeDistrictHeat as number) || currentState.homeDistrictHeat
+          };
         }
         
         // Process autonomous behavior and social interactions (optional, with error handling)
         try {
           let interactions = [];
           let socialFeed = [];
+          let randomEvent = null;
           
           // Update autonomous behavior
           try {
@@ -805,11 +876,56 @@ export const useGameStore = create<GameState>((set, get) => {
             socialFeed = currentState.relationshipSystem.getSocialFeed() || [];
           }
           
-          // Update with social data
+          // Random event triggering (5% chance per phase change)
+          if (Math.random() < 0.05 && !currentState.activeEvent) {
+            const eventTypes = ['policeRaid', 'betrayal', 'rivalAttack', 'criminalCaught', 'soldierDesertion'];
+            const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+            
+            switch (randomEventType) {
+              case 'policeRaid':
+                randomEvent = { type: 'policeRaid' as const, data: {} };
+                break;
+              case 'betrayal':
+                const randomOfficer = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
+                if (randomOfficer && randomOfficer.loyalty < 50) {
+                  randomEvent = { type: 'betrayal' as const, data: { officerId: randomOfficer.id } };
+                }
+                break;
+              case 'rivalAttack':
+                const hostileRival = currentState.rivals.find(r => r.relationship < -30 && !r.isActiveConflict);
+                if (hostileRival) {
+                  randomEvent = { type: 'rivalAttack' as const, data: { rivalId: hostileRival.id } };
+                }
+                break;
+            }
+          }
+          
+          // Street beef generation (3% chance per phase change)
+          if (Math.random() < 0.03 && currentState.officers.length >= 2) {
+            const officer1 = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
+            const officer2 = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
+            
+            if (officer1.id !== officer2.id && !currentState.activeStreetBeefs.some(
+              beef => (beef.officer1Id === officer1.id && beef.officer2Id === officer2.id) ||
+                     (beef.officer1Id === officer2.id && beef.officer2Id === officer1.id)
+            )) {
+              const newBeef = {
+                officer1Id: officer1.id,
+                officer2Id: officer2.id,
+                daysActive: 0,
+                isResolved: false
+              };
+              basicUpdate.activeStreetBeefs = [...currentState.activeStreetBeefs, newBeef];
+            }
+          }
+          
+          // Update with social data and potential random event
           set({
             ...basicUpdate,
             recentInteractions: interactions,
-            socialFeed: socialFeed
+            socialFeed: socialFeed,
+            activeEvent: randomEvent?.type || null,
+            eventData: randomEvent?.data || null
           });
           
         } catch (socialError) {
@@ -2536,4 +2652,11 @@ export const useGameStore = create<GameState>((set, get) => {
       }
     },
   };
+
+  // Start territory friction timer after store initialization
+  setTimeout(() => {
+    store.startFrictionTimer();
+  }, 1000);
+
+  return store;
 });

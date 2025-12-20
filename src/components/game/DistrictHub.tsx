@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Shield, Users, DollarSign, TrendingUp } from 'lucide-react';
+import { Shield, Users, DollarSign, TrendingUp, Zap } from 'lucide-react';
+import { UpgradesPanel } from './UpgradesPanel';
 
 const DiplomacyTab = () => {
   const { rivals } = useGameStore();
@@ -109,7 +110,7 @@ const FinancesTab = () => {
 };
 
 export const DistrictHub = () => {
-  const [activeTab, setActiveTab] = useState<'diplomacy' | 'home' | 'finances'>('home');
+  const [activeTab, setActiveTab] = useState<'diplomacy' | 'home' | 'finances' | 'upgrades'>('home');
 
   return (
     <motion.div
@@ -117,7 +118,7 @@ export const DistrictHub = () => {
       animate={{ opacity: 1, y: 0 }}
       className="p-6"
     >
-      <div className="flex gap-2 mb-6">
+      <div className="grid grid-cols-2 gap-2 mb-6">
         <Button
           variant={activeTab === 'diplomacy' ? 'default' : 'outline'}
           onClick={() => setActiveTab('diplomacy')}
@@ -139,12 +140,21 @@ export const DistrictHub = () => {
         >
           Finances
         </Button>
+        <Button
+          variant={activeTab === 'upgrades' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('upgrades')}
+          className="flex-1"
+        >
+          <Zap className="w-4 h-4 mr-1" />
+          Upgrades
+        </Button>
       </div>
 
       <div className="flex-1">
         {activeTab === 'diplomacy' && <DiplomacyTab />}
         {activeTab === 'home' && <HomeDistrictTab />}
         {activeTab === 'finances' && <FinancesTab />}
+        {activeTab === 'upgrades' && <UpgradesPanel />}
       </div>
     </motion.div>
   );

@@ -283,6 +283,7 @@ export interface GameState {
   // Upgrades
   upgradeBuilding: (buildingId: string) => void;
   purchaseIntel: (cost: number) => void;
+  purchaseUpgrade: (upgradeId: string) => void;
 
   // Soldiers
   recruitSoldier: () => void;
