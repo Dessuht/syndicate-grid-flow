@@ -1,57 +1,58 @@
-import { useState } from 'react';
-import { Sidebar, ViewType } from './Sidebar';
+import { useGameStore } from '@/stores/gameStore';
+import { AutonomousOfficersPanel } from './AutonomousOfficersPanel';
 import { ResourceBar } from './ResourceBar';
+import { DayCycle } from './DayCycle';
 import { DistrictMap } from './DistrictMap';
 import { GlobalMap } from './GlobalMap';
 import { LegalMedicalView } from './LegalMedicalView';
-import { EventManager } from './EventManager';
-import { RainOverlay } from './RainOverlay';
-import { useGameStore } from '@/stores/gameStore';
-import { motion, AnimatePresence } from 'framer-motion';
 import { FamilyCouncilScene } from './FamilyCouncilScene';
+import { EventManager } from './EventManager';
+import { DistrictHub } from './DistrictHub';
+import { Sidebar } from './Sidebar';
+import { useState } from 'react';
 
 export const GameLayout = () => {
-  const { currentScene, syndicateMembers, recruitSyndicateMember, cash, recruitCost } = useGameStore();
-  const [activeView, setActiveView] = useState<ViewType>('district');
+  const { currentScene, currentPhase } = useGameStore();
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState('district');
 
-  // If we are in the COUNCIL scene, override the view
-  if (currentScene === 'COUNCIL') {
-    return <FamilyCouncilScene />;
-  }
+  const renderCurrentView = () => {
+    switch (currentScene) {
+      case 'DISTRICT':
+        return <DistrictMap selectedOfficerId={selectedOfficerId} onSelectOfficer={setSelectedOfficerId} />;
+      case 'GLOBAL':
+        return <GlobalMap />;
+      case 'LEGAL':
+        return <LegalMedicalView />;
+      case 'COUNCIL':
+        return <FamilyCouncilScene />;
+      default:
+        return <DistrictMap selectedOfficerId={selectedOfficerId} onSelectOfficer={setSelectedOfficerId} />;
+    }
+  };
 
   return (
-    <div className="flex h-screen w-full bg-background bg-cyber-grid bg-grid overflow-hidden">
-      {/* Rain Effect */}
-      <RainOverlay />
-
+    <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
-
+      
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
-        {/* Resource Bar */}
-        <ResourceBar />
-
-        {/* View Content */}
-        <main className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeView}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="h-full"
-            >
-              {activeView === 'district' && <DistrictMap />}
-              {activeView === 'global' && <GlobalMap />}
-              {activeView === 'legal' && <LegalMedicalView />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+      <div className="flex-1 flex gap-4 p-4">
+        <div className="w-80 space-y-4">
+          <ResourceBar />
+          <DayCycle />
+          <AutonomousOfficersPanel
+            selectedOfficerId={selectedOfficerId}
+            onSelectOfficer={setSelectedOfficerId}
+          />
+        </div>
+        
+        <div className="flex-1">
+          {renderCurrentView()}
+        </div>
       </div>
-
-      {/* Event Modal System */}
+      
+      {/* Event Manager */}
       <EventManager />
     </div>
   );

@@ -56,19 +56,50 @@ function calculateStats(traits: CharacterTrait[]): CharacterStats {
  * Generate a random 49 Soldier with 2 random traits
  */
 export function generateSoldier(currentDay: number): Character {
-  const { name, surname } = generateName();
+  const { name } = generateName();
   const traits = getRandomTraits(2);
-  const stats = calculateStats(traits);
+  const stats = {
+    health: 70 + Math.floor(Math.random() * 20),
+    face: 20 + Math.floor(Math.random() * 15),
+    loyalty: 50 + Math.floor(Math.random() * 20),
+    mood: 5 + Math.floor(Math.random() * 20),
+  };
 
   return {
     id: `char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name,
-    surname,
     rank: '49',
     stats,
     traits,
     joinedDay: currentDay,
     isActive: true,
+    role: 'member',
+    avatar: undefined,
+    needs: {
+      safety: 50,
+      respect: 50,
+      wealth: 50,
+      power: 50,
+      belonging: 50,
+      excitement: 50
+    },
+    desires: {
+      position: ['officer'],
+      relationships: {},
+      territory: [],
+      revenge: []
+    },
+    skills: {
+      combat: 50,
+      diplomacy: 50,
+      intelligence: 50,
+      management: 50,
+      intimidation: 50
+    },
+    relationships: {},
+    mood: 'content',
+    location: undefined,
+    personalHistory: []
   };
 }
 
@@ -76,5 +107,5 @@ export function generateSoldier(currentDay: number): Character {
  * Get full display name
  */
 export function getFullName(character: Character): string {
-  return `${character.surname} ${character.name}`;
+  return character.name;
 }
