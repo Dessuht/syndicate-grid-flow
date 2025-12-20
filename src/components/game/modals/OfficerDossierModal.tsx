@@ -91,11 +91,9 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
 
   const handleShareTea = () => {
     shareTea(officer.id);
-    // Close immediately after action, unless energy hit 0 (which might trigger unassignment)
     if (officer.energy - 10 > 0) {
         onClose();
     } else {
-        // If energy hits 0, wait a moment for state update to propagate before closing
         setTimeout(onClose, 100);
     }
   };
