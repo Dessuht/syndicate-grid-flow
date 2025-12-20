@@ -4,8 +4,9 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Shield, Users, DollarSign, TrendingUp, Zap } from 'lucide-react';
+import { Shield, Users, DollarSign, TrendingUp, Zap, Building } from 'lucide-react';
 import { UpgradesPanel } from './UpgradesPanel';
+import { BuildingAcquisitionPanel } from './BuildingAcquisitionPanel';
 
 const DiplomacyTab = () => {
   const { rivals } = useGameStore();
@@ -110,7 +111,7 @@ const FinancesTab = () => {
 };
 
 export const DistrictHub = () => {
-  const [activeTab, setActiveTab] = useState<'diplomacy' | 'home' | 'finances' | 'upgrades'>('home');
+  const [activeTab, setActiveTab] = useState<'diplomacy' | 'home' | 'finances' | 'upgrades' | 'buildings'>('home');
 
   return (
     <motion.div
@@ -118,7 +119,7 @@ export const DistrictHub = () => {
       animate={{ opacity: 1, y: 0 }}
       className="p-6"
     >
-      <div className="grid grid-cols-2 gap-2 mb-6">
+      <div className="grid grid-cols-3 gap-2 mb-6">
         <Button
           variant={activeTab === 'diplomacy' ? 'default' : 'outline'}
           onClick={() => setActiveTab('diplomacy')}
@@ -148,6 +149,14 @@ export const DistrictHub = () => {
           <Zap className="w-4 h-4 mr-1" />
           Upgrades
         </Button>
+        <Button
+          variant={activeTab === 'buildings' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('buildings')}
+          className="flex-1"
+        >
+          <Building className="w-4 h-4 mr-1" />
+          Buildings
+        </Button>
       </div>
 
       <div className="flex-1">
@@ -155,6 +164,7 @@ export const DistrictHub = () => {
         {activeTab === 'home' && <HomeDistrictTab />}
         {activeTab === 'finances' && <FinancesTab />}
         {activeTab === 'upgrades' && <UpgradesPanel />}
+        {activeTab === 'buildings' && <BuildingAcquisitionPanel />}
       </div>
     </motion.div>
   );
