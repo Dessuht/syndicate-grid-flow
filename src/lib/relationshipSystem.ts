@@ -50,7 +50,7 @@ export class RelationshipSystem {
       if (officer2.likes.includes(like)) relationship += 10;
     });
     officer1.dislikes.forEach(dislike => {
-      if (officer2.likes.includes(dislike)) relationship -= 10;
+      if (officer2.likes.includes(dislike as any)) relationship -= 10;
     });
 
     // Random factor
@@ -220,7 +220,7 @@ export class RelationshipSystem {
       this.addToSocialFeed({
         id: `feed-${Date.now()}`,
         timestamp: Date.now(),
-        type: 'DEEP_CONVERSATION', // Use valid interaction type
+        type: 'interaction',
         description: `${interaction.initiatorId} and ${interaction.targetId} became friends!`,
         participants: interaction.participants,
         impact: 'positive'

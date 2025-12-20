@@ -1,5 +1,4 @@
 import { useGameStore } from '@/stores/gameStore';
-import { AutonomousOfficersPanel } from './AutonomousOfficersPanel';
 import { ResourceBar } from './ResourceBar';
 import { DayCycle } from './DayCycle';
 import { DistrictMap } from './DistrictMap';
@@ -42,10 +41,6 @@ export const GameLayout = () => {
         <div className="w-80 space-y-4">
           <ResourceBar />
           <DayCycle />
-          <AutonomousOfficersPanel
-            selectedOfficerId={selectedOfficerId}
-            onSelectOfficer={setSelectedOfficerId}
-          />
         </div>
         
         <div className="flex-1">
