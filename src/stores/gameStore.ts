@@ -632,7 +632,7 @@ export const useGameStore = create<GameState>((set, get) => {
     reputation: 50,
     policeHeat: 15,
     currentDay: 1,
-    currentPhase: 'morning',
+    currentPhase: 'morning' as DayPhase,
     stipend: 50,
     intel: 0,
     influence: 10,
@@ -732,6 +732,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
     // Council System
     currentScene: 'DISTRICT' as GameScene,
+    currentPhase: 'morning' as DayPhase,
     councilMotions: [],
     
     // Daily Briefing State
