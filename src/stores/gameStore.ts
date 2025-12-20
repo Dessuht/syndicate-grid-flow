@@ -82,6 +82,9 @@ export interface GameState extends BaseGameState {
   // Civil War State
   isCivilWarActive: boolean;
   rebelOfficerId: string | null;
+  recentlyResolvedCivilWar: boolean;
+  recentlyResolvedCivilWarCooldown: number;
+  lastCivilWarCheckDay: number;
 
   // Council System
   currentScene: GameScene;
@@ -729,6 +732,9 @@ export const useGameStore = create<GameState>((set, get) => {
     // Civil War State
     isCivilWarActive: false,
     rebelOfficerId: null,
+    recentlyResolvedCivilWar: false,
+    recentlyResolvedCivilWarCooldown: 0,
+    lastCivilWarCheckDay: 0,
 
     // Council System
     currentScene: 'DISTRICT' as GameScene,
@@ -932,8 +938,10 @@ export const useGameStore = create<GameState>((set, get) => {
           // Process existing street beefs
           currentState.processStreetBeefs();
           
-          // Process existing street beefs
-          currentState.processStreetBeefs();
+          // Clear civil war cooldown if expired
+          if (currentState.recentlyResolvedCivilWarCooldown > 0 && currentState.currentDay >= currentState.recentlyResolvedCivilWarCooldown) {
+            set({ recentlyResolvedCivilWar: false, recentlyResolvedCivilWarCooldown: 0 });
+          }
           
           // Check for civil war conditions
           currentState.checkForCivilWar();
@@ -1277,7 +1285,7 @@ export const useGameStore = create<GameState>((set, get) => {
           });
           updates.influence = Math.max(0, state.influence - 5); // Veto costs influence
         } else {
-          // Player voted with the majority, motion passes (or fails gracefully)
+          // Player voted with majority, motion passes (or fails gracefully)
           if (playerVote === 'yes') {
             updates = motion.effect(state);
           }
@@ -1838,92 +1846,121 @@ export const useGameStore = create<GameState>((set, get) => {
       set((state) => {
         const rebelOfficer = state.officers.find(o => o.id === officerId);
         const rebelBase = state.buildings.find(b => b.isRebelBase && b.assignedOfficerId === officerId);
-        if (!rebelOfficer || !rebelBase) return { ...state, activeEvent: null, eventData: null, isCivilWarActive: false, rebelOfficerId: null };
+        if (!rebelOfficer || !rebelBase) return { ...state, activeEvent: null, eventData: null, isCivilWarActive: false, rebelOfficerId: null, recentlyResolvedCivilWar: true };
 
-        let updates: Partial<GameState> = { activeEvent: null, eventData: null, isCivilWarActive: false, rebelOfficerId: null };
-        let summaryData: PostConflictSummaryData = {
-          type: 'civilWar',
-          outcome: 'failure',
-          officerId: officerId,
-          soldiersLost: 0,
-          reputationChange: 0,
-          faceChange: 0,
-          loyaltyChange: 0,
-          officerStatusEffect: 'none',
-        };
+        let updates: Partial<GameState> = { activeEvent: null, eventData: null, isCivilWarActive: false, rebelOfficerId: null, recentlyResolvedCivilWar: true };
 
         switch (choice) {
           case 'raid':
-            // Calculate Raid Strength: Player's remaining soldiers vs. Rebel soldiers
-            const loyalSoldierStrength = state.soldiers.reduce((sum, s) => sum + s.skill, 0);
-            const rebelStrength = rebelBase.rebelSoldierCount * 50; // Assume 50 strength per rebel soldier
-            const success = loyalSoldierStrength > rebelStrength;
+            // Calculate Raid Strength: Player's soldiers vs Rebel soldiers
+            const loyalStrength = state.soldiers.reduce((sum, s) => sum + (s.loyalty > 40 ? s.skill : 0), 0);
+            const redPole = state.officers.find(o => o.rank === 'Red Pole' && !o.isTraitor);
+            const officerBonus = redPole ? redPole.skills.enforcement * 2 : 0;
+            const totalLoyalStrength = loyalStrength + officerBonus;
+            
+            const rebelStrength = rebelBase.rebelSoldierCount * 45 + (rebelOfficer.skills.diplomacy * 1.5);
+            const success = totalLoyalStrength > rebelStrength;
 
             if (success) {
-              // Victory: Officer removed/imprisoned, building recovered
-              const execution = Math.random() < 0.5;
-              summaryData.outcome = 'success';
-              summaryData.reputationChange = 20;
-              summaryData.officerStatusEffect = execution ? 'executed' : 'imprisoned';
-              summaryData.soldiersLost = Math.floor(state.soldiers.length * 0.1); // 10% loyal soldier loss
-
+              // Victory - civil war ends
+              const executionChance = 0.4 + (state.influence * 0.01); // Higher influence = more likely to execute
+              const willExecute = Math.random() < executionChance;
+              
               updates.officers = state.officers.filter(o => o.id !== officerId);
-              if (!execution) {
-                // If imprisoned, re-add officer as arrested
-                updates.officers = [...(updates.officers || state.officers), { ...rebelOfficer, isTraitor: false, isArrested: true, assignedBuildingId: null, loyalty: 0 }];
+              if (!willExecute) {
+                updates.officers = [
+                  ...(updates.officers || state.officers), 
+                  { 
+                    ...rebelOfficer, 
+                    isTraitor: false, 
+                    isArrested: true, 
+                    assignedBuildingId: null, 
+                    loyalty: 10,
+                    energy: 0
+                  }
+                ];
               }
               
               updates.buildings = state.buildings.map(b =>
-                b.id === rebelBase.id ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } : b
+                b.id === rebelBase.id 
+                  ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } 
+                  : b
               );
-            } else {
-              // Defeat: Massive reputation loss, officer remains rogue, lose more soldiers
-              summaryData.outcome = 'failure';
-              summaryData.reputationChange = -30;
-              summaryData.soldiersLost = Math.floor(state.soldiers.length * 0.3); // 30% loyal soldier loss
               
-              updates.soldiers = state.soldiers.slice(summaryData.soldiersLost);
-              // Civil War remains active but event is cleared to allow player to try again
-              updates.isCivilWarActive = true;
-              updates.rebelOfficerId = officerId;
+              updates.reputation = Math.min(100, state.reputation + 25);
+              updates.influence = Math.min(100, state.influence + 10);
+              
+              // Return some rebel soldiers as loyal forces
+              const returnedSoldiers = Math.floor(rebelBase.rebelSoldierCount * 0.3);
+              updates.soldiers = [
+                ...state.soldiers, 
+                ...Array(returnedSoldiers).fill(0).map(() => ({
+                  id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
+                  loyalty: 45 + Math.floor(Math.random() * 30),
+                  needs: { food: 70, entertainment: 50, pay: 60 },
+                  skill: 25 + Math.floor(Math.random() * 35),
+                  isDeserting: false,
+                }))
+              ];
+            } else {
+              // Defeat - civil war continues but we don't keep it active to prevent loops
+              const soldiersLost = Math.max(1, Math.floor(state.soldiers.length * 0.25));
+              updates.soldiers = state.soldiers.slice(soldiersLost);
+              updates.reputation = Math.max(0, state.reputation - 20);
+              
+              // DON'T keep civil war active - this prevents the infinite loop
+              // The rebel base remains but player gets another chance after a cooldown
+              updates.recentlyResolvedCivilWarCooldown = state.currentDay + 7;
             }
             break;
 
           case 'negotiate':
-            const cost = 5000; // Fixed cost for negotiation
+            const cost = 5000;
             const intelCost = 50;
-            if (state.cash < cost || state.intel < intelCost) return { ...state, activeEvent: null, eventData: null, isCivilWarActive: false, rebelOfficerId: null };
-
-            summaryData.outcome = 'success';
-            summaryData.reputationChange = -50;
-            summaryData.loyaltyChange = 50;
             
+            if (state.cash < cost || state.intel < intelCost) {
+              return { ...state, activeEvent: null, eventData: null, recentlyResolvedCivilWar: true };
+            }
+
             updates.cash = state.cash - cost;
             updates.intel = state.intel - intelCost;
+            updates.reputation = Math.max(0, state.reputation - 40);
+            
             updates.officers = state.officers.map(o =>
-              o.id === officerId ? { ...o, isTraitor: false, loyalty: 50, face: 0, grudge: false, isSuccessor: false, isTestingWaters: false } : o
+              o.id === officerId 
+                ? { 
+                    ...o, 
+                    isTraitor: false, 
+                    loyalty: 35, // Lower loyalty than before
+                    face: 0, 
+                    grudge: true, // They hold a grudge
+                    isSuccessor: false, 
+                    isTestingWaters: false 
+                  } 
+                : o
             );
+            
             updates.buildings = state.buildings.map(b =>
-              b.id === rebelBase.id ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } : b
+              b.id === rebelBase.id 
+                ? { ...b, isRebelBase: false, rebelSoldierCount: 0, isOccupied: false, assignedOfficerId: null } 
+                : b
             );
-            // Rebel soldiers return to the pool
-            updates.soldiers = [...state.soldiers, ...Array(rebelBase.rebelSoldierCount).fill(0).map(() => ({
-              id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
-              loyalty: 60 + Math.floor(Math.random() * 20),
-              needs: {
-                food: 70 + Math.floor(Math.random() * 20),
-                entertainment: 50 + Math.floor(Math.random() * 30),
-                pay: 60,
-              },
-              skill: 30 + Math.floor(Math.random() * 40),
-              isDeserting: false,
-            }))];
+            
+            // All rebel soldiers return
+            updates.soldiers = [
+              ...state.soldiers, 
+              ...Array(rebelBase.rebelSoldierCount).fill(0).map(() => ({
+                id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
+                loyalty: 40 + Math.floor(Math.random() * 25),
+                needs: { food: 70, entertainment: 50, pay: 60 },
+                skill: 25 + Math.floor(Math.random() * 35),
+                isDeserting: false,
+              }))
+            ];
             break;
         }
-
-        updates.reputation = Math.max(0, state.reputation + summaryData.reputationChange);
-        updates.soldiers = (updates.soldiers || state.soldiers).slice(summaryData.soldiersLost);
 
         // Check for pending events
         if (state.pendingEvents.length > 0) {
@@ -2505,7 +2542,7 @@ export const useGameStore = create<GameState>((set, get) => {
         if (woShingWo) {
           return {
             rivals: state.rivals.map(r =>
-              r.id === 'woShingWo.id'
+              r.id === 'rival-3'
                 ? { ...r, relationship: Math.max(-100, r.relationship - 5) }
                 : r
             ),
@@ -2728,40 +2765,42 @@ export const useGameStore = create<GameState>((set, get) => {
     // Civil war actions
     checkForCivilWar: () => {
       set((state) => {
-        // Prevent civil war if already active or event is pending
-        if (state.isCivilWarActive || state.activeEvent) return state;
+        // Prevent civil war if already active, event is pending, or recently resolved
+        if (state.isCivilWarActive || state.activeEvent || state.recentlyResolvedCivilWar) return state;
+
+        // Only check every 3 days to prevent rapid triggering
+        const daysSinceLastCheck = state.currentDay - (state.lastCivilWarCheckDay || 0);
+        if (daysSinceLastCheck < 3) return state;
+
+        // Update last check day
+        const updatedState = { ...state, lastCivilWarCheckDay: state.currentDay };
 
         // Check for civil war conditions
-        const disloyalOfficers = state.officers.filter(o => o.loyalty < 30 && o.rank !== 'Blue Lantern' && !o.isTraitor);
-        const highRankOfficers = state.officers.filter(o => (o.rank === 'Red Pole' || o.rank === 'White Paper Fan') && !o.isTraitor);
+        const disloyalOfficers = updatedState.officers.filter(o => o.loyalty < 25 && o.rank !== 'Blue Lantern' && !o.isTraitor && !o.isWounded && !o.isArrested);
+        const highRankOfficers = updatedState.officers.filter(o => (o.rank === 'Red Pole' || o.rank === 'White Paper Fan') && !o.isTraitor && !o.isWounded && !o.isArrested);
         
-        // Civil war triggers if:
-        // 1. Multiple high-ranking officers are disloyal
-        // 2. Territory friction is very high (>80)
-        // 3. Player influence is very low (<20)
-        
+        // Much stricter conditions to prevent frequent triggering
         const shouldTrigger = (
-          (disloyalOfficers.length >= 2 && highRankOfficers.some(o => disloyalOfficers.includes(o))) ||
-          state.territoryFriction > 80 ||
-          state.influence < 20
+          disloyalOfficers.length >= 2 && 
+          highRankOfficers.some(o => disloyalOfficers.includes(o)) &&
+          (updatedState.territoryFriction > 85 || updatedState.influence < 15)
         );
 
         if (shouldTrigger) {
           // Additional safety check: ensure we have available building
-          const availableBuilding = state.buildings.find(b => !b.isOccupied && b.type !== 'Police Station' && !b.isRebelBase);
+          const availableBuilding = updatedState.buildings.find(b => !b.isOccupied && b.type !== 'Police Station' && !b.isRebelBase);
           
-          if (!availableBuilding) {
-            console.log('Civil war prevented: No available buildings for rebel base');
-            return state;
+          if (!availableBuilding || updatedState.soldiers.length < 3) {
+            console.log('Civil war prevented: Insufficient resources');
+            return { ...updatedState, lastCivilWarCheckDay: state.currentDay };
           }
 
-          const rebelOfficer = disloyalOfficers.length > 0
-            ? disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)]
-            : highRankOfficers[Math.floor(Math.random() * highRankOfficers.length)];
+          const rebelOfficer = disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)];
 
           if (rebelOfficer) {
             console.log(`Civil war triggered by ${rebelOfficer.name}`);
             return {
+              ...updatedState,
               activeEvent: 'coupAttempt' as const,
               eventData: {
                 officerId: rebelOfficer.id,
@@ -2774,7 +2813,7 @@ export const useGameStore = create<GameState>((set, get) => {
           }
         }
 
-        return state;
+        return { ...updatedState, lastCivilWarCheckDay: state.currentDay };
       });
     },
 

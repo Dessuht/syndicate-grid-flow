@@ -12,7 +12,7 @@ interface CoupAttemptModalProps {
 }
 
 export const CoupAttemptModal = ({ data }: CoupAttemptModalProps) => {
-  const { handleCoupResolution, cash, intel, soldiers } = useGameStore();
+  const { handleCoupResolution, cash, intel, soldiers, officers } = useGameStore();
   
   const loyalSoldierCount = soldiers.length;
   const negotiateCost = 5000;
@@ -21,11 +21,19 @@ export const CoupAttemptModal = ({ data }: CoupAttemptModalProps) => {
   
   // Find the rebel base to display its strength
   const rebelBase = useGameStore.getState().buildings.find(b => b.isRebelBase && b.assignedOfficerId === data.officerId);
-  const rebelSoldierCount = rebelBase?.rebelSoldierCount || 0;
+  const rebelOfficer = officers.find(o => o.id === data.officerId);
+  const rebelSoldierCount = rebelBase?.rebelSoldierCount || data.rebelStrength || 0;
   
-  const loyalStrength = loyalSoldierCount * 50; // Simplified strength calculation
-  const rebelStrength = rebelSoldierCount * 50;
-  const raidSuccessLikely = loyalStrength > rebelStrength;
+  // More realistic strength calculation
+  const loyalStrength = soldiers.reduce((sum, s) => sum + (s.loyalty > 40 ? s.skill : 0), 0);
+  const redPole = officers.find(o => o.rank === 'Red Pole' && !o.isTraitor);
+  const officerBonus = redPole ? redPole.skills.enforcement * 2 : 0;
+  const totalLoyalStrength = loyalStrength + officerBonus;
+  
+  const rebelStrength = rebelSoldierCount * 45 + (rebelOfficer?.skills.diplomacy || 0) * 1.5;
+  const raidSuccessLikely = totalLoyalStrength > rebelStrength;
+  
+  const isCriticalWarning = data.warningLevel === 'critical';
 
   return (
     <AnimatePresence>
@@ -55,8 +63,10 @@ export const CoupAttemptModal = ({ data }: CoupAttemptModalProps) => {
               <Skull className="w-8 h-8 text-neon-red" />
             </div>
             <div>
-              <h2 className="font-display text-2xl font-bold neon-text-red">THE SCHISM</h2>
-              <p className="text-muted-foreground">{data.officerName} has rebelled!</p>
+              <h2 className="font-display text-2xl font-bold neon-text-red">
+                {isCriticalWarning ? 'CRITICAL UPRISING' : 'THE SCHISM'}
+              </h2>
+              <p className="text-muted-foreground">{data.officerName} has declared independence!</p>
             </div>
           </div>
 
@@ -78,13 +88,22 @@ export const CoupAttemptModal = ({ data }: CoupAttemptModalProps) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground">Your Loyal Forces</p>
-                <p className="text-lg font-bold text-neon-cyan">{loyalSoldierCount}</p>
+                <p className="text-xs text-muted-foreground">Your Forces</p>
+                <p className="text-lg font-bold text-neon-cyan">{loyalSoldierCount} soldiers</p>
+                {redPole && (
+                  <p className="text-xs text-neon-cyan">+{redPole.name} leading</p>
+                )}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Rebel Forces</p>
-                <p className="text-lg font-bold text-neon-red">{rebelSoldierCount}</p>
+                <p className="text-lg font-bold text-neon-red">{rebelSoldierCount} soldiers</p>
+                <p className="text-xs text-neon-red">+{data.officerName} leading</p>
               </div>
+            </div>
+            <div className="mt-2 text-center">
+              <p className={`text-xs font-medium ${raidSuccessLikely ? 'text-neon-green' : 'text-neon-red'}`}>
+                {raidSuccessLikely ? 'STRONG ADVANTAGE' : 'DANGEROUS ODDS'}
+              </p>
             </div>
           </div>
 
@@ -102,7 +121,10 @@ export const CoupAttemptModal = ({ data }: CoupAttemptModalProps) => {
               <div className="text-left">
                 <p className="font-semibold text-foreground">Launch Raid</p>
                 <p className="text-xs text-muted-foreground">
-                  Crush the rebellion by force. High risk of casualties.
+                  {raidSuccessLikely
+                    ? 'Attack with good odds of victory. Expected casualties: ~10%'
+                    : 'Risky assault with poor odds. Expected casualties: ~25%'
+                  }
                 </p>
               </div>
             </Button>
@@ -120,7 +142,7 @@ export const CoupAttemptModal = ({ data }: CoupAttemptModalProps) => {
               <div className="text-left">
                 <p className="font-semibold text-foreground">Negotiate Loyalty</p>
                 <p className="text-xs text-muted-foreground">
-                  Cost: ${negotiateCost.toLocaleString()} + {intelCost} Intel • -50 Rep
+                  Cost: ${negotiateCost.toLocaleString()} + {intelCost} Intel • -40 Rep • Officer returns with grudge
                 </p>
               </div>
             </Button>
