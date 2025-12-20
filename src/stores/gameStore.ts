@@ -26,7 +26,7 @@ import type {
 } from './gameStoreTypes';
 
 // Import OfficerRelationship and SocialInteraction from relationships types
-import type { OfficerRelationship, SocialInteraction } from '@/types/relationships';
+import type { OfficerRelationship, SocialInteraction, SocialFeedEntry } from '@/types/relationships';
 
 // Autonomous Character interface
 export interface AutonomousCharacter extends Officer {
@@ -60,11 +60,6 @@ export interface GameState extends BaseGameState {
 
   // Diplomacy
   activeDiplomacy: { rivalId: string; action: DiploAction } | null;
-
-  // Civil War State (explicitly declared)
-  recentlyResolvedCivilWar: boolean;
-  recentlyResolvedCivilWarCooldown: number;
-  lastCivilWarCheckDay: number;
 
   // Family Council - Character System
   syndicateMembers: Character[];
