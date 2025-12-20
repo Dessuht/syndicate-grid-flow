@@ -255,6 +255,14 @@ export interface GameState {
   // Civil war actions
   checkForCivilWar: () => void;
   triggerCivilWar: (officerId: string) => void;
+  
+  // Street beef actions
+  processStreetBeefs: () => void;
+  triggerStreetBeef: (officer1Id: string, officer2Id: string) => void;
+  
+  // Civil war actions
+  checkForCivilWar: () => void;
+  triggerCivilWar: (officerId: string) => void;
 
   // Officer Interaction Actions
   shareTea: (officerId: string) => void;
@@ -292,6 +300,9 @@ export interface GameState {
   upgradeBuilding: (buildingId: string) => void;
   purchaseIntel: (cost: number) => void;
   purchaseUpgrade: (upgradeId: string) => void;
+  
+  // Building actions
+  acquireBuilding: (buildingType: BuildingType) => void;
   
   // Building actions
   acquireBuilding: (buildingType: BuildingType) => void;

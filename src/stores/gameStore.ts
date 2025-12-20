@@ -578,6 +578,38 @@ const INITIAL_BUILDINGS: Building[] = [
     rebelSoldierCount: 0,
   },
 ];
+    id: 'bld-7',
+    name: 'Underground Print Shop',
+    type: 'Counterfeit Lab',
+    baseRevenue: 1200,
+    heatGen: 5,
+    isOccupied: false,
+    assignedOfficerId: null,
+    inactiveUntilDay: null,
+    isIllicit: true,
+    foodProvided: 0,
+    entertainmentProvided: 0,
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
+  },
+  {
+    id: 'bld-8',
+    name: 'Hidden Opium Den',
+    type: 'Drug Lab',
+    baseRevenue: 1500,
+    heatGen: 6,
+    isOccupied: false,
+    assignedOfficerId: null,
+    inactiveUntilDay: null,
+    isIllicit: true,
+    foodProvided: 0,
+    entertainmentProvided: 20,
+    upgraded: false,
+    isRebelBase: false,
+    rebelSoldierCount: 0,
+  },
+];
 
 const SOLDIER_NAMES = ['Ah Keung', 'Wai Gor', 'Siu Ming', 'Ah Fat', 'Lok Jai', 'Ah Sing', 'Chi Wai', 'Hung Jai'];
 
@@ -960,6 +992,9 @@ export const useGameStore = create<GameState>((set, get) => {
               basicUpdate.activeStreetBeefs = [...currentState.activeStreetBeefs, newBeef];
             }
           }
+          
+          // Process existing street beefs
+          currentState.processStreetBeefs();
           
           // Process existing street beefs
           currentState.processStreetBeefs();
