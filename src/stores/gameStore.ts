@@ -732,7 +732,6 @@ export const useGameStore = create<GameState>((set, get) => {
 
     // Council System
     currentScene: 'DISTRICT' as GameScene,
-    currentPhase: 'morning' as DayPhase,
     councilMotions: [],
     
     // Daily Briefing State
