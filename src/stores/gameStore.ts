@@ -2790,7 +2790,11 @@ export const useGameStore = create<GameState>((set, get) => {
           ),
           soldiers: state.soldiers.slice(rebelSoldiers), // Remove rebel soldiers from loyal forces
           activeEvent: 'coupAttempt' as const,
-          eventData: { officerId: officerId }
+          eventData: {
+            officerId: officerId,
+            officerName: officer.name,
+            buildingName: randomBuilding.name
+          }
         };
       });
     },
