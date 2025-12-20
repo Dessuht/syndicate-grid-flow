@@ -775,11 +775,21 @@ export const useGameStore = create<GameState>((set, get) => {
           }
         }
         
-        // Process social interactions (optional, with error handling)
+        // Process autonomous behavior and social interactions (optional, with error handling)
         try {
           let interactions = [];
           let socialFeed = [];
           
+          // Update autonomous behavior
+          try {
+            if (currentState.behaviorSystem && typeof currentState.updateAutonomousBehavior === 'function') {
+              currentState.updateAutonomousBehavior();
+            }
+          } catch (autonomousError) {
+            console.warn('Autonomous behavior error (non-critical):', autonomousError);
+          }
+          
+          // Process social interactions
           if (currentState.relationshipSystem &&
               typeof currentState.relationshipSystem.processAutomaticInteractions === 'function' &&
               Array.isArray(currentState.officers)) {
