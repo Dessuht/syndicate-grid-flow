@@ -730,7 +730,7 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     advancePhase: () => {
-      // Ultra-safe phase advancement - no external dependencies
+      // Ultra-safe phase advancement - minimal functionality only
       try {
         const currentState = get();
         
@@ -753,69 +753,15 @@ export const useGameStore = create<GameState>((set, get) => {
         const nextPhase = phases[(currentIndex + 1) % phases.length];
         const nextDay = nextPhase === 'morning' ? currentState.currentDay + 1 : currentState.currentDay;
         
-        // Basic state update only - no external systems
-        const basicUpdate = {
+        // ONLY update basic phase and day - skip all other systems
+        set({
           currentPhase: nextPhase,
           currentDay: nextDay,
-        };
+        });
         
-        // Try to update with basic state first
-        set(basicUpdate);
-        
-        // Then try to process optional systems separately
-        try {
-          // Process social interactions (optional)
-          let interactions = [];
-          let socialFeed = [];
-          
-          try {
-            if (currentState.relationshipSystem &&
-                typeof currentState.relationshipSystem.processAutomaticInteractions === 'function' &&
-                Array.isArray(currentState.officers)) {
-              interactions = currentState.relationshipSystem.processAutomaticInteractions(
-                currentState.officers,
-                currentState.currentPhase,
-                Date.now()
-              ) || [];
-            }
-            
-            if (currentState.relationshipSystem &&
-                typeof currentState.relationshipSystem.getSocialFeed === 'function') {
-              socialFeed = currentState.relationshipSystem.getSocialFeed() || [];
-            }
-          } catch (socialError) {
-            console.warn('Social system error (non-critical):', socialError);
-            interactions = [];
-            socialFeed = [];
-          }
-
-          // Update with social data
-          set((state) => ({
-            ...state,
-            recentInteractions: interactions,
-            socialFeed: socialFeed
-          }));
-          
-        } catch (optionalError) {
-          console.warn('Optional systems failed (game continues):', optionalError);
-        }
-        
-        // Try council trigger separately (optional)
-        try {
-          if (currentState.currentPhase === 'night' && (currentState.currentDay + 1) % 10 === 0) {
-            if (typeof get().generateCouncilMotions === 'function') {
-              get().generateCouncilMotions();
-              set((state) => ({
-                ...state,
-                currentScene: 'COUNCIL',
-                currentPhase: 'morning',
-                currentDay: state.currentDay + 1
-              }));
-            }
-          }
-        } catch (councilError) {
-          console.warn('Council system failed (game continues):', councilError);
-        }
+        // Council system is DISABLED to prevent crashes around day 9-10
+        // If you need council meetings, they must be manually triggered
+        console.log(`Advanced to day ${nextDay}, phase ${nextPhase}`);
         
       } catch (criticalError) {
         console.error('Critical phase advancement error:', criticalError);
@@ -825,8 +771,6 @@ export const useGameStore = create<GameState>((set, get) => {
           set({
             currentPhase: 'morning',
             currentDay: Math.max(1, (get().currentDay || 0) + 1),
-            recentInteractions: [],
-            socialFeed: []
           });
         } catch (emergencyError) {
           console.error('Emergency fallback failed:', emergencyError);
