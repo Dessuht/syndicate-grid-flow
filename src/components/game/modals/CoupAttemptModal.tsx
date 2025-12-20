@@ -8,6 +8,8 @@ interface CoupAttemptModalProps {
     officerId: string;
     officerName: string;
     buildingName: string;
+    warningLevel?: 'critical' | 'normal';
+    rebelStrength?: number;
   };
 }
 
