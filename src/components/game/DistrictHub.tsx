@@ -22,60 +22,83 @@ const DiplomacyTab = () => {
       <h4 className="text-sm font-semibold text-foreground">Territory Relations</h4>
       
       <div className="space-y-4">
-        {rivals.map((rival) => (
-          <div key={rival.id} className="p-3 rounded-lg bg-card/50 border border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" 
-                  style={{ 
-                    backgroundColor: rival.isActiveConflict 
-                      ? '#FF4444' 
-                      : rival.relationship > 0 
-                        ? '#00FF00' 
-                        : '#FF4444' 
-                  }} 
-                />
-                <span className="font-medium text-sm">{rival.name}</span>
+        {rivals.map((rival) => {
+          const relationshipMagnitude = Math.abs(rival.relationship);
+          // 1 unit of relationship = 0.5% of bar width (100 relationship = 50% width)
+          const barWidth = Math.min(50, relationshipMagnitude * 0.5); 
+          
+          return (
+            <div key={rival.id} className="p-3 rounded-lg bg-card/50 border border-border">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" 
+                    style={{ 
+                      backgroundColor: rival.isActiveConflict 
+                        ? 'hsl(var(--neon-red))' 
+                        : rival.relationship > 0 
+                          ? 'hsl(var(--neon-green))' 
+                          : 'hsl(var(--neon-red))' 
+                    }} 
+                  />
+                  <span className="font-medium text-sm">{rival.name}</span>
+                </div>
+                <span className={cn(
+                  "text-xs font-medium",
+                  rival.relationship > 0 ? 'text-neon-green' : 'text-neon-red'
+                )}>
+                  {rival.relationship > 0 ? '+' : ''}{rival.relationship}
+                </span>
               </div>
-              <span className={cn(
-                "text-xs font-medium",
-                rival.relationship > 0 ? 'text-neon-green' : 'text-neon-red'
-              )}>
-                {rival.relationship > 0 ? '+' : ''}{rival.relationship}
-              </span>
-            </div>
-            
-            <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-              <div 
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  rival.isActiveConflict 
-                    ? "bg-neon-red animate-pulse" 
-                    : rival.relationship > 0 
-                      ? "bg-neon-green" 
-                      : "bg-neon-red"
+              
+              {/* Centered Relationship Bar (Fixing the visual issue) */}
+              <div className="relative w-full h-2 bg-secondary rounded-full overflow-hidden">
+                {/* Center line visual aid */}
+                <div className="absolute left-1/2 top-0 h-full w-px bg-border z-10" /> 
+
+                {/* Negative Relationship Bar (Grows left from center) */}
+                {rival.relationship < 0 && (
+                  <div 
+                    className={cn(
+                      "absolute top-0 h-full rounded-l-full transition-all duration-500",
+                      rival.isActiveConflict ? "bg-neon-red animate-pulse" : "bg-neon-red"
+                    )}
+                    style={{ 
+                      width: `${barWidth}%`,
+                      left: `${50 - barWidth}%`, // Anchor point moves left
+                    }}
+                  />
                 )}
-                style={{ 
-                  width: `${Math.min(100, Math.abs(rival.relationship))}%`,
-                  marginLeft: rival.relationship < 0 ? `${100 - Math.min(100, Math.abs(rival.relationship))}%` : '0'
-                }}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[10px] text-muted-foreground">District: {rival.district}</span>
-              <span className="text-[10px] text-muted-foreground">Strength: {rival.strength}</span>
-            </div>
-            
-            {rival.isActiveConflict && (
-              <div className="mt-2 p-2 rounded bg-neon-red/10 border border-neon-red/30">
-                <p className="text-[10px] text-neon-red flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Active Conflict
-                </p>
+
+                {/* Positive Relationship Bar (Grows right from center) */}
+                {rival.relationship > 0 && (
+                  <div 
+                    className={cn(
+                      "absolute top-0 h-full rounded-r-full transition-all duration-500",
+                      rival.isActiveConflict ? "bg-neon-red animate-pulse" : "bg-neon-green"
+                    )}
+                    style={{ 
+                      width: `${barWidth}%`,
+                      left: '50%', // Starts at center
+                    }}
+                  />
+                )}
               </div>
-            )}
-          </div>
-        ))}
+              
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[10px] text-muted-foreground">District: {rival.district}</span>
+                <span className="text-[10px] text-muted-foreground">Strength: {rival.strength}</span>
+              </div>
+              
+              {rival.isActiveConflict && (
+                <div className="mt-2 p-2 rounded bg-neon-red/10 border border-neon-red/30">
+                  <p className="text-[10px] text-neon-red flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Active Conflict
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
