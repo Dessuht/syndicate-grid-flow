@@ -1883,7 +1883,7 @@ export const useGameStore = create<GameState>((set, get) => {
               summaryData.soldiersLost = Math.floor(state.soldiers.length * 0.3); // 30% loyal soldier loss
               
               updates.soldiers = state.soldiers.slice(summaryData.soldiersLost);
-              // Civil War remains active
+              // Civil War remains active but event is cleared to allow player to try again
               updates.isCivilWarActive = true;
               updates.rebelOfficerId = officerId;
             }
