@@ -2746,19 +2746,26 @@ export const useGameStore = create<GameState>((set, get) => {
         );
 
         if (shouldTrigger && !state.activeEvent) {
-          const rebelOfficer = disloyalOfficers.length > 0
-            ? disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)]
-            : highRankOfficers[Math.floor(Math.random() * highRankOfficers.length)];
+        const rebelOfficer = disloyalOfficers.length > 0
+          ? disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)]
+          : highRankOfficers[Math.floor(Math.random() * highRankOfficers.length)];
 
-          if (rebelOfficer) {
-            return {
-              activeEvent: 'coupAttempt' as const,
-              eventData: { officerId: rebelOfficer.id },
-              isCivilWarActive: true,
-              rebelOfficerId: rebelOfficer.id
-            };
-          }
+        if (rebelOfficer) {
+          // Find an available building for the rebel base
+          const randomBuilding = state.buildings.find(b => !b.isOccupied && b.type !== 'Police Station');
+          
+          return {
+            activeEvent: 'coupAttempt' as const,
+            eventData: {
+              officerId: rebelOfficer.id,
+              officerName: rebelOfficer.name,
+              buildingName: randomBuilding?.name || 'Unknown Location'
+            },
+            isCivilWarActive: true,
+            rebelOfficerId: rebelOfficer.id
+          };
         }
+      }
 
         return state;
       });
