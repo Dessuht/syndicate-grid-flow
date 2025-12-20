@@ -13,7 +13,6 @@ import type {
   EventType,
   DiploAction,
   OfficerSkills,
-  OfficerRelationship,
   Officer,
   Building,
   StreetSoldier,
@@ -24,6 +23,9 @@ import type {
   CompatibilityDislike,
   StreetBeef
 } from './gameStoreTypes';
+
+// Import OfficerRelationship directly from relationships types
+import type { OfficerRelationship } from '@/types/relationships';
 
 // Autonomous Character interface
 export interface AutonomousCharacter extends Officer {
