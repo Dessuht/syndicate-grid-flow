@@ -36,28 +36,16 @@ export interface AutonomousCharacter extends Officer {
   isAutonomous: boolean;
 }
 
-// Complete GameState interface with all original properties
-export interface GameState {
-  // Resources
-  cash: number;
-  reputation: number;
-  policeHeat: number;
-  currentDay: number;
-  currentPhase: DayPhase;
-  stipend: number;
-  intel: number;
-  influence: number;
+// Import GameState from types file and extend it
+import type { GameState as BaseGameState } from './gameStoreTypes';
 
-  // Entities
-  officers: Officer[];
-  buildings: Building[];
-  soldiers: StreetSoldier[];
-  rivals: RivalGang[];
-
+export interface GameState extends BaseGameState {
   // Autonomous behavior system
   behaviorSystem: AutonomousBehaviorSystem;
   autonomousOfficers: AutonomousCharacter[];
   lastBehaviorUpdate: number;
+  socialFeed: any[];
+  recentInteractions: any[];
 
   // Intel & Upgrades
   unlockedUpgrades: string[];
