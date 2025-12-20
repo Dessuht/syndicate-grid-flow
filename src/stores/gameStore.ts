@@ -794,210 +794,167 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     advancePhase: () => {
-      try {
-        const currentState = get();
-        
-        // Validate current state
-        if (!currentState || typeof currentState.currentPhase === 'undefined') {
-          console.error('Invalid game state detected');
-          return;
-        }
-        
-        // Emergency: Clear any stuck events that prevent progression
-        // Only allow these specific events to block advancement
-        const allowedBlockingEvents = ['dailyBriefing', 'policeShakedown', 'streetBeef', 'coupAttempt', 'newEra'];
-        if (currentState.activeEvent && !allowedBlockingEvents.includes(currentState.activeEvent)) {
-          console.warn('Clearing stuck event:', currentState.activeEvent);
-          set({ activeEvent: null, eventData: null });
-        }
-        
-        // Additional safety: Force clear problematic events on specific days
-        if (currentState.currentDay === 9 && currentState.currentPhase === 'night' && currentState.activeEvent) {
-          console.warn('Force clearing stuck event on Day 9 Night:', currentState.activeEvent);
-          set({
-            activeEvent: null,
-            eventData: null,
-            pendingEvents: [],
-            isCivilWarActive: false,
-            streetWarRivalId: null
-          });
-        }
-        
-        const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
-        const currentIndex = phases.indexOf(currentState.currentPhase);
-        
-        if (currentIndex === -1) {
-          console.error('Invalid current phase:', currentState.currentPhase);
-          // Reset to morning if corrupted
-          set({ currentPhase: 'morning' });
-          return;
-        }
+      const currentState = get();
+      
+      // Don't allow phase advancement if there's an active blocking event
+      const blockingEvents = ['dailyBriefing', 'policeShakedown', 'streetBeef', 'coupAttempt', 'newEra'];
+      if (currentState.activeEvent && blockingEvents.includes(currentState.activeEvent)) {
+        return;
+      }
+      
+      // Clear any non-blocking events to prevent getting stuck
+      if (currentState.activeEvent && !blockingEvents.includes(currentState.activeEvent)) {
+        set({ activeEvent: null, eventData: null });
+      }
+      
+      const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
+      const currentIndex = phases.indexOf(currentState.currentPhase);
+      
+      if (currentIndex === -1) {
+        console.error('Invalid current phase:', currentState.currentPhase);
+        set({ currentPhase: 'morning' });
+        return;
+      }
 
-        const nextPhase = phases[(currentIndex + 1) % phases.length];
-        const nextDay = nextPhase === 'morning' ? currentState.currentDay + 1 : currentState.currentDay;
+      const nextPhase = phases[(currentIndex + 1) % phases.length];
+      const nextDay = nextPhase === 'morning' ? currentState.currentDay + 1 : currentState.currentDay;
+      
+      // Process daily revenue and expenses at day transition
+      let cashChange = 0;
+      let homeDistrictHeatChange = 0;
+      
+      if (currentState.currentPhase === 'night' && nextPhase === 'morning') {
+        // Daily revenue from occupied buildings
+        const dailyRevenue = currentState.buildings
+          .filter(b => b.isOccupied && !b.inactiveUntilDay)
+          .reduce((sum, b) => sum + b.baseRevenue, 0);
+        cashChange += dailyRevenue;
         
-        // Basic phase and day update
-        const basicUpdate: any = {
-          currentPhase: nextPhase,
-          currentDay: nextDay,
-        };
+        // Soldier stipends
+        const stipendCost = currentState.soldiers.length * currentState.stipend;
+        cashChange -= stipendCost;
         
-        // Process daily revenue at the start of each day
-        if (currentState.currentPhase === 'night' && nextPhase === 'morning') {
-          const dailyRevenue = currentState.buildings
-            .filter(b => b.isOccupied && !b.inactiveUntilDay)
-            .reduce((sum, b) => sum + b.baseRevenue, 0);
-          
-          basicUpdate.cash = currentState.cash + dailyRevenue;
-          
-          // Pay soldier stipends
-          const stipendCost = currentState.soldiers.length * currentState.stipend;
-          basicUpdate.cash = (basicUpdate.cash as number) - stipendCost;
-          
-          // Process home district racket if leader assigned
-          if (currentState.homeDistrictLeaderId) {
-            const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
-            if (member) {
-              const baseRevenue = 300;
-              const loyaltyBonus = Math.floor(member.stats.loyalty * 2);
-              const totalRacketRevenue = baseRevenue + loyaltyBonus;
-              basicUpdate.cash = (basicUpdate.cash as number) + totalRacketRevenue;
-              basicUpdate.homeDistrictHeat = Math.min(100, currentState.homeDistrictHeat + 2);
-            }
+        // Home district racket revenue
+        if (currentState.homeDistrictLeaderId) {
+          const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
+          if (member) {
+            const baseRevenue = 300;
+            const loyaltyBonus = Math.floor(member.stats.loyalty * 2);
+            const totalRacketRevenue = baseRevenue + loyaltyBonus;
+            cashChange += totalRacketRevenue;
+            homeDistrictHeatChange = Math.min(100, currentState.homeDistrictHeat + 2);
           }
         }
         
-        // Check for Council Trigger (Every 10 days, at the start of the day cycle)
-        if (currentState.currentPhase === 'night' && (currentState.currentDay + 1) % 10 === 0) {
-          // Queue council meeting for the next morning
+        // Check for council meeting (every 10 days)
+        if (nextDay % 10 === 0) {
           get().generateCouncilMotions();
-          console.log('Council meeting triggered for day', nextDay);
-          return {
+          set({
             currentScene: 'COUNCIL',
             currentPhase: 'morning',
             currentDay: nextDay,
-            cash: (basicUpdate.cash as number) || currentState.cash,
-            homeDistrictHeat: (basicUpdate.homeDistrictHeat as number) || currentState.homeDistrictHeat
-          };
-        }
-        
-        // Process autonomous behavior and social interactions (optional, with error handling)
-        try {
-          let interactions = [];
-          let socialFeed = [];
-          let randomEvent = null;
-          
-          // Update autonomous behavior
-          try {
-            if (currentState.behaviorSystem && typeof currentState.updateAutonomousBehavior === 'function') {
-              currentState.updateAutonomousBehavior();
-            }
-          } catch (autonomousError) {
-            console.warn('Autonomous behavior error (non-critical):', autonomousError);
-          }
-          
-          // Process social interactions
-          if (currentState.relationshipSystem &&
-              typeof currentState.relationshipSystem.processAutomaticInteractions === 'function' &&
-              Array.isArray(currentState.officers)) {
-            interactions = currentState.relationshipSystem.processAutomaticInteractions(
-              currentState.officers,
-              currentState.currentPhase,
-              Date.now()
-            ) || [];
-          }
-          
-          if (currentState.relationshipSystem &&
-              typeof currentState.relationshipSystem.getSocialFeed === 'function') {
-            socialFeed = currentState.relationshipSystem.getSocialFeed() || [];
-          }
-          
-          // Random event triggering (5% chance per phase change)
-          if (Math.random() < 0.05 && !currentState.activeEvent) {
-            const eventTypes = ['policeRaid', 'betrayal', 'rivalAttack', 'criminalCaught', 'soldierDesertion'];
-            const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-            
-            switch (randomEventType) {
-              case 'policeRaid':
-                randomEvent = { type: 'policeRaid' as const, data: {} };
-                break;
-              case 'betrayal':
-                const randomOfficer = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
-                if (randomOfficer && randomOfficer.loyalty < 50) {
-                  randomEvent = { type: 'betrayal' as const, data: { officerId: randomOfficer.id } };
-                }
-                break;
-              case 'rivalAttack':
-                const hostileRival = currentState.rivals.find(r => r.relationship < -30 && !r.isActiveConflict);
-                if (hostileRival) {
-                  randomEvent = { type: 'rivalAttack' as const, data: { rivalId: hostileRival.id } };
-                }
-                break;
-            }
-          }
-          
-          // Street beef generation (3% chance per phase change)
-          if (Math.random() < 0.03 && currentState.officers.length >= 2) {
-            const officer1 = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
-            const officer2 = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
-            
-            if (officer1.id !== officer2.id && !currentState.activeStreetBeefs.some(
-              beef => (beef.officer1Id === officer1.id && beef.officer2Id === officer2.id) ||
-                     (beef.officer1Id === officer2.id && beef.officer2Id === officer1.id)
-            )) {
-              const newBeef = {
-                officer1Id: officer1.id,
-                officer2Id: officer2.id,
-                daysActive: 0,
-                isResolved: false
-              };
-              basicUpdate.activeStreetBeefs = [...currentState.activeStreetBeefs, newBeef];
-            }
-          }
-          
-          // Process existing street beefs
-          currentState.processStreetBeefs();
-          
-          // Clear civil war cooldown if expired
-          if (currentState.recentlyResolvedCivilWarCooldown > 0 && currentState.currentDay >= currentState.recentlyResolvedCivilWarCooldown) {
-            set({ recentlyResolvedCivilWar: false, recentlyResolvedCivilWarCooldown: 0 });
-          }
-          
-          // Check for civil war conditions
-          currentState.checkForCivilWar();
-          
-          // Update with social data and potential random event
-          set({
-            ...basicUpdate,
-            recentInteractions: interactions,
-            socialFeed: socialFeed,
-            activeEvent: randomEvent?.type || null,
-            eventData: randomEvent?.data || null
+            cash: currentState.cash + cashChange,
+            homeDistrictHeat: homeDistrictHeatChange
           });
-          
-        } catch (socialError) {
-          console.warn('Social system error (non-critical):', socialError);
-          // Continue with basic update if social fails
-          set(basicUpdate);
-        }
-        
-        console.log(`Advanced to day ${nextDay}, phase ${nextPhase}`);
-        
-      } catch (criticalError) {
-        console.error('Critical phase advancement error:', criticalError);
-        
-        // Emergency fallback - force reset to known good state
-        try {
-          set({
-            currentPhase: 'morning',
-            currentDay: Math.max(1, (get().currentDay || 0) + 1),
-            recentInteractions: [],
-            socialFeed: []
-          });
-        } catch (emergencyError) {
-          console.error('Emergency fallback failed:', emergencyError);
+          return;
         }
       }
+      
+      // Update autonomous behavior safely
+      try {
+        currentState.updateAutonomousBehavior();
+      } catch (error) {
+        console.warn('Autonomous behavior update failed:', error);
+      }
+      
+      // Process social interactions safely
+      try {
+        currentState.processSocialInteractions();
+      } catch (error) {
+        console.warn('Social interactions failed:', error);
+      }
+      
+      // Process street beefs
+      try {
+        currentState.processStreetBeefs();
+      } catch (error) {
+        console.warn('Street beef processing failed:', error);
+      }
+      
+      // Clear civil war cooldown if expired
+      if (currentState.recentlyResolvedCivilWarCooldown > 0 && nextDay >= currentState.recentlyResolvedCivilWarCooldown) {
+        set({ recentlyResolvedCivilWar: false, recentlyResolvedCivilWarCooldown: 0 });
+      }
+      
+      // Check for civil war conditions (but not if there's already an event)
+      if (!currentState.activeEvent) {
+        try {
+          currentState.checkForCivilWar();
+        } catch (error) {
+          console.warn('Civil war check failed:', error);
+        }
+      }
+      
+      // Random event generation (only if no active event)
+      let newEvent = null;
+      if (!currentState.activeEvent && Math.random() < 0.05) {
+        const eventTypes = ['policeRaid', 'betrayal', 'rivalAttack', 'criminalCaught', 'soldierDesertion'];
+        const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+        
+        switch (randomEventType) {
+          case 'policeRaid':
+            newEvent = { type: 'policeRaid' as const, data: {} };
+            break;
+          case 'betrayal':
+            const disloyalOfficers = currentState.officers.filter(o => o.loyalty < 50);
+            if (disloyalOfficers.length > 0) {
+              const randomOfficer = disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)];
+              newEvent = { type: 'betrayal' as const, data: { officerId: randomOfficer.id } };
+            }
+            break;
+          case 'rivalAttack':
+            const hostileRivals = currentState.rivals.filter(r => r.relationship < -30 && !r.isActiveConflict);
+            if (hostileRivals.length > 0) {
+              const randomRival = hostileRivals[Math.floor(Math.random() * hostileRivals.length)];
+              newEvent = { type: 'rivalAttack' as const, data: { rivalId: randomRival.id } };
+            }
+            break;
+        }
+      }
+      
+      // Street beef generation
+      if (Math.random() < 0.03 && currentState.officers.length >= 2) {
+        const officer1 = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
+        const officer2 = currentState.officers[Math.floor(Math.random() * currentState.officers.length)];
+        
+        if (officer1.id !== officer2.id && !currentState.activeStreetBeefs.some(
+          beef => (beef.officer1Id === officer1.id && beef.officer2Id === officer2.id) ||
+                 (beef.officer1Id === officer2.id && beef.officer2Id === officer1.id)
+        )) {
+          const newBeef = {
+            officer1Id: officer1.id,
+            officer2Id: officer2.id,
+            daysActive: 0,
+            isResolved: false
+          };
+          
+          set(state => ({
+            activeStreetBeefs: [...state.activeStreetBeefs, newBeef]
+          }));
+        }
+      }
+      
+      // Apply the phase change
+      set({
+        currentPhase: nextPhase,
+        currentDay: nextDay,
+        cash: currentState.cash + cashChange,
+        homeDistrictHeat: homeDistrictHeatChange || currentState.homeDistrictHeat,
+        activeEvent: newEvent?.type || null,
+        eventData: newEvent?.data || null
+      });
+      
+      console.log(`Advanced to day ${nextDay}, phase ${nextPhase}`);
     },
 
     setStipend: (amount: number) => {
