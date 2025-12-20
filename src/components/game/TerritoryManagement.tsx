@@ -16,14 +16,15 @@ import {
 } from 'lucide-react';
 
 export const TerritoryManagement = () => {
-  const { 
-    territoryFriction, 
-    territoryInfluence, 
-    rivals, 
-    startFrictionTimer, 
-    stopFrictionTimer, 
+  const {
+    territoryFriction,
+    territoryInfluence,
+    rivals,
+    startFrictionTimer,
+    stopFrictionTimer,
     resetFriction,
     spendIntelToReduceFriction,
+    spendIntelToScout,
     intel,
     currentDay
   } = useGameStore();
