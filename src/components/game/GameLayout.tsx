@@ -9,6 +9,7 @@ import { FamilyCouncilScene } from './FamilyCouncilScene';
 import { EventManager } from './EventManager';
 import { DistrictHub } from './DistrictHub';
 import { Sidebar } from './Sidebar';
+import { RelationshipPanel } from './RelationshipPanel';
 import { useState } from 'react';
 
 export const GameLayout = () => {
@@ -49,6 +50,11 @@ export const GameLayout = () => {
         
         <div className="flex-1">
           {renderCurrentView()}
+        </div>
+
+        {/* Relationship Panel */}
+        <div className="w-96">
+          <RelationshipPanel selectedOfficerId={selectedOfficerId} />
         </div>
       </div>
       

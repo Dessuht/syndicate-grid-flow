@@ -599,11 +599,24 @@ export const useGameStore = create<GameState>((set, get) => {
         const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
         const currentIndex = phases.indexOf(state.currentPhase);
 
+        // Process social interactions at phase changes
+        const interactions = state.relationshipSystem.processAutomaticInteractions(
+          state.officers,
+          state.currentPhase,
+          Date.now()
+        );
+
         // Check for Council Trigger (Every 10 days, at the start of the day cycle)
         if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
           // Queue council meeting for the next morning
           get().generateCouncilMotions();
-          return { currentScene: 'COUNCIL', currentPhase: 'morning', currentDay: state.currentDay + 1 };
+          return { 
+            currentScene: 'COUNCIL', 
+            currentPhase: 'morning', 
+            currentDay: state.currentDay + 1,
+            recentInteractions: interactions,
+            socialFeed: state.relationshipSystem.getSocialFeed()
+          };
         }
 
         const nextPhase = phases[(currentIndex + 1) % phases.length];
@@ -611,6 +624,8 @@ export const useGameStore = create<GameState>((set, get) => {
         return {
           currentPhase: nextPhase,
           currentDay: nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay,
+          recentInteractions: interactions,
+          socialFeed: state.relationshipSystem.getSocialFeed()
         };
       });
     },
