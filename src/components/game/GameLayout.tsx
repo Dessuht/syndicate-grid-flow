@@ -66,7 +66,14 @@ export const GameLayout = () => {
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar */}
         <aside className="w-64 border-r border-slate-700 bg-slate-900/30 backdrop-blur-sm">
-          <Sidebar activeView={activeView as any} onViewChange={setActiveView as any} />
+          <Sidebar
+            activeView={activeView as any}
+            onViewChange={setActiveView as any}
+            onOfficersPanelOpen={() => {
+              setShowOfficersPanel(true);
+              setShowRelationshipPanel(false);
+            }}
+          />
         </aside>
 
         {/* Main Content Area */}
