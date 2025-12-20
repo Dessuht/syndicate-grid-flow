@@ -1,8 +1,5 @@
-import React from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
 
 export const EmergencyFix = () => {
   const { 
@@ -11,119 +8,70 @@ export const EmergencyFix = () => {
     pendingEvents, 
     currentDay, 
     currentPhase,
-    setCurrentScene,
-    dismissEvent,
+    isCivilWarActive,
+    streetWarRivalId,
     advancePhase
   } = useGameStore();
-  
-  const [showDebug, setShowDebug] = useState(false);
 
-  const forceClearEvents = () => {
-    // Clear all stuck events
+  const forceUnstick = () => {
+    console.log('Emergency fix triggered - clearing all stuck events');
+    
+    // Force clear all blocking states
     useGameStore.setState({
       activeEvent: null,
       eventData: null,
       pendingEvents: [],
-      dailyBriefingIgnored: false,
       isCivilWarActive: false,
-      streetWarRivalId: null
+      streetWarRivalId: null,
+      currentPhase: 'morning',
+      currentDay: currentDay + 1
     });
     
-    // Force scene back to district
-    setCurrentScene('DISTRICT');
-    
-    console.log('Emergency fix applied - all events cleared');
+    // Try to advance phase after clearing
+    setTimeout(() => {
+      advancePhase();
+    }, 100);
   };
 
-  const forceAdvanceDay = () => {
-    forceClearEvents();
-    // Try to advance multiple times to break loops
-    for (let i = 0; i < 4; i++) {
-      setTimeout(() => advancePhase(), i * 100);
-    }
+  const debugInfo = () => {
+    console.log('=== GAME STATE DEBUG ===');
+    console.log('Day:', currentDay);
+    console.log('Phase:', currentPhase);
+    console.log('Active Event:', activeEvent);
+    console.log('Event Data:', eventData);
+    console.log('Pending Events:', pendingEvents.length);
+    console.log('Civil War Active:', isCivilWarActive);
+    console.log('Street War Rival:', streetWarRivalId);
   };
 
-  const isDay9NightStuck = currentDay === 9 && currentPhase === 'night' && activeEvent !== null;
-  const hasStuckEvent = activeEvent !== null || (pendingEvents && pendingEvents.length > 0);
-
-  // Auto-fix for Day 9 Night issue
-  React.useEffect(() => {
-    if (isDay9NightStuck) {
-      console.log('Auto-fixing Day 9 Night bug');
-      setTimeout(() => {
-        forceClearEvents();
-        setTimeout(() => advancePhase(), 100);
-      }, 1000);
-    }
-  }, [isDay9NightStuck]);
-
-  // Auto-fix for Day 9 Night issue
-  React.useEffect(() => {
-    if (isDay9NightStuck) {
-      console.log('Auto-fixing Day 9 Night bug');
-      setTimeout(() => {
-        forceClearEvents();
-        setTimeout(() => advancePhase(), 100);
-      }, 1000);
-    }
-  }, [isDay9NightStuck]);
+  // Only show if stuck conditions are met
+  if (currentDay !== 9 || currentPhase !== 'night' || activeEvent === null) {
+    return null;
+  }
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100]">
-      {(hasStuckEvent || isDay9NightStuck) && (
-        <div className="mb-2 p-3 bg-red-900/90 border border-red-500 rounded-lg text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-sm font-semibold">
-              {isDay9NightStuck ? 'Day 9 Night Bug Detected!' : `Game Stuck on Day ${currentDay}`}
-            </span>
-          </div>
-          <div className="text-xs mb-2">
-            Active Event: {activeEvent || 'None'}
-            {pendingEvents && pendingEvents.length > 0 && (
-              <span> | Pending: {pendingEvents.length}</span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={forceClearEvents}
-              className="text-xs"
-            >
-              Clear Events
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={forceAdvanceDay}
-              className="text-xs bg-white/10"
-            >
-              <RotateCcw className="w-3 h-3 mr-1" />
-              Skip Day
-            </Button>
-          </div>
-        </div>
-      )}
-      
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setShowDebug(!showDebug)}
-        className="text-xs bg-slate-900/80 border-slate-600"
-      >
-        {showDebug ? 'Hide' : 'Show'} Debug
-      </Button>
-      
-      {showDebug && (
-        <div className="mt-2 p-3 bg-slate-900/90 border border-slate-600 rounded-lg text-white text-xs">
-          <div>Day: {currentDay}</div>
-          <div>Phase: {currentPhase}</div>
-          <div>Active Event: {activeEvent || 'None'}</div>
-          <div>Pending Events: {pendingEvents?.length || 0}</div>
-          <div>Scene: {useGameStore.getState().currentScene}</div>
-        </div>
-      )}
+    <div className="fixed top-4 right-4 z-50 bg-red-900 border-2 border-red-500 p-4 rounded-lg">
+      <h3 className="text-white font-bold mb-2">Game Stuck Detected!</h3>
+      <p className="text-red-200 text-sm mb-3">
+        Day {currentDay} - Phase {currentPhase}<br/>
+        Active Event: {activeEvent || 'None'}<br/>
+        Pending Events: {pendingEvents.length}
+      </p>
+      <div className="space-y-2">
+        <Button 
+          onClick={forceUnstick}
+          className="w-full bg-red-600 hover:bg-red-700 text-white"
+        >
+          Force Unstick Game
+        </Button>
+        <Button 
+          onClick={debugInfo}
+          variant="outline"
+          className="w-full"
+        >
+          Debug Console
+        </Button>
+      </div>
     </div>
   );
 };
