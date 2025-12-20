@@ -63,260 +63,258 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
   };
 
   return (
-    <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="absolute inset-0 bg-background/80 backdrop-blur-md"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="relative w-full max-w-md mx-4 p-6 rounded-lg bg-card border-2 border-neon-cyan/50 neon-glow-cyan"
       >
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-background/80 backdrop-blur-md"
+        <button
           onClick={onClose}
-        />
-
-        {/* Modal */}
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-md mx-4 p-6 rounded-lg bg-card border-2 border-neon-cyan/50 neon-glow-cyan"
+          className="absolute top-4 right-4 p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
         >
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <X className="w-5 h-5" />
+        </button>
 
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-cyan/30 to-secondary border-2 border-neon-cyan/50 flex items-center justify-center font-display font-bold text-lg shrink-0">
-              {officer.name.split(' ').map(n => n[0]).join('')}
-            </div>
-            <div>
-              <h2 className="font-display text-xl font-bold neon-text-cyan">{officer.name}</h2>
-              <p className="text-sm text-muted-foreground">{officer.rank}</p>
-            </div>
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-cyan/30 to-secondary border-2 border-neon-cyan/50 flex items-center justify-center font-display font-bold text-lg shrink-0">
+            {officer.name.split(' ').map(n => n[0]).join('')}
           </div>
-
-          {/* Status & Stats */}
-          <div className="space-y-3 mb-6 p-3 rounded-lg bg-secondary/30 border border-border">
-            {/* Loyalty Bar */}
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <div className="flex items-center gap-1">
-                  <Heart className="w-3 h-3 text-neon-green" />
-                  <span className="text-muted-foreground">Loyalty</span>
-                </div>
-                <span className={cn(
-                  "font-medium",
-                  officer.loyalty > 60 ? "text-neon-green" : officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
-                )}>
-                  {officer.loyalty}%
-                </span>
-              </div>
-              <Progress 
-                value={officer.loyalty} 
-                className="h-1.5 bg-slate-800"
-                indicatorClassName={cn(
-                  officer.loyalty > 60 ? "bg-neon-green" : officer.loyalty > 40 ? "bg-neon-amber" : "bg-neon-red"
-                )}
-              />
-            </div>
-            
-            {/* Face Bar */}
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <div className="flex items-center gap-1">
-                  <Star className="w-3 h-3 text-jianghu-gold" />
-                  <span className="text-muted-foreground">Face (Prestige)</span>
-                </div>
-                <span className={cn(
-                  "font-medium",
-                  officer.face >= PROMOTION_FACE_REQUIREMENT ? "text-jianghu-gold" : "text-muted-foreground"
-                )}>
-                  {officer.face}%
-                </span>
-              </div>
-              <Progress 
-                value={officer.face} 
-                className="h-1.5 bg-slate-800"
-                indicatorClassName="bg-jianghu-gold"
-              />
-            </div>
-
-            {/* Energy Bar */}
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <div className="flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-neon-magenta" />
-                  <span className="text-muted-foreground">Energy</span>
-                </div>
-                <span className="text-neon-magenta font-medium">{officer.energy}/{officer.maxEnergy}</span>
-              </div>
-              <Progress 
-                value={(officer.energy / officer.maxEnergy) * 100} 
-                className="h-1.5 bg-slate-800"
-                indicatorClassName="bg-neon-magenta"
-              />
-            </div>
-            
-            {/* Agenda */}
-            <div className="pt-2 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-neon-amber" />
-                <span className="text-xs font-semibold text-neon-amber">Current Agenda</span>
-              </div>
-              <p className="text-sm mt-1 text-foreground">
-                {officer.currentAgenda || (canInteract ? 'Unknown. Share Tea to reveal.' : 'Unknown.')}
-              </p>
-            </div>
+          <div>
+            <h2 className="font-display text-xl font-bold neon-text-cyan">{officer.name}</h2>
+            <p className="text-sm text-muted-foreground">{officer.rank}</p>
           </div>
+        </div>
 
-          {/* Traits List */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-2">Traits</h3>
-            <div className="flex flex-wrap gap-2">
-              {officer.traits.map((trait, index) => (
-                <span 
-                  key={index} 
-                  className="text-[10px] px-2 py-1 rounded bg-secondary/50 border border-border text-foreground"
-                >
-                  {trait}
-                </span>
-              ))}
+        {/* Status & Stats */}
+        <div className="space-y-3 mb-6 p-3 rounded-lg bg-secondary/30 border border-border">
+          {/* Loyalty Bar */}
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <div className="flex items-center gap-1">
+                <Heart className="w-3 h-3 text-neon-green" />
+                <span className="text-muted-foreground">Loyalty</span>
+              </div>
+              <span className={cn(
+                "font-medium",
+                officer.loyalty > 60 ? "text-neon-green" : officer.loyalty > 40 ? "text-neon-amber" : "text-neon-red"
+              )}>
+                {officer.loyalty}%
+              </span>
             </div>
-          </div>
-
-          {/* Interaction Actions */}
-          <h3 className="font-display text-lg font-bold mb-3">Interactions</h3>
-          <div className="space-y-3">
-            {/* Designate Successor */}
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full justify-start gap-3 h-auto py-3",
-                isSuccessor 
-                  ? "border-jianghu-gold/50 bg-jianghu-gold/10 text-jianghu-gold" 
-                  : "border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
+            <Progress 
+              value={officer.loyalty} 
+              className="h-1.5 bg-slate-800"
+              indicatorClassName={cn(
+                officer.loyalty > 60 ? "bg-neon-green" : officer.loyalty > 40 ? "bg-neon-amber" : "bg-neon-red"
               )}
-              onClick={handleDesignateSuccessor}
-              disabled={!canInteract}
-            >
-              <div className={cn("p-2 rounded", isSuccessor ? "bg-jianghu-gold/20" : "bg-neon-cyan/20")}>
-                <Crown className={cn("w-5 h-5", isSuccessor ? "text-jianghu-gold" : "text-neon-cyan")} />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">
-                  {isSuccessor ? 'Successor Designated' : 'Designate Successor'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isSuccessor ? 'This officer will take over if you fall.' : 'Name this officer as your Vanguard.'}
-                </p>
-              </div>
-            </Button>
-            
-            {/* Share Tea */}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-auto py-3 border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
-              onClick={handleShareTea}
-              disabled={!canInteract || officer.energy < 10}
-            >
-              <div className="p-2 rounded bg-neon-cyan/20">
-                <MessageSquare className="w-5 h-5 text-neon-cyan" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Share Tea</p>
-                <p className="text-xs text-muted-foreground">
-                  +5 Loyalty, Reveal Agenda • -10 Energy
-                </p>
-              </div>
-            </Button>
-
-            {/* Give Bonus */}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-auto py-3 border-neon-green/30 hover:border-neon-green/60 hover:bg-neon-green/10"
-              onClick={handleBonus}
-              disabled={!canInteract || cash < 1000}
-            >
-              <div className="p-2 rounded bg-neon-green/20">
-                <DollarSign className="w-5 h-5 text-neon-green" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Give Bonus</p>
-                <p className="text-xs text-muted-foreground">
-                  -$1,000 • +20 Loyalty, Clears Ambition
-                </p>
-              </div>
-            </Button>
-
-            {/* Reprimand */}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-auto py-3 border-neon-red/30 hover:border-neon-red/60 hover:bg-neon-red/10"
-              onClick={handleReprimand}
-              disabled={!canInteract}
-            >
-              <div className="p-2 rounded bg-neon-red/20">
-                <Skull className="w-5 h-5 text-neon-red" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Reprimand</p>
-                <p className="text-xs text-muted-foreground">
-                  -10 Heat • -20 Loyalty (Risk of Snitching/Quitting)
-                </p>
-              </div>
-            </Button>
+            />
           </div>
           
-          {/* Promotion Section */}
-          {promotionAvailable && (
-            <div className="mt-6 pt-4 border-t border-border space-y-3">
-              <h3 className="font-display text-lg font-bold text-jianghu-gold">Promotion Ceremony</h3>
-              
-              <Button
-                variant="cyber"
-                className="w-full justify-start gap-3 h-auto py-3"
-                onClick={() => handlePromote(nextRank as OfficerRank)}
-                disabled={!canPromote}
-              >
-                <div className="p-2 rounded bg-jianghu-gold/20">
-                  <TrendingUp className="w-5 h-5 text-jianghu-gold" />
-                </div>
-                <div className="text-left">
-                  <p className="font-semibold text-foreground">Promote to {nextRank}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Cost: ${PROMOTION_COST.toLocaleString()} • Requires {PROMOTION_FACE_REQUIREMENT} Face
-                  </p>
-                </div>
-              </Button>
-              
-              {!canPromote && (
-                <p className="text-[10px] text-center text-neon-amber">
-                  Requires ${PROMOTION_COST.toLocaleString()} cash and {PROMOTION_FACE_REQUIREMENT} Face.
-                </p>
-              )}
+          {/* Face Bar */}
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-jianghu-gold" />
+                <span className="text-muted-foreground">Face (Prestige)</span>
+              </div>
+              <span className={cn(
+                "font-medium",
+                officer.face >= PROMOTION_FACE_REQUIREMENT ? "text-jianghu-gold" : "text-muted-foreground"
+              )}>
+                {officer.face}%
+              </span>
             </div>
-          )}
+            <Progress 
+              value={officer.face} 
+              className="h-1.5 bg-slate-800"
+              indicatorClassName="bg-jianghu-gold"
+            />
+          </div>
 
-          {!isMorning && (
-            <p className="mt-4 text-xs text-neon-amber text-center">
-              Interactions are only available during the Morning phase.
+          {/* Energy Bar */}
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <div className="flex items-center gap-1">
+                <Zap className="w-3 h-3 text-neon-magenta" />
+                <span className="text-muted-foreground">Energy</span>
+              </div>
+              <span className="text-neon-magenta font-medium">{officer.energy}/{officer.maxEnergy}</span>
+            </div>
+            <Progress 
+              value={(officer.energy / officer.maxEnergy) * 100} 
+              className="h-1.5 bg-slate-800"
+              indicatorClassName="bg-neon-magenta"
+            />
+          </div>
+          
+          {/* Agenda */}
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-neon-amber" />
+              <span className="text-xs font-semibold text-neon-amber">Current Agenda</span>
+            </div>
+            <p className="text-sm mt-1 text-foreground">
+              {officer.currentAgenda || (canInteract ? 'Unknown. Share Tea to reveal.' : 'Unknown.')}
             </p>
-          )}
-          {isUnavailable && (
-            <p className="mt-4 text-xs text-neon-red text-center">
-              Officer is {officer.isWounded ? 'WOUNDED' : 'ARRESTED'} and cannot be interacted with.
-            </p>
-          )}
-        </motion.div>
+          </div>
+        </div>
+
+        {/* Traits List */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Traits</h3>
+          <div className="flex flex-wrap gap-2">
+            {officer.traits.map((trait, index) => (
+              <span 
+                key={index} 
+                className="text-[10px] px-2 py-1 rounded bg-secondary/50 border border-border text-foreground"
+              >
+                {trait}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Interaction Actions */}
+        <h3 className="font-display text-lg font-bold mb-3">Interactions</h3>
+        <div className="space-y-3">
+          {/* Designate Successor */}
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start gap-3 h-auto py-3",
+              isSuccessor 
+                ? "border-jianghu-gold/50 bg-jianghu-gold/10 text-jianghu-gold" 
+                : "border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
+            )}
+            onClick={handleDesignateSuccessor}
+            disabled={!canInteract}
+          >
+            <div className={cn("p-2 rounded", isSuccessor ? "bg-jianghu-gold/20" : "bg-neon-cyan/20")}>
+              <Crown className={cn("w-5 h-5", isSuccessor ? "text-jianghu-gold" : "text-neon-cyan")} />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">
+                {isSuccessor ? 'Successor Designated' : 'Designate Successor'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isSuccessor ? 'This officer will take over if you fall.' : 'Name this officer as your Vanguard.'}
+              </p>
+            </div>
+          </Button>
+          
+          {/* Share Tea */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-auto py-3 border-neon-cyan/30 hover:border-neon-cyan/60 hover:bg-neon-cyan/10"
+            onClick={handleShareTea}
+            disabled={!canInteract || officer.energy < 10}
+          >
+            <div className="p-2 rounded bg-neon-cyan/20">
+              <MessageSquare className="w-5 h-5 text-neon-cyan" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Share Tea</p>
+              <p className="text-xs text-muted-foreground">
+                +5 Loyalty, Reveal Agenda • -10 Energy
+              </p>
+            </div>
+          </Button>
+
+          {/* Give Bonus */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-auto py-3 border-neon-green/30 hover:border-neon-green/60 hover:bg-neon-green/10"
+            onClick={handleBonus}
+            disabled={!canInteract || cash < 1000}
+          >
+            <div className="p-2 rounded bg-neon-green/20">
+              <DollarSign className="w-5 h-5 text-neon-green" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Give Bonus</p>
+              <p className="text-xs text-muted-foreground">
+                -$1,000 • +20 Loyalty, Clears Ambition
+              </p>
+            </div>
+          </Button>
+
+          {/* Reprimand */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-auto py-3 border-neon-red/30 hover:border-neon-red/60 hover:bg-neon-red/10"
+            onClick={handleReprimand}
+            disabled={!canInteract}
+          >
+            <div className="p-2 rounded bg-neon-red/20">
+              <Skull className="w-5 h-5 text-neon-red" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Reprimand</p>
+              <p className="text-xs text-muted-foreground">
+                -10 Heat • -20 Loyalty (Risk of Snitching/Quitting)
+              </p>
+            </div>
+          </Button>
+        </div>
+        
+        {/* Promotion Section */}
+        {promotionAvailable && (
+          <div className="mt-6 pt-4 border-t border-border space-y-3">
+            <h3 className="font-display text-lg font-bold text-jianghu-gold">Promotion Ceremony</h3>
+            
+            <Button
+              variant="cyber"
+              className="w-full justify-start gap-3 h-auto py-3"
+              onClick={() => handlePromote(nextRank as OfficerRank)}
+              disabled={!canPromote}
+            >
+              <div className="p-2 rounded bg-jianghu-gold/20">
+                <TrendingUp className="w-5 h-5 text-jianghu-gold" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Promote to {nextRank}</p>
+                <p className="text-xs text-muted-foreground">
+                  Cost: ${PROMOTION_COST.toLocaleString()} • Requires {PROMOTION_FACE_REQUIREMENT} Face
+                </p>
+              </div>
+            </Button>
+            
+            {!canPromote && (
+              <p className="text-[10px] text-center text-neon-amber">
+                Requires ${PROMOTION_COST.toLocaleString()} cash and {PROMOTION_FACE_REQUIREMENT} Face.
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isMorning && (
+          <p className="mt-4 text-xs text-neon-amber text-center">
+            Interactions are only available during the Morning phase.
+          </p>
+        )}
+        {isUnavailable && (
+          <p className="mt-4 text-xs text-neon-red text-center">
+            Officer is {officer.isWounded ? 'WOUNDED' : 'ARRESTED'} and cannot be interacted with.
+          </p>
+        )}
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 };

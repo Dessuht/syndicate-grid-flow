@@ -1,6 +1,6 @@
 import { useGameStore, Officer } from '@/stores/gameStore';
 import { OfficerCard } from './OfficerCard';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
 import { useState } from 'react';
 import { OfficerDossierModal } from './modals/OfficerDossierModal';
@@ -71,12 +71,14 @@ export const OfficersPanel = ({ selectedOfficerId, onSelectOfficer }: OfficersPa
       </div>
       
       {/* Officer Dossier Modal */}
-      {selectedOfficer && (
-        <OfficerDossierModal 
-          officer={selectedOfficer} 
-          onClose={() => setDossierOfficerId(null)} 
-        />
-      )}
+      <AnimatePresence>
+        {selectedOfficer && (
+          <OfficerDossierModal 
+            officer={selectedOfficer} 
+            onClose={() => setDossierOfficerId(null)} 
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
