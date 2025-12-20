@@ -178,6 +178,11 @@ export interface GameState {
   getCharacterCurrentAction: (officerId: string) => string | null;
   canForceWork: (officerId: string) => { canWork: boolean; reason?: string };
   getPlayerInfluenceLevel: () => number;
+
+  // Relationship system actions
+  processSocialInteractions: () => void;
+  getOfficerRelationships: (officerId: string) => { nodes: string[], edges: string[] };
+  createManualInteraction: (initiatorId: string, targetId: string, type: string) => void;
 }
 
 // Constants
@@ -2273,6 +2278,20 @@ export const useGameStore = create<GameState>((set, get) => {
       if (avgLoyalty > 50) return 2;
       if (avgLoyalty > 30) return 1;
       return 0;
+    },
+
+    // Relationship system actions
+    processSocialInteractions: () => {
+      // Placeholder implementation
+    },
+
+    getOfficerRelationships: (officerId: string) => {
+      // Placeholder implementation
+      return { nodes: [], edges: [] };
+    },
+
+    createManualInteraction: (initiatorId: string, targetId: string, type: string) => {
+      // Placeholder implementation
     },
   };
 });

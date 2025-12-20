@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '@/stores/gameStore';
-import { RelationshipNetwork } from '@/types/relationships';
+import type { RelationshipNetwork as RelationshipNetworkType } from '@/types/relationships';
 
 interface RelationshipNetworkProps {
   selectedOfficerId: string | null;

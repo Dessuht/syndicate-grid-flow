@@ -220,7 +220,7 @@ export class RelationshipSystem {
       this.addToSocialFeed({
         id: `feed-${Date.now()}`,
         timestamp: Date.now(),
-        type: 'relationship_change',
+        type: 'DEEP_CONVERSATION', // Use valid interaction type
         description: `${interaction.initiatorId} and ${interaction.targetId} became friends!`,
         participants: interaction.participants,
         impact: 'positive'
