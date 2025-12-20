@@ -730,103 +730,106 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     advancePhase: () => {
-      console.log('advancePhase called');
-      
+      // Ultra-safe phase advancement - no external dependencies
       try {
         const currentState = get();
-        console.log('Current state:', { phase: currentState.currentPhase, day: currentState.currentDay });
         
-        set((state) => {
-          console.log('Inside set callback');
-          
-          const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
-          const currentIndex = phases.indexOf(state.currentPhase);
-          
-          if (currentIndex === -1) {
-            console.error('Invalid current phase:', state.currentPhase);
-            return state;
-          }
+        // Validate current state
+        if (!currentState || typeof currentState.currentPhase === 'undefined') {
+          console.error('Invalid game state detected');
+          return;
+        }
+        
+        const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
+        const currentIndex = phases.indexOf(currentState.currentPhase);
+        
+        if (currentIndex === -1) {
+          console.error('Invalid current phase:', currentState.currentPhase);
+          // Reset to morning if corrupted
+          set({ currentPhase: 'morning' });
+          return;
+        }
 
-          // Process social interactions at phase changes with error handling
+        const nextPhase = phases[(currentIndex + 1) % phases.length];
+        const nextDay = nextPhase === 'morning' ? currentState.currentDay + 1 : currentState.currentDay;
+        
+        // Basic state update only - no external systems
+        const basicUpdate = {
+          currentPhase: nextPhase,
+          currentDay: nextDay,
+        };
+        
+        // Try to update with basic state first
+        set(basicUpdate);
+        
+        // Then try to process optional systems separately
+        try {
+          // Process social interactions (optional)
           let interactions = [];
           let socialFeed = [];
           
           try {
-            console.log('Processing social interactions...');
-            if (state.relationshipSystem && typeof state.relationshipSystem.processAutomaticInteractions === 'function') {
-              interactions = state.relationshipSystem.processAutomaticInteractions(
-                state.officers,
-                state.currentPhase,
+            if (currentState.relationshipSystem &&
+                typeof currentState.relationshipSystem.processAutomaticInteractions === 'function' &&
+                Array.isArray(currentState.officers)) {
+              interactions = currentState.relationshipSystem.processAutomaticInteractions(
+                currentState.officers,
+                currentState.currentPhase,
                 Date.now()
               ) || [];
-              console.log('Social interactions processed:', interactions.length);
             }
             
-            if (state.relationshipSystem && typeof state.relationshipSystem.getSocialFeed === 'function') {
-              socialFeed = state.relationshipSystem.getSocialFeed() || [];
-              console.log('Social feed retrieved:', socialFeed.length);
+            if (currentState.relationshipSystem &&
+                typeof currentState.relationshipSystem.getSocialFeed === 'function') {
+              socialFeed = currentState.relationshipSystem.getSocialFeed() || [];
             }
-          } catch (error) {
-            console.warn('Error processing social interactions:', error);
+          } catch (socialError) {
+            console.warn('Social system error (non-critical):', socialError);
             interactions = [];
             socialFeed = [];
           }
 
-          // Check for Council Trigger (Every 10 days, at the start of the day cycle)
-          if (state.currentPhase === 'night' && (state.currentDay + 1) % 10 === 0) {
-            console.log('Council trigger detected');
-            try {
-              // Queue council meeting for the next morning
-              get().generateCouncilMotions();
-              console.log('Council motions generated');
-              return {
-                currentScene: 'COUNCIL',
-                currentPhase: 'morning',
-                currentDay: state.currentDay + 1,
-                recentInteractions: interactions,
-                socialFeed: socialFeed
-              };
-            } catch (error) {
-              console.warn('Error generating council motions:', error);
-              // Continue with normal phase progression if council fails
-            }
-          }
-
-          const nextPhase = phases[(currentIndex + 1) % phases.length];
-          const nextDay = nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay;
-          
-          console.log('Advancing to:', { phase: nextPhase, day: nextDay });
-          
-          return {
-            currentPhase: nextPhase,
-            currentDay: nextDay,
+          // Update with social data
+          set((state) => ({
+            ...state,
             recentInteractions: interactions,
             socialFeed: socialFeed
-          };
-        });
+          }));
+          
+        } catch (optionalError) {
+          console.warn('Optional systems failed (game continues):', optionalError);
+        }
         
-        console.log('advancePhase completed successfully');
-      } catch (error) {
-        console.error('Critical error in advancePhase:', error);
-        console.error('Error stack:', error.stack);
-        
-        // Fallback to basic phase progression
+        // Try council trigger separately (optional)
         try {
-          set((state) => {
-            const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
-            const currentIndex = phases.indexOf(state.currentPhase);
-            const nextPhase = currentIndex >= 0 ? phases[(currentIndex + 1) % phases.length] : 'morning';
-            const nextDay = nextPhase === 'morning' ? state.currentDay + 1 : state.currentDay;
-            
-            console.log('Fallback progression to:', { phase: nextPhase, day: nextDay });
-            
-            return {
-              currentPhase: nextPhase,
-              currentDay: nextDay,
-            };
+          if (currentState.currentPhase === 'night' && (currentState.currentDay + 1) % 10 === 0) {
+            if (typeof get().generateCouncilMotions === 'function') {
+              get().generateCouncilMotions();
+              set((state) => ({
+                ...state,
+                currentScene: 'COUNCIL',
+                currentPhase: 'morning',
+                currentDay: state.currentDay + 1
+              }));
+            }
+          }
+        } catch (councilError) {
+          console.warn('Council system failed (game continues):', councilError);
+        }
+        
+      } catch (criticalError) {
+        console.error('Critical phase advancement error:', criticalError);
+        
+        // Emergency fallback - force reset to known good state
+        try {
+          set({
+            currentPhase: 'morning',
+            currentDay: Math.max(1, (get().currentDay || 0) + 1),
+            recentInteractions: [],
+            socialFeed: []
           });
-        } catch (fallbackError) {
-          console.error('Even fallback failed:', fallbackError);
+        } catch (emergencyError) {
+          console.error('Emergency fallback failed:', emergencyError);
         }
       }
     },
