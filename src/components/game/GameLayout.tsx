@@ -10,6 +10,7 @@ import { DistrictHub } from './DistrictHub';
 import { Sidebar } from './Sidebar';
 import { RelationshipPanel } from './RelationshipPanel';
 import { OfficersPanel } from './OfficersPanel';
+import { EmergencyFix } from './EmergencyFix';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
@@ -167,6 +168,9 @@ export const GameLayout = () => {
       
       {/* Event Manager Overlay */}
       <EventManager />
+      
+      {/* Emergency Fix for Stuck Games */}
+      <EmergencyFix />
     </div>
   );
 };

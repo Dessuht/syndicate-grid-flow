@@ -803,6 +803,12 @@ export const useGameStore = create<GameState>((set, get) => {
           return;
         }
         
+        // Emergency: Clear stuck events that prevent progression
+        if (currentState.activeEvent && !['dailyBriefing', 'policeShakedown', 'streetBeef'].includes(currentState.activeEvent)) {
+          console.warn('Clearing stuck event:', currentState.activeEvent);
+          set({ activeEvent: null, eventData: null });
+        }
+        
         const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
         const currentIndex = phases.indexOf(currentState.currentPhase);
         
