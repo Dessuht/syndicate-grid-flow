@@ -225,13 +225,17 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
         </motion.div>
       </div>
 
-      {/* Right Sidebar */}
-      <div className="w-72 shrink-0 flex flex-col gap-4 overflow-auto">
-        <OfficersPanel 
-          selectedOfficerId={selectedOfficerId} 
-          onSelectOfficer={currentPhase === 'morning' && !isPhaseBlocked ? onSelectOfficer : () => {}} 
-        />
-        <SoldiersPanel />
+      {/* Right Sidebar - Fixed width and proper overflow */}
+      <div className="w-72 shrink-0 flex flex-col gap-4 overflow-hidden">
+        <div className="flex-1 overflow-auto">
+          <OfficersPanel 
+            selectedOfficerId={selectedOfficerId} 
+            onSelectOfficer={currentPhase === 'morning' && !isPhaseBlocked ? onSelectOfficer : () => {}} 
+          />
+        </div>
+        <div className="flex-shrink-0">
+          <SoldiersPanel />
+        </div>
       </div>
     </div>
   );
