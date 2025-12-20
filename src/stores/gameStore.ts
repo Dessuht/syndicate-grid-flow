@@ -7,7 +7,18 @@ export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blu
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL'; // Added COUNCIL
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | null; // Added 'policeShakedown'
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | 'streetBeef' | null;
+
+// Compatibility types for Officer friction system
+export type CompatibilityLike = 'Respects Red Poles' | 'Values Loyalty' | 'Admires Ambition' | 'Appreciates Cunning' | 'Respects Old School';
+export type CompatibilityDislike = 'Hates Ambitious' | 'Distrusts Calculating' | 'Despises Hot-headed' | 'Resents Ruthless' | 'Scorns Silver Tongue';
+
+export interface StreetBeef {
+  officer1Id: string;
+  officer2Id: string;
+  daysActive: number;
+  isResolved: boolean;
+}
 export type DiploAction = 'trade' | 'alliance' | 'turfWar' | null;
 
 export interface OfficerSkills {
@@ -45,6 +56,8 @@ export interface Officer {
   isTraitor: boolean; // NEW: Officer is leading a rebellion
   isSuccessor: boolean; // NEW: Designated successor
   isTestingWaters: boolean; // NEW: Loyalty penalty applied until successful operation
+  likes: CompatibilityLike[]; // NEW: Compatibility system
+  dislikes: CompatibilityDislike[]; // NEW: Compatibility system
 }
 
 export interface Building {
@@ -159,6 +172,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isTraitor: false,
     isSuccessor: false,
     isTestingWaters: false,
+    likes: ['Respects Red Poles', 'Values Loyalty'],
+    dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
   },
   {
     id: 'off-2',
@@ -187,6 +202,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isTraitor: false,
     isSuccessor: false,
     isTestingWaters: false,
+    likes: ['Appreciates Cunning', 'Respects Old School'],
+    dislikes: ['Despises Hot-headed', 'Resents Ruthless'],
   },
   {
     id: 'off-3',
@@ -215,6 +232,8 @@ const INITIAL_OFFICERS: Officer[] = [
     isTraitor: false,
     isSuccessor: false,
     isTestingWaters: false,
+    likes: ['Admires Ambition', 'Appreciates Cunning'],
+    dislikes: ['Scorns Silver Tongue', 'Resents Ruthless'],
   },
   {
     id: 'off-4',
@@ -241,8 +260,10 @@ const INITIAL_OFFICERS: Officer[] = [
     face: 40, 
     grudge: false,
     isTraitor: false,
-    isSuccessor: true, // Tommy Fist is the initial successor for testing
+    isSuccessor: true,
     isTestingWaters: false,
+    likes: ['Values Loyalty', 'Respects Old School'],
+    dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
   },
 ];
 
@@ -451,7 +472,11 @@ export interface GameState {
   councilMotions: CouncilMotion[];
   
   // Daily Briefing State
-  dailyBriefingIgnored: boolean; // NEW: Tracks if the passive choice was taken
+  dailyBriefingIgnored: boolean;
+  
+  // Street Beef (Officer Friction) State
+  activeStreetBeefs: StreetBeef[];
+  beefDaysTracker: Record<string, number>; // Tracks days of incompatibility between officer pairs
 
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => void;
@@ -484,7 +509,8 @@ export interface GameState {
   handleCoupResolution: (choice: 'raid' | 'negotiate', officerId: string) => void;
   handleLeaderDeath: (officerId: string) => void; // NEW
   handleDailyBriefingChoice: (choice: 'passive' | 'financial' | 'authoritarian') => void; // NEW
-  handleShakedownChoice: (choice: 'bribe' | 'layLow' | 'resist') => void; // NEW
+  handleShakedownChoice: (choice: 'bribe' | 'layLow' | 'resist') => void;
+  handleStreetBeefChoice: (choice: 'talk' | 'council' | 'fire', fireOfficerId?: string) => void;
   dismissEvent: () => void;
 
   // Diplomacy
@@ -572,6 +598,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   
   // Daily Briefing State
   dailyBriefingIgnored: false,
+  
+  // Street Beef State
+  activeStreetBeefs: [],
+  beefDaysTracker: {},
 
   assignOfficer: (officerId: string, buildingId: string) => {
     const state = get();
@@ -1232,6 +1262,86 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       updates.cash = newCash;
       updates.policeHeat = newHeat;
+      updates.officers = updatedOfficers;
+      updates.buildings = updatedBuildings;
+
+      // Check for pending events
+      if (state.pendingEvents.length > 0) {
+        const [nextEvent, ...rest] = state.pendingEvents;
+        return {
+          ...updates,
+          activeEvent: nextEvent.type,
+          eventData: nextEvent.data,
+          pendingEvents: rest,
+        };
+      }
+
+      return updates;
+    });
+  },
+
+  handleStreetBeefChoice: (choice: 'talk' | 'council' | 'fire', fireOfficerId?: string) => {
+    set((state) => {
+      const { officer1Id, officer2Id } = state.eventData;
+      const officer1 = state.officers.find(o => o.id === officer1Id);
+      const officer2 = state.officers.find(o => o.id === officer2Id);
+      
+      if (!officer1 || !officer2) return { ...state, activeEvent: null, eventData: null };
+
+      let updates: Partial<GameState> = { activeEvent: null, eventData: null };
+      let updatedOfficers = [...state.officers];
+      let updatedBuildings = [...state.buildings];
+      
+      // Remove the beef from active beefs
+      const updatedBeefs = state.activeStreetBeefs.filter(
+        beef => !(beef.officer1Id === officer1Id && beef.officer2Id === officer2Id)
+      );
+      updates.activeStreetBeefs = updatedBeefs;
+
+      switch (choice) {
+        case 'talk':
+          // Talk to both officers - costs influence, restores some loyalty
+          if (state.influence >= 5) {
+            updates.influence = state.influence - 5;
+            updatedOfficers = updatedOfficers.map(o => {
+              if (o.id === officer1Id || o.id === officer2Id) {
+                return { ...o, loyalty: Math.min(100, o.loyalty + 5) };
+              }
+              return o;
+            });
+          }
+          break;
+
+        case 'council':
+          // Queue a council meeting to resolve - no immediate cost but triggers council
+          updates.currentScene = 'COUNCIL';
+          break;
+
+        case 'fire':
+          // Fire one of the officers
+          if (fireOfficerId) {
+            const firedOfficer = updatedOfficers.find(o => o.id === fireOfficerId);
+            if (firedOfficer?.assignedBuildingId) {
+              // Unassign from building first
+              updatedBuildings = updatedBuildings.map(b => 
+                b.assignedOfficerId === fireOfficerId
+                  ? { ...b, isOccupied: false, assignedOfficerId: null }
+                  : b
+              );
+            }
+            // Remove officer from roster
+            updatedOfficers = updatedOfficers.filter(o => o.id !== fireOfficerId);
+            // Remaining officer loses loyalty due to witnessing firing
+            const remainingId = fireOfficerId === officer1Id ? officer2Id : officer1Id;
+            updatedOfficers = updatedOfficers.map(o => 
+              o.id === remainingId 
+                ? { ...o, loyalty: Math.max(0, o.loyalty - 10) }
+                : o
+            );
+          }
+          break;
+      }
+
       updates.officers = updatedOfficers;
       updates.buildings = updatedBuildings;
 
@@ -2237,6 +2347,106 @@ function generateDailyBriefing(state: GameState): { type: EventType; data: any }
 }
 
 /**
+ * Checks if two officers are incompatible based on likes/dislikes.
+ * Returns true if they have friction (one dislikes what the other represents).
+ */
+function checkOfficerIncompatibility(officer1: Officer, officer2: Officer): boolean {
+  // Check if officer1's dislikes match officer2's traits
+  const dislikeToTraitMap: Record<CompatibilityDislike, CharacterTrait[]> = {
+    'Hates Ambitious': ['Ambitious'],
+    'Distrusts Calculating': ['Calculating'],
+    'Despises Hot-headed': ['Hot-headed'],
+    'Resents Ruthless': ['Ruthless'],
+    'Scorns Silver Tongue': ['Silver Tongue'],
+  };
+
+  // Check officer1's dislikes against officer2's traits
+  for (const dislike of officer1.dislikes) {
+    const targetTraits = dislikeToTraitMap[dislike];
+    if (targetTraits && officer2.traits.some(t => targetTraits.includes(t))) {
+      return true;
+    }
+  }
+
+  // Check officer2's dislikes against officer1's traits
+  for (const dislike of officer2.dislikes) {
+    const targetTraits = dislikeToTraitMap[dislike];
+    if (targetTraits && officer1.traits.some(t => targetTraits.includes(t))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Checks for officer friction and triggers Street Beef events.
+ */
+function checkOfficerFriction(state: GameState): { 
+  beefDaysTracker: Record<string, number>; 
+  newBeefs: StreetBeef[]; 
+  events: { type: EventType; data: any }[] 
+} {
+  const assignedOfficers = state.officers.filter(o => o.assignedBuildingId && !o.isWounded && !o.isArrested);
+  const beefDaysTracker = { ...state.beefDaysTracker };
+  const newBeefs: StreetBeef[] = [...state.activeStreetBeefs];
+  const events: { type: EventType; data: any }[] = [];
+
+  // Check all pairs of assigned officers
+  for (let i = 0; i < assignedOfficers.length; i++) {
+    for (let j = i + 1; j < assignedOfficers.length; j++) {
+      const officer1 = assignedOfficers[i];
+      const officer2 = assignedOfficers[j];
+      const pairKey = [officer1.id, officer2.id].sort().join('-');
+
+      // Check if they already have an active beef
+      const existingBeef = newBeefs.find(b => 
+        (b.officer1Id === officer1.id && b.officer2Id === officer2.id) ||
+        (b.officer1Id === officer2.id && b.officer2Id === officer1.id)
+      );
+      if (existingBeef) continue;
+
+      // Check incompatibility
+      if (checkOfficerIncompatibility(officer1, officer2)) {
+        // Increment days of friction
+        beefDaysTracker[pairKey] = (beefDaysTracker[pairKey] || 0) + 1;
+
+        // After 3 days, trigger Street Beef
+        if (beefDaysTracker[pairKey] >= 3) {
+          const newBeef: StreetBeef = {
+            officer1Id: officer1.id,
+            officer2Id: officer2.id,
+            daysActive: 0,
+            isResolved: false,
+          };
+          newBeefs.push(newBeef);
+          
+          // Trigger the event
+          events.push({
+            type: 'streetBeef',
+            data: {
+              officer1Id: officer1.id,
+              officer1Name: officer1.name,
+              officer2Id: officer2.id,
+              officer2Name: officer2.name,
+              reason: 'Personality clash - incompatible traits',
+            }
+          });
+
+          // Reset tracker for this pair
+          delete beefDaysTracker[pairKey];
+        }
+      } else {
+        // Reset tracker if they're no longer incompatible or not assigned together
+        delete beefDaysTracker[pairKey];
+      }
+    }
+  }
+
+  return { beefDaysTracker, newBeefs, events };
+}
+
+/**
  * Checks if any high-ranking officer is ready to stage a coup.
  */
 function checkCoupAttempt(state: GameState): { officerId: string | null; officerName: string | null; buildingName: string | null; updatedOfficers: Officer[]; updatedBuildings: Building[]; updatedSoldiers: StreetSoldier[] } {
@@ -2417,6 +2627,10 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
   // Calculate new heat
   const newHeat = Math.max(0, Math.min(100, state.policeHeat + totalHeat));
 
+  // Apply Street Beef revenue penalty (15% reduction if any unresolved beefs)
+  const hasActiveBeef = state.activeStreetBeefs.some(beef => !beef.isResolved);
+  const finalRevenue = hasActiveBeef ? Math.floor(totalRevenue * 0.85) : totalRevenue;
+
   // Police raid check (This is the global raid, separate from shakedown)
   if (newHeat > 70 && Math.random() < 0.25) {
     events.push({ type: 'policeRaid', data: {} });
@@ -2424,7 +2638,7 @@ function processDayOperations(state: GameState): { updates: Partial<GameState>; 
 
   return {
     updates: {
-      cash: state.cash + totalRevenue,
+      cash: state.cash + finalRevenue,
       policeHeat: newHeat,
       intel: state.intel + totalIntel,  // Add generated intel
       officers: finalOfficers,
@@ -2590,10 +2804,27 @@ function processNightEvents(state: GameState): { updates: Partial<GameState>; ev
     }
   });
 
+  // Check for officer friction and potential Street Beef
+  const frictionResult = checkOfficerFriction(state);
+  events.push(...frictionResult.events);
+
+  // Apply loyalty penalty to officers with active beefs
+  const officersWithBeefPenalty = updatedOfficers.map(officer => {
+    const hasActiveBeef = frictionResult.newBeefs.some(
+      beef => (beef.officer1Id === officer.id || beef.officer2Id === officer.id) && !beef.isResolved
+    );
+    if (hasActiveBeef) {
+      return { ...officer, loyalty: Math.max(0, officer.loyalty - 5) };
+    }
+    return officer;
+  });
+
   return {
     updates: {
-      officers: updatedOfficers,
-      reputation: Math.min(100, state.reputation + 1),  // Slight daily rep gain
+      officers: officersWithBeefPenalty,
+      reputation: Math.min(100, state.reputation + 1),
+      beefDaysTracker: frictionResult.beefDaysTracker,
+      activeStreetBeefs: frictionResult.newBeefs,
     },
     events,
   };

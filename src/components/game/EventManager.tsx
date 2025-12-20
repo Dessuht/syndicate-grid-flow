@@ -11,6 +11,7 @@ import { CoupAttemptModal } from './modals/CoupAttemptModal';
 import { NewEraModal } from './modals/NewEraModal';
 import { DailyBriefingModal } from './modals/DailyBriefingModal';
 import { PoliceShakedownModal } from './modals/PoliceShakedownModal';
+import { StreetBeefModal } from './modals/StreetBeefModal';
 
 export const EventManager = () => {
   const { activeEvent, eventData } = useGameStore();
@@ -40,6 +41,8 @@ export const EventManager = () => {
       return <DailyBriefingModal data={eventData} />;
     case 'policeShakedown':
       return <PoliceShakedownModal />;
+    case 'streetBeef':
+      return <StreetBeefModal />;
     default:
       return null;
   }
