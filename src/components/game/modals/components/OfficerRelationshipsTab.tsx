@@ -1,7 +1,6 @@
 import { Officer } from '@/stores/gameStoreTypes';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { OfficerRelationshipCard } from './OfficerRelationshipCard';
-import { useOfficerRelationships } from '../hooks/useOfficerRelationships';
 
 interface OfficerRelationshipsTabProps {
   officer: Officer;

@@ -1,7 +1,6 @@
 import { Officer } from '@/stores/gameStoreTypes';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { OfficerBasicInteractions } from './OfficerBasicInteractions';
-import { OfficerSocialInteractions } from './OfficerSocialInteractions';
 
 interface OfficerInteractionsTabProps {
   officer: Officer;

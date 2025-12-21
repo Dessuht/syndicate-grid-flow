@@ -6,7 +6,6 @@ import { GlobalMap } from './GlobalMap';
 import { LegalMedicalView } from './LegalMedicalView';
 import { FamilyCouncilScene } from './FamilyCouncilScene';
 import { EventManager } from './EventManager';
-import { DistrictHub } from './DistrictHub';
 import { Sidebar } from './Sidebar';
 import { RelationshipPanel } from './RelationshipPanel';
 import { OfficersPanel } from './OfficersPanel';

@@ -3,8 +3,6 @@ import { PoliceRaidModal } from './modals/PoliceRaidModal';
 import { BetrayalModal } from './modals/BetrayalModal';
 import { CriminalModal } from './modals/CriminalModal';
 import { RivalAttackModal } from './modals/RivalAttackModal';
-import { DesertionNotice } from './modals/DesertionNotice';
-import { TerritoryUltimatumModal } from './modals/TerritoryUltimatumModal';
 import { StreetWarModal } from './modals/StreetWarModal';
 import { PostWarSummaryModal } from './modals/PostWarSummaryModal';
 import { CoupAttemptModal } from './modals/CoupAttemptModal';
@@ -25,10 +23,6 @@ export const EventManager = () => {
       return <CriminalModal data={eventData} />;
     case 'rivalAttack':
       return <RivalAttackModal data={eventData} />;
-    case 'soldierDesertion':
-      return <DesertionNotice data={eventData} />;
-    case 'territoryUltimatum':
-      return <TerritoryUltimatumModal />;
     case 'streetWar':
       return <StreetWarModal />;
     case 'postConflictSummary':
