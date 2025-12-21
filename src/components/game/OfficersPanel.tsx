@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 
 interface OfficersPanelProps {
-  selectedOfficerId: string | null;
-  onSelectOfficer: (id: string | null) => void;
+  selectedOfficerId?: string | null;
+  onSelectOfficer?: (id: string | null) => void;
 }
 
 const RANK_ICONS = {
@@ -42,9 +42,6 @@ export const OfficersPanel = ({ selectedOfficerId, onSelectOfficer }: OfficersPa
 
   const handleOfficerClick = (officerId: string) => {
     setDossierOfficerId(officerId);
-    if (currentPhase === 'morning') {
-      onSelectOfficer(selectedOfficerId === officerId ? null : officerId);
-    }
   };
 
   // Group officers by rank
@@ -112,7 +109,7 @@ export const OfficersPanel = ({ selectedOfficerId, onSelectOfficer }: OfficersPa
                   >
                     <OfficerCard
                       officer={officer}
-                      isSelected={selectedOfficerId === officer.id}
+                      isSelected={false}
                       onSelect={() => handleOfficerClick(officer.id)}
                       buildingName={getBuildingName(officer.assignedBuildingId)}
                       disabled={false}

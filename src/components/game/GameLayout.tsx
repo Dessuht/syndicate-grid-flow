@@ -7,33 +7,21 @@ import { LegalMedicalView } from './LegalMedicalView';
 import { FamilyCouncilScene } from './FamilyCouncilScene';
 import { EventManager } from './EventManager';
 import { Sidebar } from './Sidebar';
-import { RelationshipPanel } from './RelationshipPanel';
 import { OfficersPanel } from './OfficersPanel';
 import { EmergencyFix } from './EmergencyFix';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, Users } from 'lucide-react';
+import { X } from 'lucide-react';
 
 export const GameLayout = () => {
-  const { currentScene, currentPhase, setCurrentScene } = useGameStore();
-  const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
-  const [showRelationshipPanel, setShowRelationshipPanel] = useState(false);
+  const { currentScene, setCurrentScene } = useGameStore();
   const [showOfficersPanel, setShowOfficersPanel] = useState(false);
 
   const renderCurrentView = () => {
     switch (currentScene) {
       case 'DISTRICT':
-        return (
-          <DistrictMap
-            selectedOfficerId={selectedOfficerId}
-            onSelectOfficer={(id) => {
-              setSelectedOfficerId(id);
-              setShowRelationshipPanel(!!id);
-            }}
-          />
-        );
+        return <DistrictMap />;
       case 'GLOBAL':
         return <GlobalMap />;
       case 'LEGAL':
@@ -41,15 +29,7 @@ export const GameLayout = () => {
       case 'COUNCIL':
         return <FamilyCouncilScene />;
       default:
-        return (
-          <DistrictMap
-            selectedOfficerId={selectedOfficerId}
-            onSelectOfficer={(id) => {
-              setSelectedOfficerId(id);
-              setShowRelationshipPanel(!!id);
-            }}
-          />
-        );
+        return <DistrictMap />;
     }
   };
 
@@ -80,10 +60,7 @@ export const GameLayout = () => {
           <Sidebar
             activeView={currentScene.toLowerCase() as any}
             onViewChange={handleViewChange}
-            onOfficersPanelOpen={() => {
-              setShowOfficersPanel(true);
-              setShowRelationshipPanel(false);
-            }}
+            onOfficersPanelOpen={() => setShowOfficersPanel(true)}
           />
         </aside>
 
@@ -104,10 +81,10 @@ export const GameLayout = () => {
           </div>
         </main>
 
-        {/* Right Panel - Officers Panel or Relationship Panel */}
+        {/* Right Panel - Officers Panel */}
         <aside className={`
           border-l border-slate-700 bg-slate-900/30 backdrop-blur-sm transition-all duration-300
-          ${showOfficersPanel || showRelationshipPanel ? 'w-96' : 'w-0 overflow-hidden'}
+          ${showOfficersPanel ? 'w-96' : 'w-0 overflow-hidden'}
         `}>
           {showOfficersPanel && (
             <div className="h-full flex flex-col">
@@ -126,39 +103,7 @@ export const GameLayout = () => {
               
               {/* Officers Panel Content */}
               <div className="flex-1 overflow-auto p-4">
-                <OfficersPanel
-                  selectedOfficerId={selectedOfficerId}
-                  onSelectOfficer={(id) => {
-                    setSelectedOfficerId(id);
-                    setShowRelationshipPanel(!!id);
-                    setShowOfficersPanel(false);
-                  }}
-                />
-              </div>
-            </div>
-          )}
-          
-          {showRelationshipPanel && !showOfficersPanel && (
-            <div className="h-full flex flex-col">
-              {/* Panel Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                <h3 className="text-lg font-bold text-white">Officer Details</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowRelationshipPanel(false);
-                    setSelectedOfficerId(null);
-                  }}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {/* Relationship Panel Content */}
-              <div className="flex-1 overflow-auto">
-                <RelationshipPanel selectedOfficerId={selectedOfficerId} />
+                <OfficersPanel />
               </div>
             </div>
           )}

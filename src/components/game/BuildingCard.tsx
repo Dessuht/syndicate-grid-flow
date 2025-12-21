@@ -58,8 +58,6 @@ export const BuildingCard = ({ building, officer, onAssign, onUnassign, isInacti
     if (!canInteract || isInactive || building.isRebelBase) return;
     if (officer) {
       onUnassign();
-    } else {
-      onAssign();
     }
   };
 
@@ -200,12 +198,6 @@ export const BuildingCard = ({ building, officer, onAssign, onUnassign, isInacti
               <span className="text-[10px] text-neon-magenta">{officer.energy}</span>
             </div>
           </div>
-        </div>
-      ) : canInteract ? (
-        <div className="mt-2 p-1.5 rounded bg-secondary/50 border border-border group-hover:border-primary/30 transition-colors">
-          <span className="text-[10px] text-muted-foreground group-hover:text-primary/70 transition-colors">
-            Click to assign officer
-          </span>
         </div>
       ) : (
         <div className="mt-2 p-1.5 rounded bg-secondary/30 border border-border">

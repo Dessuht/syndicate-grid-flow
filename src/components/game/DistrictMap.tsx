@@ -16,13 +16,13 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOfficerId: string | null; onSelectOfficer: (id: string | null) => void }) => {
-  const { 
-    officers, 
-    buildings, 
-    currentDay, 
-    currentPhase, 
-    advancePhase, 
+export const DistrictMap = () => {
+  const {
+    officers,
+    buildings,
+    currentDay,
+    currentPhase,
+    advancePhase,
     hostNightclub,
     cash,
     intel,
@@ -30,25 +30,8 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
     rebelOfficerId,
     activeEvent,
     eventData,
-    assignOfficer,
     unassignOfficer,
   } = useGameStore();
-
-  const handleAssign = (buildingId: string) => {
-    if (selectedOfficerId && currentPhase === 'morning') {
-      const officer = officers.find(o => o.id === selectedOfficerId);
-      const building = buildings.find(b => b.id === buildingId);
-      
-      // Prevent assignment to rebel base
-      if (building?.isRebelBase) return;
-      
-      // Check if officer is available for assignment
-      if (officer && !officer.assignedBuildingId && !officer.isWounded && !officer.isArrested) {
-        assignOfficer(selectedOfficerId, buildingId);
-        onSelectOfficer(null);
-      }
-    }
-  };
 
   const handleUnassign = (buildingId: string) => {
     if (currentPhase === 'morning') {
@@ -165,35 +148,14 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
           )}
         </AnimatePresence>
 
-        {/* Selection hint */}
-        <AnimatePresence>
-          {selectedOfficerId && currentPhase === 'morning' && !isPhaseBlocked && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-3 p-2 rounded-lg bg-primary/10 border border-primary/30"
-            >
-              <p className="text-sm text-primary">
-                <span className="font-semibold">
-                  {officers.find(o => o.id === selectedOfficerId)?.name}
-                </span> selected — click an empty building to assign
-              </p>
-            </motion.div>
-          )}
-          {currentPhase !== 'morning' && !isPhaseBlocked && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-3 p-2 rounded-lg bg-secondary/50 border border-border"
-            >
-              <p className="text-sm text-muted-foreground">
-                Assignments locked. Wait for morning to reassign officers.
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Phase Status */}
+        {currentPhase !== 'morning' && !isPhaseBlocked && (
+          <div className="mb-3 p-2 rounded-lg bg-secondary/50 border border-border">
+            <p className="text-sm text-muted-foreground">
+              Assignments locked. Wait for morning to reassign officers.
+            </p>
+          </div>
+        )}
 
         {/* Building Grid */}
         <motion.div className="command-grid flex-1 overflow-auto" layout>
@@ -210,11 +172,11 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
                   <BuildingCard
                     building={building}
                     officer={getOfficerForBuilding(building.id)}
-                    onAssign={() => handleAssign(building.id)}
+                    onAssign={() => {}}
                     onUnassign={() => handleUnassign(building.id)}
                     isInactive={isInactive}
                     currentDay={currentDay}
-                    canInteract={currentPhase === 'morning' && !isPhaseBlocked}
+                    canInteract={false}
                   />
                 </motion.div>
               );
@@ -226,10 +188,7 @@ export const DistrictMap = ({ selectedOfficerId, onSelectOfficer }: { selectedOf
       {/* Right Sidebar - Fixed width and proper overflow */}
       <div className="w-72 shrink-0 flex flex-col gap-4 overflow-hidden">
         <div className="flex-1 overflow-auto">
-          <OfficersPanel 
-            selectedOfficerId={selectedOfficerId} 
-            onSelectOfficer={currentPhase === 'morning' && !isPhaseBlocked ? onSelectOfficer : () => {}} 
-          />
+          <OfficersPanel />
         </div>
         <div className="flex-shrink-0">
           <SoldiersPanel />
