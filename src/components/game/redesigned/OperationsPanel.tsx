@@ -4,16 +4,17 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Play, 
-  AlertTriangle, 
-  TrendingUp, 
-  Shield, 
-  Sword, 
+import {
+  Play,
+  AlertTriangle,
+  TrendingUp,
+  Shield,
+  Sword,
   Users,
   DollarSign,
   Flame,
-  MapPin
+  MapPin,
+  Clock
 } from 'lucide-react';
 
 export const OperationsPanel = () => {

@@ -125,10 +125,10 @@ export class ObjectiveSystem {
         cash: (total.cash || 0) + (obj.rewards.cash || 0),
         influence: (total.influence || 0) + (obj.rewards.influence || 0),
         territory: (total.territory || 0) + (obj.rewards.territory || 0),
-        specialUnlock: [...(total.specialUnlock || []), ...(obj.rewards.specialUnlock ? [obj.rewards.specialUnlock] : [])],
+        specialUnlock: [...(total.specialUnlock || []), ...(obj.rewards.specialUnlock ? [obj.rewards.specialUnlock] : [])].join(', '),
         heatReduction: (total.heatReduction || 0) + (obj.rewards.heatReduction || 0),
         manpower: (total.manpower || 0) + (obj.rewards.manpower || 0)
-      }), {} as ObjectiveReward);
+      }), { cash: 0, influence: 0, territory: 0, specialUnlock: '', heatReduction: 0, manpower: 0 });
   }
 
   static generateNewObjective(currentWeek: number): StrategicObjective | null {

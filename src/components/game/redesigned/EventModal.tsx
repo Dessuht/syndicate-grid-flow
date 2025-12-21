@@ -1,16 +1,18 @@
 import { useGameStore } from '@/stores/core/gameStore';
 import { GameEvent } from '@/stores/core/types';
 import { EventSystem } from '@/stores/core/events';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { 
   AlertTriangle, 
   Clock, 
