@@ -24,6 +24,8 @@ export interface ObjectiveReward {
   influence?: number;
   territory?: number;
   specialUnlock?: string;
+  heatReduction?: number;
+  manpower?: number;
 }
 
 // Meaningful operations with clear risk/reward
@@ -141,6 +143,7 @@ export interface ResourceCost {
   influence?: number;
   heat?: number;
   manpower?: number;
+  territory?: number;
 }
 
 export interface DecisionRequirements {

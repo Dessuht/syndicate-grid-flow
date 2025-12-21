@@ -121,11 +121,13 @@ export class ObjectiveSystem {
   static calculateObjectiveRewards(objectives: StrategicObjective[]): ObjectiveReward {
     return objectives
       .filter(obj => obj.isCompleted)
-      .reduce((total, obj) => ({
+      .reduce((total: ObjectiveReward, obj) => ({
         cash: (total.cash || 0) + (obj.rewards.cash || 0),
         influence: (total.influence || 0) + (obj.rewards.influence || 0),
         territory: (total.territory || 0) + (obj.rewards.territory || 0),
-        specialUnlock: [...(total.specialUnlock || []), ...(obj.rewards.specialUnlock ? [obj.rewards.specialUnlock] : [])]
+        specialUnlock: [...(total.specialUnlock || []), ...(obj.rewards.specialUnlock ? [obj.rewards.specialUnlock] : [])],
+        heatReduction: (total.heatReduction || 0) + (obj.rewards.heatReduction || 0),
+        manpower: (total.manpower || 0) + (obj.rewards.manpower || 0)
       }), {} as ObjectiveReward);
   }
 

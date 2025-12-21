@@ -414,4 +414,34 @@ export class DecisionSystem {
     // Fallback to last outcome
     return option.outcomes[option.outcomes.length - 1];
   }
+
+  static canMakeChoice(option: DecisionOption, resources: { cash: number; influence: number; heat: number; manpower: number }): boolean {
+    // Check resource costs
+    if (option.costs.cash && resources.cash < option.costs.cash) return false;
+    if (option.costs.influence && resources.influence < option.costs.influence) return false;
+    if (option.costs.heat && resources.heat + option.costs.heat > 100) return false;
+    if (option.costs.manpower && resources.manpower < option.costs.manpower) return false;
+    
+    // Check requirements
+    if (option.requirements.minInfluence && resources.influence < option.requirements.minInfluence) return false;
+    if (option.requirements.maxHeat && resources.heat > option.requirements.maxHeat) return false;
+    if (option.requirements.minManpower && resources.manpower < option.requirements.minManpower) return false;
+    
+    return true;
+  }
+
+  static canMakeChoice(option: DecisionOption, resources: { cash: number; influence: number; heat: number; manpower: number }): boolean {
+    // Check resource costs
+    if (option.costs.cash && resources.cash < option.costs.cash) return false;
+    if (option.costs.influence && resources.influence < option.costs.influence) return false;
+    if (option.costs.heat && resources.heat + option.costs.heat > 100) return false;
+    if (option.costs.manpower && resources.manpower < option.costs.manpower) return false;
+    
+    // Check requirements
+    if (option.requirements.minInfluence && resources.influence < option.requirements.minInfluence) return false;
+    if (option.requirements.maxHeat && resources.heat > option.requirements.maxHeat) return false;
+    if (option.requirements.minManpower && resources.manpower < option.requirements.minManpower) return false;
+    
+    return true;
+  }
 }

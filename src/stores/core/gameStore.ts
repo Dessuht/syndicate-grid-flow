@@ -185,7 +185,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       // Remove from available and add to active
       const updatedAvailable = state.availableOperations.filter(op => op.id !== operationId);
-      const updatedActive = [...state.activeOperations, { ...operation, status: 'in_progress', assignedAssets: assignedOfficers }];
+      const updatedActive = [...state.activeOperations, { ...operation, status: 'in_progress' as const, assignedAssets: assignedOfficers }];
 
       return {
         availableOperations: updatedAvailable,
