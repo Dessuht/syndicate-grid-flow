@@ -7,7 +7,11 @@ interface OfficerRelationshipsTabProps {
 }
 
 export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProps) => {
-  const { relationships, getRelationshipTypeColor, getRelationshipTypeLabel } = useOfficerRelationships(officer.id);
+  // Simple relationships data - using officer's existing relationships array
+  const relationships = officer.relationships.map((rel, index) => ({
+    officer: { name: `Officer ${index + 1}`, rank: 'Red Pole' as const },
+    relationship: rel
+  }));
 
   return (
     <ScrollArea className="flex-1 pr-4">

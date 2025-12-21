@@ -12,7 +12,6 @@ export const OfficerInteractionsTab = ({ officer, onClose }: OfficerInteractions
     <ScrollArea className="flex-1 pr-4">
       <h3 className="font-display text-lg font-bold mb-3">Social Interactions</h3>
       <OfficerBasicInteractions officer={officer} onClose={onClose} />
-      <OfficerSocialInteractions officer={officer} onClose={onClose} />
     </ScrollArea>
   );
 };

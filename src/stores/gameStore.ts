@@ -1,9 +1,6 @@
 import { create } from 'zustand';
 import { Character, CharacterTrait } from '@/types/character';
-import { AutonomousBehaviorSystem } from '@/lib/autonomousBehavior';
-import { CharacterNeedsManager, CharacterNeeds } from '@/lib/characterNeeds';
 import { generateSoldier } from '@/lib/characterGenerator';
-import { RelationshipSystem } from '@/lib/relationshipSystem';
 
 // Import all original types from separate file
 import type {
@@ -25,31 +22,12 @@ import type {
   StreetBeef
 } from './gameStoreTypes';
 
-// Import OfficerRelationship and SocialInteraction from relationships types
-import type { OfficerRelationship, SocialInteraction, SocialFeedEntry } from '@/types/relationships';
 
-// Autonomous Character interface
-export interface AutonomousCharacter extends Officer {
-  needs: CharacterNeeds;
-  needsManager: CharacterNeedsManager;
-  currentMood: 'loyal' | 'content' | 'restless' | 'ambitious' | 'disloyal' | 'desperate';
-  personalAmbitions: string[];
-  socialCircle: string[];
-  lastActionTime: number;
-  isAutonomous: boolean;
-}
 
 // Import GameState from types file and extend it
 import type { GameState as BaseGameState } from './gameStoreTypes';
 
 export interface GameState extends BaseGameState {
-  // Autonomous behavior system
-  behaviorSystem: AutonomousBehaviorSystem;
-  autonomousOfficers: AutonomousCharacter[];
-  lastBehaviorUpdate: number;
-  socialFeed: SocialFeedEntry[];
-  recentInteractions: SocialInteraction[];
-
   // Intel & Upgrades
   unlockedUpgrades: string[];
 
@@ -180,16 +158,6 @@ export interface GameState extends BaseGameState {
   hostNightclub: () => void;
   setCurrentScene: (scene: GameScene) => void;
 
-  // Autonomous character actions
-  updateAutonomousBehavior: () => void;
-  getCharacterCurrentAction: (officerId: string) => string | null;
-  canForceWork: (officerId: string) => { canWork: boolean; reason?: string };
-  getPlayerInfluenceLevel: () => number;
-
-  // Relationship system actions
-  processSocialInteractions: () => void;
-  getOfficerRelationships: (officerId: string) => { nodes: string[], edges: string[] };
-  createManualInteraction: (initiatorId: string, targetId: string, type: string) => void;
 }
 
 // Constants
@@ -601,34 +569,8 @@ const INITIAL_RIVALS: RivalGang[] = [
   },
 ];
 
-const convertOfficerToAutonomous = (officer: Officer): AutonomousCharacter => {
-  const needsManager = new CharacterNeedsManager({
-    safety: 60 + Math.random() * 20,
-    respect: 50 + Math.random() * 30,
-    wealth: 40 + Math.random() * 30,
-    power: officer.rank === 'Red Pole' ? 70 : 30 + Math.random() * 20,
-    belonging: 50 + Math.random() * 30,
-    excitement: 45 + Math.random() * 30,
-  });
-  
-  return {
-    ...officer,
-    needs: needsManager.getNeedsStatus(),
-    needsManager,
-    currentMood: 'content',
-    personalAmbitions: officer.traits.includes('Ambitious') 
-      ? ['expand_territory', 'gain_promotion', 'build_power_base'] 
-      : ['maintain_status', 'increase_wealth'],
-    socialCircle: [],
-    lastActionTime: 0,
-    isAutonomous: true,
-  };
-};
 
 export const useGameStore = create<GameState>((set, get) => {
-  const behaviorSystem = new AutonomousBehaviorSystem();
-  const relationshipSystem = new RelationshipSystem(INITIAL_OFFICERS);
-  
   const store = {
     // Initial state
     cash: 5000,
@@ -649,15 +591,6 @@ export const useGameStore = create<GameState>((set, get) => {
     eventData: null,
     pendingEvents: [],
 
-    // Autonomous behavior system
-    behaviorSystem,
-    autonomousOfficers: INITIAL_OFFICERS.map(convertOfficerToAutonomous),
-    lastBehaviorUpdate: Date.now(),
-    
-    // Relationship system
-    relationshipSystem,
-    socialFeed: relationshipSystem.getSocialFeed(),
-    recentInteractions: [],
 
     // Intel & Upgrades
     unlockedUpgrades: [],
@@ -860,19 +793,6 @@ export const useGameStore = create<GameState>((set, get) => {
         }
       }
       
-      // Update autonomous behavior safely
-      try {
-        currentState.updateAutonomousBehavior();
-      } catch (error) {
-        console.warn('Autonomous behavior update failed:', error);
-      }
-      
-      // Process social interactions safely
-      try {
-        currentState.processSocialInteractions();
-      } catch (error) {
-        console.warn('Social interactions failed:', error);
-      }
       
       // Process street beefs
       try {
@@ -2586,111 +2506,6 @@ export const useGameStore = create<GameState>((set, get) => {
       });
     },
 
-    // Autonomous character actions
-    updateAutonomousBehavior: () => {
-      set((state) => {
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - state.lastBehaviorUpdate) / 1000 / 60;
-        
-        const updatedOfficers = state.autonomousOfficers.map(officer => {
-          officer.needsManager.updateNeeds(deltaTime * 60);
-          officer.needs = officer.needsManager.getNeedsStatus();
-          return officer;
-        });
-        
-        return {
-          autonomousOfficers: updatedOfficers,
-          lastBehaviorUpdate: currentTime,
-        };
-      });
-    },
-
-    getCharacterCurrentAction: (officerId: string) => {
-      const state = get();
-      const officer = state.autonomousOfficers.find(o => o.id === officerId);
-      return officer?.currentAgenda || null;
-    },
-
-    canForceWork: (officerId: string) => {
-      const state = get();
-      const officer = state.autonomousOfficers.find(o => o.id === officerId);
-      
-      if (!officer) return { canWork: false, reason: 'Officer not found' };
-      if (officer.needsManager.isInCrisis()) {
-        return { 
-          canWork: false, 
-          reason: `${officer.name} is in crisis and needs to address personal issues` 
-        };
-      }
-      if (officer.loyalty < 30) {
-        return { 
-          canWork: false, 
-          reason: `${officer.name} is too disloyal to follow orders` 
-        };
-      }
-      
-      return { canWork: true };
-    },
-
-    getPlayerInfluenceLevel: () => {
-      const state = get();
-      const avgLoyalty = state.autonomousOfficers.reduce((sum, officer) => sum + officer.loyalty, 0) / state.autonomousOfficers.length;
-      
-      if (avgLoyalty > 70) return 3;
-      if (avgLoyalty > 50) return 2;
-      if (avgLoyalty > 30) return 1;
-      return 0;
-    },
-
-    // Relationship system actions
-    processSocialInteractions: () => {
-      const state = get();
-      if (!state.relationshipSystem) return;
-      
-      const interactions = state.relationshipSystem.processAutomaticInteractions(
-        state.officers,
-        state.currentPhase,
-        Date.now()
-      );
-      
-      set({
-        recentInteractions: interactions,
-        socialFeed: state.relationshipSystem.getSocialFeed()
-      });
-    },
-
-    getOfficerRelationships: (officerId: string) => {
-      const state = get();
-      if (!state.relationshipSystem) return { nodes: [], edges: [] };
-      
-      const officerIds = state.officers.map(o => o.id);
-      const network = state.relationshipSystem.getRelationshipNetwork(officerIds);
-      
-      return {
-        nodes: network.nodes.map(n => n.id),
-        edges: network.edges.map(e => `${e.source}-${e.target}`)
-      };
-    },
-
-    createManualInteraction: (initiatorId: string, targetId: string, type: string) => {
-      const state = get();
-      if (!state.relationshipSystem) return;
-      
-      const interactionType = type as SocialInteraction['type'];
-      const interaction = state.relationshipSystem.createInteraction(
-        interactionType,
-        initiatorId,
-        targetId,
-        'manual'
-      );
-      
-      if (interaction) {
-        set({
-          recentInteractions: [...state.recentInteractions, interaction],
-          socialFeed: state.relationshipSystem.getSocialFeed()
-        });
-      }
-    },
 
     // Street beef actions
     processStreetBeefs: () => {
