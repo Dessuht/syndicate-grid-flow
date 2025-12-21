@@ -571,8 +571,8 @@ const INITIAL_RIVALS: RivalGang[] = [
 
 
 export const useGameStore = create<GameState>((set, get) => {
-  const store = {
-    // Initial state
+  const store: GameState = {
+    // Core Resources
     cash: 5000,
     reputation: 50,
     policeHeat: 15,
@@ -582,18 +582,68 @@ export const useGameStore = create<GameState>((set, get) => {
     intel: 0,
     influence: 10,
 
-    // Initialize entities
+    // Game Entities
     officers: INITIAL_OFFICERS,
     buildings: INITIAL_BUILDINGS,
     soldiers: INITIAL_SOLDIERS,
     rivals: INITIAL_RIVALS,
+
+    // Social and Relationship System
+    relationshipSystem: {},
+    socialFeed: [],
+    recentInteractions: [],
+
+    // Autonomous Behavior System
+    behaviorSystem: {},
+    lastBehaviorUpdate: 0,
+
+    // Event System
     activeEvent: null,
     eventData: null,
     pendingEvents: [],
 
-
     // Intel & Upgrades
     unlockedUpgrades: [],
+
+
+    // Diplomacy
+    activeDiplomacy: null,
+
+    // Family Council - Character System
+    syndicateMembers: [],
+    recruitCost: 500,
+
+    // Home District Racket
+    homeDistrictLeaderId: null,
+    homeDistrictHeat: 10,
+    homeDistrictRevenue: 0,
+    officerCutIncreased: false,
+
+    // Territory Stats
+    territoryFriction: 0,
+    territoryInfluence: 20,
+    frictionInterval: null,
+
+    // Street War System
+    streetWarRivalId: null,
+
+    // Civil War State
+    isCivilWarActive: false,
+    rebelOfficerId: null,
+    recentlyResolvedCivilWar: false,
+    recentlyResolvedCivilWarCooldown: 0,
+    lastCivilWarCheckDay: 0,
+
+    // Council System
+    currentScene: 'DISTRICT' as GameScene,
+    councilMotions: [],
+    
+    // Daily Briefing State
+    dailyBriefingIgnored: false,
+    
+    // Street Beef (Officer Friction) State
+    activeStreetBeefs: [],
+    beefDaysTracker: {},
     
     // Upgrade actions
     purchaseUpgrade: (upgradeId: string) => {
@@ -772,7 +822,7 @@ export const useGameStore = create<GameState>((set, get) => {
           const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
           if (member) {
             const baseRevenue = 300;
-            const loyaltyBonus = Math.floor(member.stats.loyalty * 2);
+            const loyaltyBonus = Math.floor((member.stats as any).loyalty * 2);
             const totalRacketRevenue = baseRevenue + loyaltyBonus;
             cashChange += totalRacketRevenue;
             homeDistrictHeatChange = Math.min(100, currentState.homeDistrictHeat + 2);
@@ -1570,7 +1620,7 @@ export const useGameStore = create<GameState>((set, get) => {
             if (state.homeDistrictLeaderId) {
               updates.syndicateMembers = state.syndicateMembers.map(m =>
                 m.id === state.homeDistrictLeaderId
-                  ? { ...m, stats: { ...m.stats, loyalty: Math.max(0, m.stats.loyalty - 20) } }
+                  ? { ...m, stats: { ...m.stats, loyalty: Math.max(0, (m.stats as any).loyalty - 20) } }
                   : m
               );
             }
@@ -2323,7 +2373,7 @@ export const useGameStore = create<GameState>((set, get) => {
       set((state) => {
         if (state.cash < state.recruitCost) return state;
         
-        const newMember = generateSoldier(state.currentDay);
+        const newMember = generateSoldier();
         const newCost = Math.min(5000, state.recruitCost + 200);
         
         return {
@@ -2351,7 +2401,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
         // Calculate revenue based on member's stats
         const baseRevenue = 300;
-        const loyaltyBonus = Math.floor(member.stats.loyalty * 2);
+        const loyaltyBonus = Math.floor((member.stats as any).loyalty * 2);
         const faceBonus = Math.floor((member.stats as any).face * 1); // Cast to any for face access
         const totalRevenue = baseRevenue + loyaltyBonus + faceBonus;
 

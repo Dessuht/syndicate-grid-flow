@@ -4,6 +4,16 @@ export interface OfficerRelationship {
   strength: number; // 0-100
   sharedMemories: SharedMemory[];
   grudges: Grudge[];
+  
+  // Legacy properties for compatibility
+  relationship: number;
+  interest: number;
+  respect: number;
+  isFriend: boolean;
+  isEnemy: boolean;
+  isMortalEnemy: boolean;
+  isLover: boolean;
+  isInLove: boolean;
 }
 
 export interface SharedMemory {

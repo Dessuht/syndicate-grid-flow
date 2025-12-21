@@ -1,7 +1,14 @@
 import { Character, CharacterTrait } from '@/types/character';
 
 export function generateSoldier(): Character {
-  const traits: CharacterTrait[] = [];
+  const traits: CharacterTrait[] = [
+    {
+      id: 'trait-1',
+      name: 'Street Smart',
+      description: 'Knows how to navigate the streets',
+      effect: '+5 to survival skills'
+    }
+  ];
   
   return {
     id: Math.random().toString(36).substr(2, 9),
@@ -20,7 +27,8 @@ export function generateSoldier(): Character {
       kills: 0,
       missions: 0,
       arrests: 0,
-      income: 0
+      income: 0,
+      loyalty: 50
     }
   };
 }
