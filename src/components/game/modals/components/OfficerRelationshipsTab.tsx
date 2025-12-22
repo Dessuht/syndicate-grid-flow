@@ -8,8 +8,8 @@ interface OfficerRelationshipsTabProps {
 
 export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProps) => {
   // Helper functions for relationship display
-  const getRelationshipTypeColor = (type: string) => {
-    switch (type) {
+  const getRelationshipTypeColor = (relationship: OfficerRelationship) => {
+    switch (relationship.type) {
       case 'loyal': return 'text-green-500';
       case 'friendly': return 'text-blue-500';
       case 'neutral': return 'text-gray-500';
@@ -19,8 +19,8 @@ export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProp
     }
   };
 
-  const getRelationshipTypeLabel = (type: string) => {
-    switch (type) {
+  const getRelationshipTypeLabel = (relationship: OfficerRelationship) => {
+    switch (relationship.type) {
       case 'loyal': return 'Loyal';
       case 'friendly': return 'Friendly';
       case 'neutral': return 'Neutral';
@@ -35,7 +35,30 @@ export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProp
     officer: {
       id: `officer-${index}`,
       name: `Officer ${index + 1}`,
-      rank: 'Red Pole' as const
+      rank: 'Red Pole' as const,
+      energy: 100,
+      maxEnergy: 100,
+      assignedBuildingId: null,
+      isWounded: false,
+      isArrested: false,
+      daysToRecovery: 0,
+      skills: { enforcement: 50, diplomacy: 50, logistics: 50, recruitment: 50 },
+      loyalty: 75,
+      daysAssigned: 0,
+      daysIdle: 0,
+      isBetraying: false,
+      traits: ['Fearless', 'Ruthless'],
+      currentAgenda: null,
+      face: 30,
+      grudge: false,
+      isTraitor: false,
+      isSuccessor: false,
+      isTestingWaters: false,
+      likes: ['Respects Red Poles', 'Values Loyalty'],
+      dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
+      currentAgenda: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     },
     relationship: rel
   }));

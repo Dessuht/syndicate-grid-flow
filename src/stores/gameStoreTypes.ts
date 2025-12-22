@@ -18,6 +18,11 @@ export interface OfficerSkills {
   recruitment: number;
 }
 
+// Resource management
+export interface ResourceActions {
+  reduceHeat: (amount: number) => void;
+}
+
 export interface StreetBeef {
   officer1Id: string;
   officer2Id: string;
@@ -344,4 +349,6 @@ export interface GameState {
   processSocialInteractions: () => void;
   getOfficerRelationships: (officerId: string) => { nodes: string[], edges: string[] };
   createManualInteraction: (initiatorId: string, targetId: string, type: string) => void;
-}
+
+  // Resource management
+  reduceHeat: (amount: number) => void;

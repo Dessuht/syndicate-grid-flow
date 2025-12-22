@@ -25,9 +25,9 @@ import type {
 
 
 // Import GameState from types file and extend it
-import type { GameState as BaseGameState } from './gameStoreTypes';
+import type { GameState as BaseGameState, ResourceActions } from './gameStoreTypes';
 
-export interface GameState extends BaseGameState {
+export interface GameState extends BaseGameState, ResourceActions {
   // Intel & Upgrades
   unlockedUpgrades: string[];
 
@@ -572,14 +572,16 @@ const INITIAL_RIVALS: RivalGang[] = [
 export const useGameStore = create<GameState>((set, get) => {
   const store: GameState = {
     // Core Resources
-    cash: 5000,
-    reputation: 50,
-    policeHeat: 15,
+    resources: {
+      cash: 5000,
+      reputation: 50,
+      policeHeat: 15,
+      intel: 0,
+      influence: 10,
+    },
     currentDay: 1,
     currentPhase: 'morning' as DayPhase,
     stipend: 50,
-    intel: 0,
-    influence: 10,
 
     // Game Entities
     officers: INITIAL_OFFICERS,
@@ -715,32 +717,32 @@ export const useGameStore = create<GameState>((set, get) => {
       const nextPhase = phases[(currentIndex + 1) % phases.length];
       const nextDay = nextPhase === 'morning' ? currentState.currentDay + 1 : currentState.currentDay;
       
-      // Process daily revenue and expenses at day transition
-      let cashChange = 0;
-      let homeDistrictHeatChange = 0;
-      
-      if (currentState.currentPhase === 'night' && nextPhase === 'morning') {
-        // Daily revenue from occupied buildings
-        const dailyRevenue = currentState.buildings
-          .filter(b => b.isOccupied && !b.inactiveUntilDay)
-          .reduce((sum, b) => sum + b.baseRevenue, 0);
-        cashChange += dailyRevenue;
+      // Calculate daily revenue and expenses at day transition
+        let cashChange = 0;
+        let homeDistrictHeatChange = 0;
         
-        // Soldier stipends
-        const stipendCost = currentState.soldiers.length * currentState.stipend;
-        cashChange -= stipendCost;
-        
-        // Home district racket revenue
-        if (currentState.homeDistrictLeaderId) {
-          const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
-          if (member) {
-            const baseRevenue = 300;
-            const loyaltyBonus = Math.floor((member.stats as any).loyalty * 2);
-            const totalRacketRevenue = baseRevenue + loyaltyBonus;
-            cashChange += totalRacketRevenue;
-            homeDistrictHeatChange = Math.min(100, currentState.homeDistrictHeat + 2);
+        if (currentState.currentPhase === 'night' && nextPhase === 'morning') {
+          // Daily revenue from occupied buildings
+          const dailyRevenue = currentState.buildings
+            .filter(b => b.isOccupied && !b.inactiveUntilDay)
+            .reduce((sum, b) => sum + b.baseRevenue, 0);
+          cashChange += dailyRevenue;
+          
+          // Soldier stipends
+          const stipendCost = currentState.soldiers.length * currentState.stipend;
+          cashChange -= stipendCost;
+          
+          // Home district racket revenue
+          if (currentState.homeDistrictLeaderId) {
+            const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
+            if (member) {
+              const baseRevenue = 300;
+              const loyaltyBonus = Math.floor((member.stats as any).loyalty * 2);
+              const totalRacketRevenue = baseRevenue + loyaltyBonus;
+              cashChange += totalRacketRevenue;
+              homeDistrictHeatChange = Math.min(100, currentState.homeDistrictHeat + 2);
+            }
           }
-        }
         
         // Check for council meeting (every 10 days)
         if (nextDay % 10 === 0) {
@@ -852,8 +854,8 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     reduceHeat: (amount: number) => {
-      set((state) => ({ policeHeat: Math.max(0, state.policeHeat - amount) }));
-    },
+        set((state) => ({ resources: { ...state.resources, policeHeat: Math.max(0, state.resources.policeHeat - amount) }));
+      },
 
     hostNightclub: () => {
       set((state) => {
@@ -928,7 +930,7 @@ export const useGameStore = create<GameState>((set, get) => {
       set((state) => {
         const officer = state.officers.find(o => o.id === officerId);
         const cost = 1000;
-        if (!officer || state.cash < cost) return state;
+            if (!officer || state.resources.cash < cost) return state;
 
         // 1. Spend $1,000 Cash
         // 2. Boost Loyalty (+20)
@@ -1030,7 +1032,7 @@ export const useGameStore = create<GameState>((set, get) => {
         }
 
         return {
-          cash: state.cash - cost,
+          resources: { ...state.resources, cash: state.resources.cash - cost },
           officers: state.officers.map(o =>
             o.id === officerId
               ? {
@@ -2421,7 +2423,7 @@ export const useGameStore = create<GameState>((set, get) => {
     // Hospital/Jail Recovery System
     healOfficer: (officerId: string) => {
       set((state) => {
-        if (state.cash < 2000) return state;
+        if (state.resources.cash < 2000) return state;
         
         return {
           cash: state.cash - 2000,
@@ -2437,7 +2439,7 @@ export const useGameStore = create<GameState>((set, get) => {
     releaseOfficer: (officerId: string) => {
       set((state) => {
         // Check if we have enough intel or cash
-        if (state.intel < 50 && state.cash < 5000) return state;
+            if (state.resources.intel < 50 && state.resources.cash < 5000) return state;
         
         return {
           intel: state.intel >= 50 ? state.intel - 50 : state.intel,
