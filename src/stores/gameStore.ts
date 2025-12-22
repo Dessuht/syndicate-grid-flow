@@ -569,7 +569,6 @@ const INITIAL_RIVALS: RivalGang[] = [
   },
 ];
 
-
 export const useGameStore = create<GameState>((set, get) => {
   const store: GameState = {
     // Core Resources
@@ -604,92 +603,6 @@ export const useGameStore = create<GameState>((set, get) => {
 
     // Intel & Upgrades
     unlockedUpgrades: [],
-
-
-    // Diplomacy
-    activeDiplomacy: null,
-
-    // Family Council - Character System
-    syndicateMembers: [],
-    recruitCost: 500,
-
-    // Home District Racket
-    homeDistrictLeaderId: null,
-    homeDistrictHeat: 10,
-    homeDistrictRevenue: 0,
-    officerCutIncreased: false,
-
-    // Territory Stats
-    territoryFriction: 0,
-    territoryInfluence: 20,
-    frictionInterval: null,
-
-    // Street War System
-    streetWarRivalId: null,
-
-    // Civil War State
-    isCivilWarActive: false,
-    rebelOfficerId: null,
-    recentlyResolvedCivilWar: false,
-    recentlyResolvedCivilWarCooldown: 0,
-    lastCivilWarCheckDay: 0,
-
-    // Council System
-    currentScene: 'DISTRICT' as GameScene,
-    councilMotions: [],
-    
-    // Daily Briefing State
-    dailyBriefingIgnored: false,
-    
-    // Street Beef (Officer Friction) State
-    activeStreetBeefs: [],
-    beefDaysTracker: {},
-    
-    // Upgrade actions
-    purchaseUpgrade: (upgradeId: string) => {
-      set((state) => {
-        const UPGRADES = {
-          'betterIntel': { cost: 2000, intelBonus: 25 },
-          'reducedHeat': { cost: 3000, heatReduction: 10 },
-          'loyaltyBoost': { cost: 1500, loyaltyBonus: 15 },
-          'revenueBonus': { cost: 2500, revenueBonus: 20 }
-        };
-        
-        const upgrade = UPGRADES[upgradeId as keyof typeof UPGRADES];
-        if (!upgrade || state.unlockedUpgrades.includes(upgradeId) || state.cash < upgrade.cost) {
-          return state;
-        }
-        
-        let updates: Partial<GameState> = {
-          cash: state.cash - upgrade.cost,
-          unlockedUpgrades: [...state.unlockedUpgrades, upgradeId]
-        };
-        
-        // Apply upgrade effects
-        switch (upgradeId) {
-          case 'betterIntel':
-            updates.intel = state.intel + (upgrade as any).intelBonus;
-            break;
-          case 'reducedHeat':
-            updates.policeHeat = Math.max(0, state.policeHeat - (upgrade as any).heatReduction);
-            break;
-          case 'loyaltyBoost':
-            updates.officers = state.officers.map(o => ({
-              ...o,
-              loyalty: Math.min(100, o.loyalty + (upgrade as any).loyaltyBonus)
-            }));
-            break;
-          case 'revenueBonus':
-            updates.buildings = state.buildings.map(b => ({
-              ...b,
-              baseRevenue: Math.floor(b.baseRevenue * (1 + (upgrade as any).revenueBonus / 100))
-            }));
-            break;
-        }
-        
-        return updates;
-      });
-    },
 
     // Diplomacy
     activeDiplomacy: null,
