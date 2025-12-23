@@ -576,33 +576,48 @@ const INITIAL_RIVALS: RivalGang[] = [
     name: '14K Triad',
     district: 'Mong Kok',
     strength: 45,
+    maxStrength: 45,
     relationship: -20,
     hasTradeAgreement: false,
     hasAlliance: false,
     isScouted: false,
-    isActiveConflict: false
+    isActiveConflict: false,
+    isDefeated: false,
+    controlledByPlayer: false,
+    dailyTribute: 0,
+    recoveryDays: 0
   },
   {
     id: 'rival-2',
     name: 'Sun Yee On',
     district: 'Tsim Sha Tsui',
     strength: 60,
+    maxStrength: 60,
     relationship: 10,
     hasTradeAgreement: false,
     hasAlliance: false,
     isScouted: false,
-    isActiveConflict: false
+    isActiveConflict: false,
+    isDefeated: false,
+    controlledByPlayer: false,
+    dailyTribute: 0,
+    recoveryDays: 0
   },
   {
     id: 'rival-3',
     name: 'Wo Shing Wo',
     district: 'Central',
     strength: 75,
+    maxStrength: 75,
     relationship: -40,
     hasTradeAgreement: false,
     hasAlliance: false,
     isScouted: false,
-    isActiveConflict: false
+    isActiveConflict: false,
+    isDefeated: false,
+    controlledByPlayer: false,
+    dailyTribute: 0,
+    recoveryDays: 0
   },
 ];
 
@@ -664,6 +679,7 @@ export const useGameStore = create<GameState>((set, get) => {
     territoryFriction: 0,
     territoryInfluence: 20,
     frictionInterval: null,
+    capturedTerritories: [],
 
     // Street War System
     streetWarRivalId: null,
@@ -773,6 +789,21 @@ export const useGameStore = create<GameState>((set, get) => {
           const stipendCost = currentState.soldiers.length * currentState.stipend;
           cashChange -= stipendCost;
           
+          // Territory income from captured territories
+          const territoryIncome = currentState.capturedTerritories.reduce((sum, t) => {
+            const stabilityMod = t.stability / 100;
+            return sum + Math.floor(t.dailyIncome * stabilityMod);
+          }, 0);
+          cashChange += territoryIncome;
+          
+          // Alliance income
+          const allianceIncome = currentState.rivals.filter(r => r.hasAlliance).length * 200;
+          cashChange += allianceIncome;
+          
+          // Trade agreement income
+          const tradeIncome = currentState.rivals.filter(r => r.hasTradeAgreement).length * 100;
+          cashChange += tradeIncome;
+          
           // Home district racket revenue
           if (currentState.homeDistrictLeaderId) {
             const member = currentState.syndicateMembers.find(m => m.id === currentState.homeDistrictLeaderId);
@@ -784,6 +815,9 @@ export const useGameStore = create<GameState>((set, get) => {
               homeDistrictHeatChange = Math.min(100, currentState.homeDistrictHeat + 2);
             }
           }
+          
+          // Process territory stability decay and rival recovery
+          get().processRivalRecovery();
         
         // Check for council meeting (every 10 days)
         if (nextDay % 10 === 0) {
@@ -3177,7 +3211,7 @@ export const useGameStore = create<GameState>((set, get) => {
     launchBattle: (rivalId: string, officerIds: string[], soldierCount: number, tactic: 'aggressive' | 'defensive' | 'guerrilla' | 'overwhelming') => {
       const state = get();
       const rival = state.rivals.find(r => r.id === rivalId);
-      if (!rival) return { victory: false, soldiersLost: 0, reputationChange: 0, cashGained: 0, territoryGained: false };
+      if (!rival) return { victory: false, soldiersLost: 0, reputationChange: 0, cashGained: 0, territoryGained: false, territoryIncome: 0 };
 
       // Tactic modifiers
       const tacticMods: Record<string, { strength: number; casualty: number }> = {
@@ -3218,11 +3252,29 @@ export const useGameStore = create<GameState>((set, get) => {
       const soldiersLost = Math.floor(soldierCount * casualtyRate);
 
       // Calculate rewards/penalties
-      let reputationChange = victory ? 15 : -20;
-      let cashGained = victory ? Math.floor(rival.strength * 15 + Math.random() * 500) : 0;
-      let territoryGained = victory && rival.strength < 50;
+      let reputationChange = victory ? 20 : -25;
+      let cashGained = victory ? Math.floor(rival.strength * 25 + Math.random() * 1000) : 0;
+      
+      // Decisive victory = territory control
+      const isDecisiveVictory = victory && (finalStrength > rival.strength * 1.5 || rival.strength <= 30);
+      let territoryGained = isDecisiveVictory;
+      let territoryIncome = 0;
+      let newBuilding: string | undefined;
       let officerWounded: string | undefined;
       let buildingLost: string | undefined;
+
+      // Territory rewards for decisive victory
+      if (territoryGained) {
+        // Calculate daily tribute from captured territory
+        territoryIncome = Math.floor(200 + rival.maxStrength * 5);
+        reputationChange += 10; // Extra rep for territory capture
+        
+        // Chance to capture a new building
+        const buildingTypes = ['Mahjong Parlor', 'Warehouse', 'Nightclub', 'Drug Lab'];
+        if (Math.random() < 0.6) {
+          newBuilding = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+        }
+      }
 
       // Officer injury chance on defeat
       if (!victory && officerIds.length > 0 && Math.random() < 0.3) {
@@ -3258,29 +3310,56 @@ export const useGameStore = create<GameState>((set, get) => {
             if (o.name === officerWounded) {
               return { ...o, isWounded: true, daysToRecovery: 3, energy: Math.floor(o.maxEnergy * 0.2) };
             }
-            // Victory gives participating officers +5 loyalty and +5 face
             if (victory && officerIds.includes(o.id)) {
-              return { ...o, loyalty: Math.min(100, o.loyalty + 5), face: Math.min(100, o.face + 5) };
+              return { ...o, loyalty: Math.min(100, o.loyalty + 8), face: Math.min(100, o.face + 10) };
             }
             return o;
           });
         } else if (victory) {
           updatedOfficers = state.officers.map(o => {
             if (officerIds.includes(o.id)) {
-              return { ...o, loyalty: Math.min(100, o.loyalty + 5), face: Math.min(100, o.face + 5) };
+              return { ...o, loyalty: Math.min(100, o.loyalty + 8), face: Math.min(100, o.face + 10) };
             }
             return o;
           });
         }
 
-        // Update buildings
-        let updatedBuildings = state.buildings;
+        // Update buildings - add new building if captured
+        let updatedBuildings = [...state.buildings];
         if (buildingLost) {
-          updatedBuildings = state.buildings.map(b => {
+          updatedBuildings = updatedBuildings.map(b => {
             if (b.name === buildingLost) {
               return { ...b, isOccupied: false, assignedOfficerId: null, inactiveUntilDay: state.currentDay + 3 };
             }
             return b;
+          });
+        }
+        
+        if (newBuilding) {
+          const buildingId = `bld-captured-${Date.now()}`;
+          const buildingConfig: Record<string, { revenue: number; heat: number; illicit: boolean }> = {
+            'Mahjong Parlor': { revenue: 800, heat: 3, illicit: true },
+            'Warehouse': { revenue: 400, heat: 2, illicit: false },
+            'Nightclub': { revenue: 1200, heat: 4, illicit: true },
+            'Drug Lab': { revenue: 1500, heat: 6, illicit: true },
+          };
+          const config = buildingConfig[newBuilding] || { revenue: 500, heat: 2, illicit: false };
+          
+          updatedBuildings.push({
+            id: buildingId,
+            name: `${rival.district} ${newBuilding}`,
+            type: newBuilding as any,
+            baseRevenue: config.revenue,
+            heatGen: config.heat,
+            isOccupied: false,
+            assignedOfficerId: null,
+            inactiveUntilDay: null,
+            isIllicit: config.illicit,
+            foodProvided: 0,
+            entertainmentProvided: newBuilding === 'Nightclub' ? 50 : 0,
+            isUpgraded: false,
+            isRebelBase: false,
+            rebelSoldierCount: 0,
           });
         }
 
@@ -3288,27 +3367,46 @@ export const useGameStore = create<GameState>((set, get) => {
         const updatedRivals = state.rivals.map(r => {
           if (r.id === rivalId) {
             if (victory) {
+              const newStrength = Math.max(5, r.strength - 25);
               return { 
                 ...r, 
                 isActiveConflict: false, 
-                strength: Math.max(10, r.strength - 20),
-                relationship: r.relationship - 10
+                strength: newStrength,
+                relationship: r.relationship - 15,
+                isDefeated: territoryGained,
+                controlledByPlayer: territoryGained,
+                dailyTribute: territoryGained ? territoryIncome : r.dailyTribute,
+                recoveryDays: territoryGained ? 10 : 5, // Longer recovery if territory taken
               };
             } else {
-              return { ...r, strength: Math.min(100, r.strength + 5) };
+              return { ...r, strength: Math.min(r.maxStrength, r.strength + 10) };
             }
           }
           return r;
         });
+
+        // Add to captured territories if territory gained
+        let updatedCapturedTerritories = [...state.capturedTerritories];
+        if (territoryGained && rival) {
+          updatedCapturedTerritories.push({
+            rivalId: rival.id,
+            districtName: rival.district,
+            dailyIncome: territoryIncome,
+            capturedOnDay: state.currentDay,
+            stability: 70, // Starts somewhat stable
+          });
+        }
 
         return {
           soldiers: remainingSoldiers,
           officers: updatedOfficers,
           buildings: updatedBuildings,
           rivals: updatedRivals,
+          capturedTerritories: updatedCapturedTerritories,
           cash: state.cash + cashGained,
           reputation: Math.max(0, Math.min(100, state.reputation + reputationChange)),
-          territoryFriction: victory ? Math.max(0, state.territoryFriction - 20) : Math.min(100, state.territoryFriction + 10),
+          territoryFriction: victory ? Math.max(0, state.territoryFriction - 30) : Math.min(100, state.territoryFriction + 15),
+          territoryInfluence: victory ? Math.min(100, state.territoryInfluence + 10) : Math.max(0, state.territoryInfluence - 5),
         };
       });
 
@@ -3318,8 +3416,10 @@ export const useGameStore = create<GameState>((set, get) => {
         reputationChange,
         cashGained,
         territoryGained,
+        territoryIncome,
         officerWounded,
         buildingLost,
+        newBuilding,
       };
     },
 
@@ -3339,7 +3439,103 @@ export const useGameStore = create<GameState>((set, get) => {
               : r
           ),
           territoryFriction: Math.max(0, state.territoryFriction - 15),
-          reputation: Math.max(0, state.reputation - 5), // Slight rep loss for paying tribute
+          reputation: Math.max(0, state.reputation - 5),
+        };
+      });
+    },
+
+    // ============= TERRITORY MANAGEMENT =============
+    processTerritoryIncome: () => {
+      set((state) => {
+        // Calculate income from captured territories
+        const territoryIncome = state.capturedTerritories.reduce((sum, t) => {
+          // Stability affects income
+          const stabilityMod = t.stability / 100;
+          return sum + Math.floor(t.dailyIncome * stabilityMod);
+        }, 0);
+
+        // Calculate income from alliances
+        const allianceIncome = state.rivals.filter(r => r.hasAlliance).length * 200;
+
+        // Calculate income from trade agreements
+        const tradeIncome = state.rivals.filter(r => r.hasTradeAgreement).length * 100;
+
+        // Reduce stability slightly each day (need to suppress rebellions)
+        const updatedTerritories = state.capturedTerritories.map(t => ({
+          ...t,
+          stability: Math.max(10, t.stability - 2), // Slow decay
+        }));
+
+        return {
+          cash: state.cash + territoryIncome + allianceIncome + tradeIncome,
+          capturedTerritories: updatedTerritories,
+        };
+      });
+    },
+
+    processRivalRecovery: () => {
+      set((state) => {
+        const updatedRivals = state.rivals.map(r => {
+          if (r.recoveryDays > 0) {
+            return { ...r, recoveryDays: r.recoveryDays - 1 };
+          }
+          // After recovery, rival regains some strength
+          if (r.strength < r.maxStrength && !r.controlledByPlayer) {
+            return { 
+              ...r, 
+              strength: Math.min(r.maxStrength, r.strength + 3),
+            };
+          }
+          return r;
+        });
+
+        // Check for territory rebellion (low stability = risk)
+        const updatedTerritories = state.capturedTerritories.filter(t => {
+          if (t.stability <= 15 && Math.random() < 0.3) {
+            // Territory rebels - rival reclaims it
+            return false;
+          }
+          return true;
+        });
+
+        // Update rivals based on reclaimed territories
+        const reclaimedRivalIds = state.capturedTerritories
+          .filter(t => !updatedTerritories.find(ut => ut.rivalId === t.rivalId))
+          .map(t => t.rivalId);
+
+        const finalRivals = updatedRivals.map(r => {
+          if (reclaimedRivalIds.includes(r.id)) {
+            return {
+              ...r,
+              isDefeated: false,
+              controlledByPlayer: false,
+              dailyTribute: 0,
+              strength: Math.min(r.maxStrength, r.strength + 15), // Boost from rebellion
+            };
+          }
+          return r;
+        });
+
+        return {
+          rivals: finalRivals,
+          capturedTerritories: updatedTerritories,
+        };
+      });
+    },
+
+    suppressTerritory: (rivalId: string) => {
+      set((state) => {
+        const suppressCost = 300;
+        if (state.cash < suppressCost) return state;
+
+        return {
+          cash: state.cash - suppressCost,
+          policeHeat: Math.min(100, state.policeHeat + 5),
+          capturedTerritories: state.capturedTerritories.map(t =>
+            t.rivalId === rivalId
+              ? { ...t, stability: Math.min(100, t.stability + 25) }
+              : t
+          ),
         };
       });
     },
