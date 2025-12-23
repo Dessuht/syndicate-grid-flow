@@ -14,7 +14,7 @@ export const CouncilMotionCard = ({ councilMotion, councilMembers }: CouncilMoti
   const { influence, handleCouncilVote, useInfluenceToOrderVote } = useGameStore();
   
   const isExpansion = councilMotion.type === 'expansion';
-  const icon = isExpansion ? Swords : HandCoins;
+  const Icon = isExpansion ? Swords : HandCoins;
   const color = isExpansion ? 'neon-red' : 'neon-green';
   
   const voteCounts = councilMembers.reduce((acc, member) => {
@@ -41,7 +41,9 @@ export const CouncilMotionCard = ({ councilMotion, councilMembers }: CouncilMoti
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className={cn("p-2 rounded-lg border", `bg-${color}/20 border-${color}/50`)}>
-          {icon && <motion.div className={cn("w-6 h-6", `text-${color}`)}>{icon({ className: "w-6 h-6" })}</motion.div>}
+          <motion.div className={cn("w-6 h-6", `text-${color}`)}>
+            <Icon className="w-6 h-6" />
+          </motion.div>
         </div>
         <div>
           <h3 className="font-display text-lg font-bold text-foreground">{councilMotion.title}</h3>
