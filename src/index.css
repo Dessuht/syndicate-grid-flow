@@ -8,12 +8,21 @@
 .leaflet-pane,
 .leaflet-top,
 .leaflet-bottom,
-.leaflet-control {
+.leaflet-control,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-container {
   z-index: 1 !important;
 }
 
-.leaflet-map-pane {
-  z-index: 1 !important;
+/* Ensure map containers don't create high stacking context */
+.leaflet-container {
+  isolation: isolate;
 }
 
 @layer base {
