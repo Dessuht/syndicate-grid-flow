@@ -131,7 +131,19 @@ export interface StreetSoldier {
   };
   skill: number;
   isDeserting: boolean;
+  // Experience & Progression
+  experience: number; // 0-100, accumulated through battles
+  battlesWon: number;
+  battlesLost: number;
+  kills: number;
+  specialization: SoldierSpecialization | null;
+  isVeteran: boolean; // True after 5+ battles won
+  isElite: boolean; // True after 10+ battles won and skill > 70
+  promotable: boolean; // True when experience >= 80 and skill >= 60
+  recruitedOnDay: number;
 }
+
+export type SoldierSpecialization = 'enforcer' | 'scout' | 'guard' | 'collector' | null;
 
 // Rival Gang Interface
 export interface RivalGang {
@@ -349,6 +361,10 @@ export interface GameState {
   recruitSoldier: () => void;
   setStipend: (amount: number) => void;
   paySoldierBonus: () => void;
+  trainSoldier: (soldierId: string) => void;
+  specializeSoldier: (soldierId: string, specialization: SoldierSpecialization) => void;
+  promoteSoldierToOfficer: (soldierId: string) => { success: boolean; officerName?: string; reason?: string };
+  dismissSoldier: (soldierId: string) => void;
 
   // Officer Management
   trainOfficer: (officerId: string, skill: 'enforcement' | 'diplomacy' | 'logistics' | 'recruitment') => void;

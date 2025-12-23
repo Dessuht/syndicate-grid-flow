@@ -555,11 +555,12 @@ const INITIAL_BUILDINGS: Building[] = [
   },
 ];
 
-const SOLDIER_NAMES = ['Ah Keung', 'Wai Gor', 'Siu Ming', 'Ah Fat', 'Lok Jai', 'Ah Sing', 'Chi Wai', 'Hung Jai'];
+const SOLDIER_NAMES = ['Ah Keung', 'Wai Gor', 'Siu Ming', 'Ah Fat', 'Lok Jai', 'Ah Sing', 'Chi Wai', 'Hung Jai', 'Tai Lo', 'Ah Ming', 'Fei Jai', 'Siu Ho'];
 
-const INITIAL_SOLDIERS: StreetSoldier[] = Array.from({ length: 6 }, (_, i) => ({
-  id: `sol-${i + 1}`,
-  name: SOLDIER_NAMES[i],
+// Helper function to create a new soldier with all required fields
+const createSoldier = (name: string, overrides: Partial<StreetSoldier> = {}): StreetSoldier => ({
+  id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  name,
   loyalty: 60 + Math.floor(Math.random() * 20),
   needs: {
     food: 70 + Math.floor(Math.random() * 20),
@@ -568,6 +569,21 @@ const INITIAL_SOLDIERS: StreetSoldier[] = Array.from({ length: 6 }, (_, i) => ({
   },
   skill: 30 + Math.floor(Math.random() * 40),
   isDeserting: false,
+  experience: 0,
+  battlesWon: 0,
+  battlesLost: 0,
+  kills: 0,
+  specialization: null,
+  isVeteran: false,
+  isElite: false,
+  promotable: false,
+  recruitedOnDay: 1,
+  ...overrides,
+});
+
+const INITIAL_SOLDIERS: StreetSoldier[] = Array.from({ length: 6 }, (_, i) => createSoldier(SOLDIER_NAMES[i], {
+  id: `sol-${i + 1}`,
+  recruitedOnDay: 1,
 }));
 
 const INITIAL_RIVALS: RivalGang[] = [
@@ -1491,18 +1507,12 @@ export const useGameStore = create<GameState>((set, get) => {
 
           case 'enslave':
             // Add a free worker (soldier with 0 pay needs)
-            const newSlave: StreetSoldier = {
-              id: `sol-${Date.now()}`,
-              name: state.eventData?.criminalName || 'Prisoner',
+            const newSlave = createSoldier(state.eventData?.criminalName || 'Prisoner', {
               loyalty: 20,
-              needs: {
-                food: 50,
-                entertainment: 30,
-                pay: 100,  // Doesn't need pay
-              },
+              needs: { food: 50, entertainment: 30, pay: 100 },
               skill: 20,
-              isDeserting: false,
-            };
+              recruitedOnDay: state.currentDay,
+            });
             updates.soldiers = [...state.soldiers, newSlave];
             break;
 
@@ -1838,14 +1848,13 @@ export const useGameStore = create<GameState>((set, get) => {
               const returnedSoldiers = Math.floor(rebelBase.rebelSoldierCount * 0.3);
               updates.soldiers = [
                 ...state.soldiers, 
-                ...Array(returnedSoldiers).fill(0).map(() => ({
-                  id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
-                  loyalty: 45 + Math.floor(Math.random() * 30),
-                  needs: { food: 70, entertainment: 50, pay: 60 },
-                  skill: 25 + Math.floor(Math.random() * 35),
-                  isDeserting: false,
-                }))
+                ...Array(returnedSoldiers).fill(0).map(() => 
+                  createSoldier(SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)], {
+                    loyalty: 45 + Math.floor(Math.random() * 30),
+                    skill: 25 + Math.floor(Math.random() * 35),
+                    recruitedOnDay: state.currentDay,
+                  })
+                )
               ];
             } else {
               // Defeat - civil war continues but we don't keep it active to prevent loops
@@ -1894,14 +1903,13 @@ export const useGameStore = create<GameState>((set, get) => {
             // All rebel soldiers return
             updates.soldiers = [
               ...state.soldiers, 
-              ...Array(rebelBase.rebelSoldierCount).fill(0).map(() => ({
-                id: `sol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
-                loyalty: 40 + Math.floor(Math.random() * 25),
-                needs: { food: 70, entertainment: 50, pay: 60 },
-                skill: 25 + Math.floor(Math.random() * 35),
-                isDeserting: false,
-              }))
+              ...Array(rebelBase.rebelSoldierCount).fill(0).map(() => 
+                createSoldier(SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)], {
+                  loyalty: 40 + Math.floor(Math.random() * 25),
+                  skill: 25 + Math.floor(Math.random() * 35),
+                  recruitedOnDay: state.currentDay,
+                })
+              )
             ];
             break;
         }
@@ -2339,18 +2347,10 @@ export const useGameStore = create<GameState>((set, get) => {
     recruitSoldier: () => {
       set((state) => {
         if (state.cash < 500) return state;
-        const newSoldier: StreetSoldier = {
-          id: `sol-${Date.now()}`,
-          name: SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
-          loyalty: 60 + Math.floor(Math.random() * 20),
-          needs: {
-            food: 70 + Math.floor(Math.random() * 20),
-            entertainment: 50 + Math.floor(Math.random() * 30),
-            pay: 60,
-          },
-          skill: 30 + Math.floor(Math.random() * 40),
-          isDeserting: false,
-        };
+        const newSoldier = createSoldier(
+          SOLDIER_NAMES[Math.floor(Math.random() * SOLDIER_NAMES.length)],
+          { recruitedOnDay: state.currentDay }
+        );
         return {
           cash: state.cash - 500,
           soldiers: [...state.soldiers, newSoldier],
@@ -2358,7 +2358,114 @@ export const useGameStore = create<GameState>((set, get) => {
       });
     },
 
-    // Character System
+    trainSoldier: (soldierId: string) => {
+      set((state) => {
+        const cost = 300;
+        if (state.cash < cost) return state;
+        
+        const soldier = state.soldiers.find(s => s.id === soldierId);
+        if (!soldier) return state;
+        
+        const skillIncrease = 3 + Math.floor(Math.random() * 5); // 3-7 increase
+        const expIncrease = 5 + Math.floor(Math.random() * 10); // 5-14 increase
+        
+        return {
+          cash: state.cash - cost,
+          soldiers: state.soldiers.map(s =>
+            s.id === soldierId
+              ? {
+                  ...s,
+                  skill: Math.min(100, s.skill + skillIncrease),
+                  experience: Math.min(100, s.experience + expIncrease),
+                  loyalty: Math.min(100, s.loyalty + 3), // Training builds loyalty
+                  promotable: (s.experience + expIncrease) >= 80 && (s.skill + skillIncrease) >= 60,
+                }
+              : s
+          )
+        };
+      });
+    },
+
+    specializeSoldier: (soldierId: string, specialization: 'enforcer' | 'scout' | 'guard' | 'collector' | null) => {
+      set((state) => {
+        const cost = 500;
+        if (state.cash < cost) return state;
+        
+        const soldier = state.soldiers.find(s => s.id === soldierId);
+        if (!soldier || soldier.specialization) return state; // Can't re-specialize
+        
+        // Bonus based on specialization
+        let skillBonus = 0;
+        if (specialization === 'enforcer') skillBonus = 10;
+        else if (specialization === 'guard') skillBonus = 5;
+        
+        return {
+          cash: state.cash - cost,
+          soldiers: state.soldiers.map(s =>
+            s.id === soldierId
+              ? {
+                  ...s,
+                  specialization,
+                  skill: Math.min(100, s.skill + skillBonus),
+                  experience: Math.min(100, s.experience + 10),
+                }
+              : s
+          )
+        };
+      });
+    },
+
+    promoteSoldierToOfficer: (soldierId: string) => {
+      const state = get();
+      const cost = 2000;
+      
+      const soldier = state.soldiers.find(s => s.id === soldierId);
+      if (!soldier) return { success: false, reason: 'Soldier not found' };
+      if (state.cash < cost) return { success: false, reason: 'Insufficient funds ($2,000 required)' };
+      if (!soldier.promotable && soldier.experience < 80) return { success: false, reason: 'Soldier needs more experience (80+)' };
+      if (!soldier.promotable && soldier.skill < 60) return { success: false, reason: 'Soldier needs more skill (60+)' };
+      
+      // Create new officer from soldier
+      const newOfficer: Officer = {
+        id: `off-${Date.now()}`,
+        name: soldier.name,
+        rank: 'Blue Lantern',
+        energy: 100,
+        maxEnergy: 100,
+        assignedBuildingId: null,
+        skills: {
+          enforcement: Math.floor(soldier.skill * 0.6) + (soldier.specialization === 'enforcer' ? 15 : 0),
+          diplomacy: 20 + Math.floor(Math.random() * 15),
+          logistics: 20 + Math.floor(Math.random() * 15) + (soldier.specialization === 'collector' ? 15 : 0),
+          recruitment: 20 + Math.floor(Math.random() * 15),
+        },
+        loyalty: Math.min(100, soldier.loyalty + 10), // Promotion boosts loyalty
+        face: soldier.battlesWon * 2 + (soldier.isVeteran ? 10 : 0) + (soldier.isElite ? 20 : 0),
+        currentAgenda: null,
+        traits: soldier.isElite ? ['Battle-Hardened'] : soldier.isVeteran ? ['Street Smart'] : [],
+        likes: ['Values Loyalty'] as any[],
+        dislikes: [] as any[],
+        relationships: [],
+        daysAssigned: 0,
+        daysIdle: 0,
+      };
+      
+      set({
+        cash: state.cash - cost,
+        soldiers: state.soldiers.filter(s => s.id !== soldierId),
+        officers: [...state.officers, newOfficer],
+      });
+      
+      return { success: true, officerName: soldier.name };
+    },
+
+    dismissSoldier: (soldierId: string) => {
+      set((state) => ({
+        soldiers: state.soldiers.filter(s => s.id !== soldierId),
+        reputation: Math.max(0, state.reputation - 1), // Small rep hit for dismissing
+      }));
+    },
+
     recruitSyndicateMember: () => {
       set((state) => {
         if (state.cash < state.recruitCost) return state;
