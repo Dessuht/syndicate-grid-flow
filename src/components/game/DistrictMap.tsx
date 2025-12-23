@@ -7,6 +7,7 @@ import { BuildingCard } from './BuildingCard';
 import { OfficersPanel } from './OfficersPanel';
 import { SoldiersPanel } from './SoldiersPanel';
 import { GameStatsPanel } from './GameStatsPanel';
+import { ManagementPanel } from './ManagementPanel';
 import { OfficerAssignmentModal } from './OfficerAssignmentModal';
 import { BuildingPurchaseModal } from './BuildingPurchaseModal';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,8 @@ import {
   ShieldAlert,
   Plus,
   BarChart3,
-  Users
+  Users,
+  Settings
 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -45,7 +47,7 @@ export const DistrictMap = () => {
 
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<'officers' | 'soldiers' | 'stats'>('officers');
+  const [rightPanelTab, setRightPanelTab] = useState<'officers' | 'soldiers' | 'stats' | 'manage'>('officers');
 
   const handleBuildingClick = (building: BuildingType) => {
     if (building.isRebelBase) {
@@ -231,16 +233,20 @@ export const DistrictMap = () => {
       {/* Right Sidebar with Tabs */}
       <div className="w-80 shrink-0 flex flex-col overflow-hidden">
         <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as any)} className="flex flex-col h-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="officers" className="gap-1">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="officers" className="gap-1 text-xs px-2">
               <Users className="w-3 h-3" />
               Officers
             </TabsTrigger>
-            <TabsTrigger value="soldiers" className="gap-1">
+            <TabsTrigger value="soldiers" className="gap-1 text-xs px-2">
               <Swords className="w-3 h-3" />
               Soldiers
             </TabsTrigger>
-            <TabsTrigger value="stats" className="gap-1">
+            <TabsTrigger value="manage" className="gap-1 text-xs px-2">
+              <Settings className="w-3 h-3" />
+              Manage
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-1 text-xs px-2">
               <BarChart3 className="w-3 h-3" />
               Stats
             </TabsTrigger>
@@ -252,6 +258,10 @@ export const DistrictMap = () => {
           
           <TabsContent value="soldiers" className="flex-1 overflow-auto mt-0">
             <SoldiersPanel />
+          </TabsContent>
+          
+          <TabsContent value="manage" className="flex-1 overflow-auto mt-0">
+            <ManagementPanel />
           </TabsContent>
           
           <TabsContent value="stats" className="flex-1 overflow-auto mt-0">
