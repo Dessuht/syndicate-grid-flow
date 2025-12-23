@@ -19,7 +19,8 @@ import type {
   CouncilMotion,
   CompatibilityLike,
   CompatibilityDislike,
-  StreetBeef
+  StreetBeef,
+  GameSpeed
 } from './gameStoreTypes';
 
 
@@ -616,6 +617,12 @@ export const useGameStore = create<GameState>((set, get) => {
     currentDay: 1,
     currentPhase: 'morning' as DayPhase,
     stipend: 50,
+
+    // Time System
+    gameSpeed: 1 as GameSpeed,
+    isPlaying: false,
+    timeInterval: null,
+    phaseProgress: 0,
 
     // Game Entities
     officers: INITIAL_OFFICERS,
@@ -2785,6 +2792,84 @@ export const useGameStore = create<GameState>((set, get) => {
           }
         ]
       }));
+    },
+
+    // Time Control System
+    setGameSpeed: (speed: GameSpeed) => {
+      const state = get();
+      set({ gameSpeed: speed });
+      
+      // Restart timer with new speed if playing
+      if (state.isPlaying && speed > 0) {
+        state.stopGameTimer();
+        get().startGameTimer();
+      } else if (speed === 0) {
+        state.stopGameTimer();
+        set({ isPlaying: false });
+      }
+    },
+
+    togglePlay: () => {
+      const state = get();
+      if (state.isPlaying) {
+        state.stopGameTimer();
+        set({ isPlaying: false });
+      } else {
+        set({ isPlaying: true });
+        get().startGameTimer();
+      }
+    },
+
+    startGameTimer: () => {
+      const state = get();
+      
+      // Clear any existing interval
+      if (state.timeInterval) {
+        clearInterval(state.timeInterval);
+      }
+      
+      // Base tick rate: 1 second for 1x speed
+      const baseTickMs = 1000;
+      const tickRate = Math.max(100, baseTickMs / Math.max(1, state.gameSpeed));
+      
+      const interval = setInterval(() => {
+        get().tickPhaseProgress();
+      }, tickRate);
+      
+      set({ timeInterval: interval as any });
+    },
+
+    stopGameTimer: () => {
+      const state = get();
+      if (state.timeInterval) {
+        clearInterval(state.timeInterval);
+        set({ timeInterval: null });
+      }
+    },
+
+    tickPhaseProgress: () => {
+      const state = get();
+      
+      // Don't tick if paused or speed is 0
+      if (!state.isPlaying || state.gameSpeed === 0) return;
+      
+      // Don't tick if there's a blocking event
+      const blockingEvents = ['dailyBriefing', 'policeShakedown', 'streetBeef', 'coupAttempt', 'newEra', 'policeRaid', 'betrayal', 'rivalAttack', 'streetWar'];
+      if (state.activeEvent && blockingEvents.includes(state.activeEvent)) {
+        return;
+      }
+      
+      // Progress increment per tick (faster with higher speed)
+      const progressIncrement = 2 * state.gameSpeed;
+      const newProgress = state.phaseProgress + progressIncrement;
+      
+      if (newProgress >= 100) {
+        // Phase complete - advance to next phase
+        set({ phaseProgress: 0 });
+        state.advancePhase();
+      } else {
+        set({ phaseProgress: newProgress });
+      }
     },
   };
 

@@ -198,6 +198,9 @@ export interface SocialFeedEntry {
   impact: 'positive' | 'negative' | 'neutral';
 }
 
+// Game Speed Type
+export type GameSpeed = 0 | 1 | 2 | 3 | 4;
+
 // Main Game State Interface
 export interface GameState {
   // Core Resources
@@ -209,6 +212,12 @@ export interface GameState {
   stipend: number;
   intel: number;
   influence: number;
+
+  // Time System
+  gameSpeed: GameSpeed;
+  isPlaying: boolean;
+  timeInterval: NodeJS.Timeout | null;
+  phaseProgress: number; // 0-100 progress within current phase
 
   // Game Entities
   officers: Officer[];
@@ -368,4 +377,11 @@ export interface GameState {
 
   // Resource management
   reduceHeat: (amount: number) => void;
+
+  // Time Control System
+  setGameSpeed: (speed: GameSpeed) => void;
+  togglePlay: () => void;
+  startGameTimer: () => void;
+  stopGameTimer: () => void;
+  tickPhaseProgress: () => void;
 }
