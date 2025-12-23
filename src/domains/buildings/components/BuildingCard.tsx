@@ -23,13 +23,13 @@ export const BuildingCard: React.FC<BuildingCardProps> = ({ building, onSelect, 
   };
 
   const handleUpgrade = () => {
-    if (!building.upgraded) {
-      upgradeBuilding(building.id);
+      if (!building.isUpgraded) {
+        upgradeBuilding(building.id);
     }
   };
 
   const assignedOfficer = building.assignedOfficerId ? getOfficerById(building.assignedOfficerId) : null;
-  const isUpgradable = !building.isRebelBase && !building.upgraded;
+  const isUpgradable = !building.isRebelBase && !building.isUpgraded;
 
   const getStatusColor = () => {
     if (building.isRebelBase) return 'bg-red-500';
@@ -40,7 +40,7 @@ export const BuildingCard: React.FC<BuildingCardProps> = ({ building, onSelect, 
 
   const getStatusText = () => {
     if (building.isRebelBase) return 'Rebel Base';
-    if (building.occupied && assignedOfficer) return `Occupied by ${assignedOfficer.name}`;
+    if (building.isOccupied && assignedOfficer) return `Occupied by ${assignedOfficer.name}`;
     if (building.inactiveUntilDay) return `Inactive until Day ${building.inactiveUntilDay}`;
     return 'Available';
   };

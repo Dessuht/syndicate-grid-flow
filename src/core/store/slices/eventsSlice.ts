@@ -37,9 +37,10 @@ export const createEventsSlice = (set: any, get: any) => ({
   },
   
   dismissEvent: () => {
-    set((state: GameState) => {
-      if (state.pendingEvents.length > 0) {
-        const [nextEvent, ...rest] = state.pendingEvents;
+    set((state: any) => {
+          const pendingEvents = (state as any).pendingEvents || [];
+          if (pendingEvents.length > 0) {
+            const [nextEvent, ...rest] = pendingEvents;
         return {
           activeEvent: nextEvent,
           eventData: nextEvent.data,
@@ -55,9 +56,9 @@ export const createEventsSlice = (set: any, get: any) => ({
     set((state: GameState) => {
       // Apply event effects
       const effects = choice.effects || {};
-      let updates: Partial<GameState> = {
-        activeEvent: null,
-        eventData: null,
+      let updates: any = {
+              activeEvent: null,
+              eventData: null,
       };
 
       // Apply resource changes
@@ -82,15 +83,15 @@ export const createEventsSlice = (set: any, get: any) => ({
   },
   
   addPendingEvent: (event: GameEvent) => {
-    set((state: GameState) => ({
-      pendingEvents: [...state.pendingEvents, event]
-    }));
+    set((state: any) => ({
+          pendingEvents: [...((state as any).pendingEvents || []), event]
+        }));
   },
   
   handleChoice: (choice: any) => {
-    set((state: GameState) => {
-      const event = state.activeEvent;
-      if (!event) return state;
+    set((state: any) => {
+          const event = (state as any).activeEvent;
+          if (!event) return state;
 
       // Find the choice and apply its effects
       const selectedChoice = event.choices?.find((c: any) => c.text === choice);

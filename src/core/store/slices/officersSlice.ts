@@ -36,21 +36,21 @@ export const createOfficersSlice = (set: any, get: any) => ({
   
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => {
-    set((state: GameState) => {
-      const officer = state.officers.find(o => o.id === officerId);
-      const building = state.buildings.find(b => b.id === buildingId);
+    set((state: any) => {
+          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+          const building = (state as any).buildings?.find((b: any) => b.id === buildingId);
       
       if (!officer || !building || building.isOccupied || officer.assignedBuildingId) {
         return state;
       }
 
       return {
-        officers: state.officers.map(o =>
+        officers: (state as any).officers?.map((o: any) =>
           o.id === officerId
             ? { ...o, assignedBuildingId: buildingId, daysIdle: 0 }
             : o
         ),
-        buildings: state.buildings.map(b =>
+        buildings: (state as any).buildings?.map((b: any) =>
           b.id === buildingId
             ? { ...b, isOccupied: true, assignedOfficerId: officerId }
             : b
@@ -60,9 +60,9 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   unassignOfficer: (officerId: string) => {
-    set((state: GameState) => {
-      const officer = state.officers.find(o => o.id === officerId);
-      if (!officer || !officer.assignedBuildingId) return state;
+    set((state: any) => {
+          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+          if (!officer || !officer.assignedBuildingId) return state;
 
       const buildingId = officer.assignedBuildingId;
       return {
@@ -115,10 +115,10 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   giveBonus: (officerId: string) => {
-    set((state: GameState) => {
-      const officer = state.officers.find(o => o.id === officerId);
-      const cost = 1000;
-      if (!officer || state.cash < cost) return state;
+    set((state: any) => {
+          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+          const cost = 1000;
+          if (!officer || (state as any).cash < cost) return state;
 
       // Spend $1,000 Cash
       // Boost Loyalty (+20)
@@ -142,12 +142,12 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   reprimandOfficer: (officerId: string) => {
-    set((state: GameState) => {
-      const officer = state.officers.find(o => o.id === officerId);
-      if (!officer) return state;
-
-      // Lower District Heat (-10)
-      const newHeat = Math.max(0, state.policeHeat - 10);
+    set((state: any) => {
+          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+          if (!officer) return state;
+    
+          // 1. Lower District Heat (-10)
+          const newHeat = Math.max(0, (state as any).policeHeat - 10);
 
       // Significantly lower Loyalty (-20)
       const newLoyalty = Math.max(0, officer.loyalty - 20);
@@ -164,12 +164,12 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   promoteOfficer: (officerId: string, newRank: OfficerRank) => {
-    set((state: GameState) => {
-      const officer = state.officers.find(o => o.id === officerId);
-      const cost = 5000; // PROMOTION_COST
-      const requiredFace = 50; // PROMOTION_FACE_REQUIREMENT
-
-      if (!officer || state.cash < cost || officer.face < requiredFace) return state;
+    set((state: any) => {
+          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+          const cost = 5000; // PROMOTION_COST
+          const requiredFace = 50; // PROMOTION_FACE_REQUIREMENT
+    
+          if (!officer || (state as any).cash < cost || officer.face < requiredFace) return state;
       if (officer.rank === newRank) return state;
 
       // Determine skill boost based on new rank
@@ -218,8 +218,8 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   designateSuccessor: (officerId: string) => {
-    set((state: GameState) => ({
-      officers: state.officers.map(o => ({
+    set((state: any) => ({
+          officers: (state as any).officers?.map((o: any) => ({
         ...o,
         isSuccessor: o.id === officerId,
       })),
@@ -227,13 +227,13 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   healOfficer: (officerId: string) => {
-    set((state: GameState) => {
-      if (state.cash < 2000) return state;
-      
-      return {
-        cash: state.cash - 2000,
-        officers: state.officers.map(o =>
-          o.id === officerId && o.isWounded
+    set((state: any) => {
+          if ((state as any).cash < 2000) return state;
+          
+          return {
+            cash: (state as any).cash - 2000,
+            officers: (state as any).officers?.map((o: any) =>
+              o.id === officerId && o.status?.isWounded
             ? { ...o, isWounded: false, daysToRecovery: 0 }
             : o
         ),
@@ -242,15 +242,15 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   releaseOfficer: (officerId: string) => {
-    set((state: GameState) => {
-      // Check if we have enough intel or cash
-      if (state.intel < 50 && state.cash < 5000) return state;
-      
-      return {
-        intel: state.intel >= 50 ? state.intel - 50 : state.intel,
-        cash: state.cash >= 5000 ? state.cash - 5000 : state.cash,
-        officers: state.officers.map(o =>
-          o.id === officerId && o.isArrested
+    set((state: any) => {
+          // Check if we have enough intel or cash
+          if ((state as any).intel < 50 && (state as any).cash < 5000) return state;
+          
+          return {
+            intel: (state as any).intel >= 50 ? (state as any).intel - 50 : (state as any).intel,
+            cash: (state as any).cash >= 5000 ? (state as any).cash - 5000 : (state as any).cash,
+            officers: (state as any).officers?.map((o: any) =>
+              o.id === officerId && o.status?.isArrested
             ? { ...o, isArrested: false }
             : o
         ),
@@ -259,9 +259,9 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   processRecovery: () => {
-    set((state: GameState) => {
-      const updatedOfficers = state.officers.map(o => {
-        if (o.isWounded && o.daysToRecovery > 0) {
+    set((state: any) => {
+          const updatedOfficers = (state as any).officers?.map((o: any) => {
+            if (o.status?.isWounded && o.status.daysToRecovery > 0) {
           const newDaysToRecovery = o.daysToRecovery - 1;
           // If recovery is complete, heal the officer
           if (newDaysToRecovery === 0) {

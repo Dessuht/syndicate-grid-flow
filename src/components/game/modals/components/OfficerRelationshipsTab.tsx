@@ -7,8 +7,12 @@ interface OfficerRelationshipsTabProps {
 }
 
 export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProps) => {
+  import { OfficerRelationship } from '@/types/relationships';
+  
+  import { OfficerRelationship } from '@/types/relationships';
+  
   // Helper functions for relationship display
-  const getRelationshipTypeColor = (relationship: OfficerRelationship) => {
+    const getRelationshipTypeColor = (relationship: OfficerRelationship) => {
     switch (relationship.type) {
       case 'loyal': return 'text-green-500';
       case 'friendly': return 'text-blue-500';

@@ -1,4 +1,4 @@
-import { StreetSoldier } from '../store/types';
+import { Soldier } from '../store/types';
 
 const SOLDIER_NAMES = ['Ah Keung', 'Wai Gor', 'Siu Ming', 'Ah Fat', 'Lok Jai', 'Ah Sing', 'Chi Wai', 'Hung Jai'];
 

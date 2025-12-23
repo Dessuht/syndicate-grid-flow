@@ -24,17 +24,17 @@ export const OfficerCard: React.FC<OfficerCardProps> = ({ officer, onSelect, isS
   };
 
   const getHealthColor = () => {
-    if (officer.isWounded) return 'bg-red-500';
-    if (officer.isArrested) return 'bg-orange-500';
+      if (officer.status?.isWounded) return 'bg-red-500';
+      if (officer.status?.isArrested) return 'bg-orange-500';
     if (officer.energy < 30) return 'bg-yellow-500';
     return 'bg-green-500';
   };
 
   const getStatusBadge = () => {
-    if (officer.isWounded) return { text: 'Wounded', variant: 'destructive' as const };
-    if (officer.isArrested) return { text: 'Arrested', variant: 'secondary' as const };
-    if (officer.isBetraying) return { text: 'Betraying', variant: 'destructive' as const };
-    if (officer.isSuccessor) return { text: 'Successor', variant: 'default' as const };
+      if (officer.status?.isWounded) return { text: 'Wounded', variant: 'destructive' as const };
+      if (officer.status?.isArrested) return { text: 'Arrested', variant: 'secondary' as const };
+      if (officer.status?.isBetraying) return { text: 'Betraying', variant: 'destructive' as const };
+      if (officer.status?.isSuccessor) return { text: 'Successor', variant: 'default' as const };
     return null;
   };
 

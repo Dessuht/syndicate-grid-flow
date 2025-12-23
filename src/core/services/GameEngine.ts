@@ -6,7 +6,7 @@ export class GameEngine {
 
   // Phase advancement logic
   advancePhase() {
-    const { currentPhase, getCurrentDay, getBuildings, getOfficers, setPhase, setCurrentDay } = this.store;
+      const { currentPhase, getCurrentDay, getBuildings, getOfficers, setPhase } = this.store;
     
     const phases: DayPhase[] = ['morning', 'day', 'evening', 'night'];
     const currentIndex = phases.indexOf(currentPhase);
@@ -83,7 +83,11 @@ export class GameEngine {
         }
       ];
       
-      const randomEvent = events[Math.floor(Math.random() * events.length)];
+      const randomEvent = {
+        ...events[Math.floor(Math.random() * events.length)],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
       triggerEvent(randomEvent);
     }
   }
@@ -98,7 +102,7 @@ export class GameEngine {
     if (!officer || !building) return false;
     if (officer.assignedBuildingId) return false;
     if (building.isOccupied) return false;
-    if (officer.isWounded || officer.isArrested) return false;
+    if (officer.status?.isWounded || officer.status?.isArrested) return false;
     
     return true;
   }
@@ -109,7 +113,7 @@ export class GameEngine {
     const building = getBuildingById(buildingId);
     
     if (!building) return false;
-    if (building.upgraded) return false;
+    if (building.isUpgraded) return false;
     if (building.isRebelBase) return false;
     
     return true;

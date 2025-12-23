@@ -1,4 +1,5 @@
-import { Officer, OfficerRank, OfficerSkills, ComplexRelationship } from '../store/types';
+import { Officer, OfficerRank, OfficerSkills } from '../store/types';
+import { OfficerRelationship } from '@/types/relationships';
 
 export const INITIAL_OFFICERS: Officer[] = [
   {

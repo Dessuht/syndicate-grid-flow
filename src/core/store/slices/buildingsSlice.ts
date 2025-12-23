@@ -27,8 +27,8 @@ export const createBuildingsSlice = (set: any, get: any) => ({
   selectedBuildingId: null,
   
   acquireBuilding: (buildingType: BuildingType) => {
-    set((state: GameState) => {
-      const BUILDING_COSTS = {
+    set((state: any) => {
+          const BUILDING_COSTS = {
         'Noodle Shop': 3000,
         'Mahjong Parlor': 5000,
         'Warehouse': 4000,
@@ -39,7 +39,7 @@ export const createBuildingsSlice = (set: any, get: any) => ({
       };
 
       const cost = BUILDING_COSTS[buildingType];
-      if (!cost || state.cash < cost) return state;
+      if (!cost || (state as any).cash < cost) return state;
 
       const newBuilding: Building = {
         id: `bld-${Date.now()}`,
@@ -65,35 +65,35 @@ export const createBuildingsSlice = (set: any, get: any) => ({
         entertainmentProvided: buildingType === 'Mahjong Parlor' ? 40 :
                              buildingType === 'Nightclub' ? 60 :
                              buildingType === 'Drug Lab' ? 20 : 0,
-        upgraded: false,
-        isRebelBase: false,
+                             isUpgraded: false,
+                             isRebelBase: false,
         rebelSoldierCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
 
       return {
-        cash: state.cash - cost,
-        buildings: [...state.buildings, newBuilding]
-      };
+              cash: (state as any).cash - cost,
+              buildings: [...((state as any).buildings || []), newBuilding]
+            };
     });
   },
 
   upgradeBuilding: (buildingId: string) => {
-    set((state: GameState) => {
-      const building = state.buildings.find(b => b.id === buildingId);
-      if (!building || building.upgraded || building.isRebelBase) return state;
-
-      const upgradeCost = building.baseRevenue * 2;
-      if (state.cash < upgradeCost) return state;
-
-      return {
-        cash: state.cash - upgradeCost,
-        buildings: state.buildings.map(b =>
-          b.id === buildingId ? { ...b, upgraded: true } : b
-        ),
-      };
-    });
+    set((state: any) => {
+          const building = (state as any).buildings?.find((b: any) => b.id === buildingId);
+          if (!building || building.isUpgraded || building.isRebelBase) return state;
+          
+          const upgradeCost = building.baseRevenue * 2;
+          if ((state as any).cash < upgradeCost) return state;
+          
+          return {
+            cash: (state as any).cash - upgradeCost,
+            buildings: (state as any).buildings?.map((b: any) =>
+              b.id === buildingId ? { ...b, isUpgraded: true } : b
+            ),
+          };
+        });
   },
 
   selectBuilding: (buildingId: string | null) => {

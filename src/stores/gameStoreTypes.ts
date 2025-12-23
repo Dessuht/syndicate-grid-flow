@@ -22,6 +22,8 @@ export interface OfficerSkills {
 export interface ResourceActions {
   reduceHeat: (amount: number) => void;
 }
+}
+}
 
 export interface StreetBeef {
   officer1Id: string;
@@ -98,7 +100,7 @@ export interface Building {
   isIllicit: boolean;
   foodProvided: number;
   entertainmentProvided: number;
-  upgraded: boolean;
+  isUpgraded: boolean;
   isRebelBase: boolean;
   rebelSoldierCount: number;
 }

@@ -178,6 +178,9 @@ const INITIAL_OFFICERS: Officer[] = [
     daysIdle: 0,
     relationships: [
       {
+        targetOfficerId: 'off-2',
+        type: 'neutral',
+        strength: 30,
         relationship: 30,
         interest: 0,
         respect: 40,
@@ -190,6 +193,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-3',
+        type: 'neutral',
+        strength: 45,
         relationship: 45,
         interest: 0,
         respect: 60,
@@ -202,6 +208,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-4',
+        type: 'neutral',
+        strength: 15,
         relationship: 15,
         interest: 0,
         respect: 30,
@@ -241,6 +250,9 @@ const INITIAL_OFFICERS: Officer[] = [
     daysIdle: 0,
     relationships: [
       {
+        targetOfficerId: 'off-1',
+        type: 'neutral',
+        strength: 35,
         relationship: 35,
         interest: 0,
         respect: 50,
@@ -253,6 +265,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-3',
+        type: 'neutral',
+        strength: 50,
         relationship: 50,
         interest: 0,
         respect: 70,
@@ -265,6 +280,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-4',
+        type: 'neutral',
+        strength: 25,
         relationship: 25,
         interest: 0,
         respect: 45,
@@ -304,6 +322,9 @@ const INITIAL_OFFICERS: Officer[] = [
     daysIdle: 0,
     relationships: [
       {
+        targetOfficerId: 'off-1',
+        type: 'neutral',
+        strength: 40,
         relationship: 40,
         interest: 0,
         respect: 55,
@@ -316,6 +337,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-2',
+        type: 'neutral',
+        strength: 45,
         relationship: 45,
         interest: 0,
         respect: 60,
@@ -328,6 +352,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-4',
+        type: 'neutral',
+        strength: 20,
         relationship: 20,
         interest: 0,
         respect: 35,
@@ -367,6 +394,9 @@ const INITIAL_OFFICERS: Officer[] = [
     daysIdle: 0,
     relationships: [
       {
+        targetOfficerId: 'off-1',
+        type: 'neutral',
+        strength: 30,
         relationship: 30,
         interest: 0,
         respect: 45,
@@ -379,6 +409,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-2',
+        type: 'neutral',
+        strength: 35,
         relationship: 35,
         interest: 0,
         respect: 50,
@@ -391,6 +424,9 @@ const INITIAL_OFFICERS: Officer[] = [
         grudges: []
       },
       {
+        targetOfficerId: 'off-3',
+        type: 'neutral',
+        strength: 25,
         relationship: 25,
         interest: 0,
         respect: 40,
@@ -572,13 +608,11 @@ const INITIAL_RIVALS: RivalGang[] = [
 export const useGameStore = create<GameState>((set, get) => {
   const store: GameState = {
     // Core Resources
-    resources: {
-      cash: 5000,
-      reputation: 50,
-      policeHeat: 15,
-      intel: 0,
-      influence: 10,
-    },
+    cash: 5000,
+    reputation: 50,
+    policeHeat: 15,
+    intel: 0,
+    influence: 10,
     currentDay: 1,
     currentPhase: 'morning' as DayPhase,
     stipend: 50,
@@ -854,7 +888,7 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     reduceHeat: (amount: number) => {
-        set((state) => ({ resources: { ...state.resources, policeHeat: Math.max(0, state.resources.policeHeat - amount) }));
+        set((state) => ({ policeHeat: Math.max(0, state.policeHeat - amount) }));
       },
 
     hostNightclub: () => {
@@ -930,7 +964,7 @@ export const useGameStore = create<GameState>((set, get) => {
       set((state) => {
         const officer = state.officers.find(o => o.id === officerId);
         const cost = 1000;
-            if (!officer || state.resources.cash < cost) return state;
+            if (!officer || state.cash < cost) return state;
 
         // 1. Spend $1,000 Cash
         // 2. Boost Loyalty (+20)
@@ -1032,7 +1066,7 @@ export const useGameStore = create<GameState>((set, get) => {
         }
 
         return {
-          resources: { ...state.resources, cash: state.resources.cash - cost },
+          cash: state.cash - cost,
           officers: state.officers.map(o =>
             o.id === officerId
               ? {
@@ -2423,7 +2457,7 @@ export const useGameStore = create<GameState>((set, get) => {
     // Hospital/Jail Recovery System
     healOfficer: (officerId: string) => {
       set((state) => {
-        if (state.resources.cash < 2000) return state;
+        if (state.cash < 2000) return state;
         
         return {
           cash: state.cash - 2000,
@@ -2439,7 +2473,7 @@ export const useGameStore = create<GameState>((set, get) => {
     releaseOfficer: (officerId: string) => {
       set((state) => {
         // Check if we have enough intel or cash
-            if (state.resources.intel < 50 && state.resources.cash < 5000) return state;
+            if (state.intel < 50 && state.cash < 5000) return state;
         
         return {
           intel: state.intel >= 50 ? state.intel - 50 : state.intel,
