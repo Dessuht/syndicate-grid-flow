@@ -7,6 +7,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { FaGlobe, FaChartLine, FaHandshake, FaShoppingCart, FaTimes, FaCheck, FaUsers, FaMapMarkerAlt, FaDollarSign, FaBrain, FaExclamationTriangle, FaHome, FaEye, FaBolt } from 'react-icons/fa';
 import { Swords } from 'lucide-react';
+import { BattleDeploymentModal } from './modals/BattleDeploymentModal';
 
 // Territory polygon boundaries in Hong Kong (lat, lng) - approximate district boundaries
 const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: string; center: [number, number] }> = {
@@ -74,6 +75,7 @@ export const GlobalMap = () => {
   const mapRef = useRef<L.Map | null>(null);
   const polygonsRef = useRef<L.Polygon[]>([]);
   const [selectedRival, setSelectedRival] = useState<string | null>(null);
+  const [battleModalRivalId, setBattleModalRivalId] = useState<string | null>(null);
   const activeRival = activeDiplomacy ? rivals.find(r => r.id === activeDiplomacy.rivalId) : null;
   const selectedRivalData = selectedRival ? rivals.find(r => r.id === selectedRival) : null;
   const assignedLeader = syndicateMembers.find(m => m.id === homeDistrictLeaderId);
@@ -409,8 +411,17 @@ export const GlobalMap = () => {
                     </Button>
                   )}
                   {selectedRivalData.isActiveConflict && (
-                    <div className="p-2 rounded bg-neon-red/10 border border-neon-red/30">
-                      <p className="text-xs text-neon-red font-medium">⚔️ Active War - resolve through combat or negotiate peace</p>
+                    <div className="space-y-2">
+                      <div className="p-2 rounded bg-neon-red/10 border border-neon-red/30">
+                        <p className="text-xs text-neon-red font-medium">⚔️ Active War - deploy forces to attack</p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="w-full gap-2 bg-neon-red hover:bg-neon-red/80 text-white"
+                        onClick={() => setBattleModalRivalId(selectedRivalData.id)}
+                      >
+                        <Swords className="w-4 h-4" /> Deploy Forces
+                      </Button>
                     </div>
                   )}
                   {selectedRivalData.hasAlliance && (
@@ -519,6 +530,16 @@ export const GlobalMap = () => {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Battle Deployment Modal */}
+      <AnimatePresence>
+        {battleModalRivalId && (
+          <BattleDeploymentModal
+            rivalId={battleModalRivalId}
+            onClose={() => setBattleModalRivalId(null)}
+          />
         )}
       </AnimatePresence>
     </div>
