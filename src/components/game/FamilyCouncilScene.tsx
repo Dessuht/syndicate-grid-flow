@@ -62,11 +62,14 @@ export const FamilyCouncilScene = () => {
     .slice(0, 3);
     
   // Generate motions when the scene loads if none exist
+  // Skip if we already have motions (e.g., from street beef resolution)
   useEffect(() => {
     if (councilMotions.length === 0) {
       generateCouncilMotions();
     }
-  }, [councilMotions.length, generateCouncilMotions]);
+    // Only run once on mount, not when councilMotions changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <motion.div

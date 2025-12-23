@@ -2863,6 +2863,15 @@ export const useGameStore = create<GameState>((set, get) => {
       const progressIncrement = 2 * state.gameSpeed;
       const newProgress = state.phaseProgress + progressIncrement;
       
+      // Territory friction increases over time during conflicts
+      let frictionUpdate = {};
+      if (state.rivals.some(r => r.isActiveConflict)) {
+        const frictionIncrease = 0.5 * state.gameSpeed;
+        frictionUpdate = { 
+          territoryFriction: Math.min(100, state.territoryFriction + frictionIncrease) 
+        };
+      }
+      
       // Random event chance on each tick (mob boss life is chaotic!)
       const eventChance = 0.02 * state.gameSpeed; // Higher speed = more events per phase
       if (Math.random() < eventChance) {
@@ -2871,10 +2880,10 @@ export const useGameStore = create<GameState>((set, get) => {
       
       if (newProgress >= 100) {
         // Phase complete - advance to next phase
-        set({ phaseProgress: 0 });
+        set({ phaseProgress: 0, ...frictionUpdate });
         state.advancePhase();
       } else {
-        set({ phaseProgress: newProgress });
+        set({ phaseProgress: newProgress, ...frictionUpdate });
       }
     },
 

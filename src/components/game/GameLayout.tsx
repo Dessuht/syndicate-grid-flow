@@ -49,10 +49,18 @@ export const GameLayout = () => {
     const sceneMap: Record<string, any> = {
       'district': 'DISTRICT',
       'global': 'GLOBAL',
-      'legal': 'LEGAL'
+      'legal': 'LEGAL',
+      'council': 'COUNCIL'
     };
     
     if (sceneMap[view]) {
+      // When switching to council, generate motions if needed
+      if (view === 'council') {
+        const state = useGameStore.getState();
+        if (state.councilMotions.length === 0) {
+          state.generateCouncilMotions();
+        }
+      }
       setCurrentScene(sceneMap[view]);
     }
   };
