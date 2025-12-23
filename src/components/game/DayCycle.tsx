@@ -189,6 +189,9 @@ export const DayCycle = () => {
           {isPlaying && (
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-neon-green rounded-full animate-ping" />
           )}
+          {!isPlaying && !isBlocked && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-neon-amber rounded-full" />
+          )}
         </div>
         <div>
           <div className="flex items-center gap-2">
@@ -199,6 +202,16 @@ export const DayCycle = () => {
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-green/20 text-neon-green font-medium">
                 LIVE
               </span>
+            )}
+            {!isPlaying && !isBlocked && (
+              <motion.span 
+                className="text-[10px] px-1.5 py-0.5 rounded bg-neon-amber/20 text-neon-amber font-medium cursor-pointer"
+                animate={{ opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                onClick={togglePlay}
+              >
+                PAUSED - Click to Resume
+              </motion.span>
             )}
             {isBlocked && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-amber/20 text-neon-amber font-medium">
