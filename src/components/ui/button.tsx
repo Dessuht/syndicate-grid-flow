@@ -1,23 +1,30 @@
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
+"use client";
 
-import { cn } from "@/lib/utils";
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        cyber: "font-display font-bold uppercase tracking-wider bg-neon-cyan/10 border border-neon-cyan/50 text-neon-cyan hover:border-neon-cyan hover:shadow-[0_0_20px_hsl(186_100%_50%/0.3)] active:scale-95",
-        nightclub: "font-display font-bold uppercase tracking-wider bg-neon-magenta/10 border border-neon-magenta/50 text-neon-magenta hover:border-neon-magenta hover:shadow-[0_0_20px_hsl(328_100%_50%/0.3)] active:scale-95",
-        danger: "font-display font-bold uppercase tracking-wider bg-neon-red/10 border border-neon-red/50 text-neon-red hover:border-neon-red hover:shadow-[0_0_20px_hsl(0_90%_55%/0.3)] active:scale-95",
+        // Custom game variants
+        cyber: "bg-gradient-to-r from-neon-cyan/20 to-neon-magenta/20 border border-neon-cyan/50 text-neon-cyan hover:from-neon-cyan/30 hover:to-neon-magenta/30 hover:border-neon-cyan hover:shadow-[0_0_20px_hsl(var(--neon-cyan)/0.3)]",
+        nightclub: "bg-gradient-to-r from-neon-magenta/20 to-neon-amber/20 border border-neon-magenta/50 text-neon-magenta hover:from-neon-magenta/30 hover:to-neon-amber/30 hover:border-neon-magenta hover:shadow-[0_0_20px_hsl(var(--neon-magenta)/0.3)]",
+        danger: "bg-gradient-to-r from-neon-red/20 to-neon-amber/20 border border-neon-red/50 text-neon-red hover:from-neon-red/30 hover:to-neon-amber/30 hover:border-neon-red hover:shadow-[0_0_20px_hsl(var(--neon-red)/0.3)]",
+        success: "bg-gradient-to-r from-neon-green/20 to-neon-cyan/20 border border-neon-green/50 text-neon-green hover:from-neon-green/30 hover:to-neon-cyan/30 hover:border-neon-green hover:shadow-[0_0_20px_hsl(var(--neon-green)/0.3)]",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -30,21 +37,27 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
-);
+  }
+)
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+  asChild?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
-  },
-);
-Button.displayName = "Button";
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
 
-export { Button, buttonVariants };
+export { Button, buttonVariants }

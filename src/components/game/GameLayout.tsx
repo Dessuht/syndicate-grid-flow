@@ -1,3 +1,5 @@
+"use client";
+
 import { useGameStore } from '@/stores/gameStore';
 import { ResourceBar } from './ResourceBar';
 import { DayCycle } from './DayCycle';
@@ -9,14 +11,26 @@ import { EventManager } from './EventManager';
 import { Sidebar } from './Sidebar';
 import { OfficersPanel } from './OfficersPanel';
 import { EmergencyFix } from './EmergencyFix';
+import { ToastProvider } from './ToastProvider';
+import { GameNotifications } from './GameNotifications';
+import { TutorialOverlay } from './TutorialOverlay';
 import { Card } from '@/components/ui/card';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, HelpCircle } from 'lucide-react';
 
 export const GameLayout = () => {
   const { currentScene, setCurrentScene } = useGameStore();
   const [showOfficersPanel, setShowOfficersPanel] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Check if tutorial should be shown
+  useEffect(() => {
+    const tutorialComplete = localStorage.getItem('kowloon-tutorial-complete');
+    if (!tutorialComplete) {
+      setShowTutorial(true);
+    }
+  }, []);
 
   const renderCurrentView = () => {
     switch (currentScene) {
@@ -45,12 +59,36 @@ export const GameLayout = () => {
     }
   };
 
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
+  };
+
+  const handleShowTutorial = () => {
+    localStorage.removeItem('kowloon-tutorial-complete');
+    setShowTutorial(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">
+      {/* Toast Provider */}
+      <ToastProvider />
+      
+      {/* Game Notifications */}
+      <GameNotifications />
+
       {/* Top Header with Resources */}
       <header className="border-b border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 flex items-center justify-between">
           <ResourceBar />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleShowTutorial}
+            className="text-muted-foreground hover:text-white"
+          >
+            <HelpCircle className="w-4 h-4 mr-1" />
+            Help
+          </Button>
         </div>
       </header>
 
@@ -115,6 +153,11 @@ export const GameLayout = () => {
       
       {/* Emergency Fix for Stuck Games */}
       <EmergencyFix />
+
+      {/* Tutorial Overlay */}
+      {showTutorial && (
+        <TutorialOverlay onComplete={handleTutorialComplete} />
+      )}
     </div>
   );
 };
