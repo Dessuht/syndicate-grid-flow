@@ -13,6 +13,7 @@ export const INITIAL_SOLDIERS: Soldier[] = Array.from({ length: 6 }, (_, i) => (
   },
   skill: 30 + Math.floor(Math.random() * 40),
   isDeserting: false,
+  assignedOfficerId: null,
   createdAt: Date.now(),
   updatedAt: Date.now()
 }));

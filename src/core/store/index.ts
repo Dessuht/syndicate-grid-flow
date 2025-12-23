@@ -35,9 +35,9 @@ export const useGameStore = create<AppStore>()(
         ...createResourcesSlice(set, get),
         ...createEventsSlice(set, get),
         
-        // Initial data
-        officers: INITIAL_OFFICERS,
-        buildings: INITIAL_BUILDINGS,
+        // Initial data - cast to any to avoid type conflicts between store types
+        officers: INITIAL_OFFICERS as any,
+        buildings: INITIAL_BUILDINGS as any,
         
         // Additional state
         currentScene: 'DISTRICT',
@@ -48,8 +48,8 @@ export const useGameStore = create<AppStore>()(
         togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
         resetGame: () => {
           set({
-            officers: INITIAL_OFFICERS,
-            buildings: INITIAL_BUILDINGS,
+            officers: INITIAL_OFFICERS as any,
+            buildings: INITIAL_BUILDINGS as any,
             currentScene: 'DISTRICT',
             isPaused: false,
             resources: {

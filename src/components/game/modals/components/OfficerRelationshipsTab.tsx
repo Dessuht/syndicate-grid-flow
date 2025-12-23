@@ -1,4 +1,4 @@
-import { Officer } from '@/stores/gameStoreTypes';
+import { Officer, CompatibilityLike, CompatibilityDislike } from '@/stores/gameStoreTypes';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { OfficerRelationshipCard } from './OfficerRelationshipCard';
 import type { OfficerRelationship } from '@/types/relationships';
@@ -58,8 +58,8 @@ export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProp
       isTraitor: false,
       isSuccessor: false,
       isTestingWaters: false,
-      likes: ['Respects Red Poles', 'Values Loyalty'],
-      dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
+      likes: ['Respects Red Poles', 'Values Loyalty'] as CompatibilityLike[],
+      dislikes: ['Hates Ambitious', 'Distrusts Calculating'] as CompatibilityDislike[],
       // ensure relationships property exists as required by Officer type
       relationships: [rel],
       createdAt: Date.now(),
