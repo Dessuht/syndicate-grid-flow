@@ -229,7 +229,7 @@ export const GlobalMap = () => {
   };
 
   return (
-    <div className="p-4 h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -270,10 +270,10 @@ export const GlobalMap = () => {
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
         {/* Map - larger area */}
-        <div className="flex-1 lg:flex-[2] relative rounded-lg overflow-hidden border border-border min-h-[400px] lg:min-h-0">
-          <div ref={mapContainer} className="absolute inset-0 z-0" style={{ background: '#1a1a2e' }} />
+        <div className="flex-1 lg:flex-[2] relative rounded-lg overflow-hidden border border-border" style={{ minHeight: '350px' }}>
+          <div ref={mapContainer} className="absolute inset-0" style={{ background: '#1a1a2e' }} />
         </div>
 
         {/* Info Panel - smaller sidebar */}

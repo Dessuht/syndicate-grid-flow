@@ -187,9 +187,20 @@ export const BattleDeploymentModal = ({ rivalId, onClose }: BattleDeploymentModa
               </div>
             )}
             {battleResult.territoryGained && (
-              <div className="flex justify-between items-center p-2 rounded bg-neon-green/10 border border-neon-green/30">
-                <span className="text-sm text-neon-green">Territory Claimed!</span>
-                <span className="font-bold text-neon-green">+1 District</span>
+              <div className="p-3 rounded bg-neon-green/10 border border-neon-green/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Flag className="w-5 h-5 text-neon-green" />
+                  <span className="font-bold text-neon-green">TERRITORY CAPTURED!</span>
+                </div>
+                <p className="text-xs text-neon-green/80">
+                  You now control {rival.district}. Daily tribute: +${battleResult.territoryIncome}/day
+                </p>
+              </div>
+            )}
+            {battleResult.newBuilding && (
+              <div className="flex justify-between items-center p-2 rounded bg-neon-purple/10 border border-neon-purple/30">
+                <span className="text-sm text-neon-purple">New Building Captured!</span>
+                <span className="font-bold text-neon-purple">{battleResult.newBuilding}</span>
               </div>
             )}
             {battleResult.officerWounded && (

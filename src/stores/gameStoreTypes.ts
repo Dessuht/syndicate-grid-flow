@@ -144,6 +144,21 @@ export interface RivalGang {
   hasAlliance: boolean;
   isScouted: boolean;
   isActiveConflict: boolean;
+  // Territory control
+  isDefeated: boolean;
+  controlledByPlayer: boolean;
+  dailyTribute: number; // Income from controlled territory
+  maxStrength: number; // For recovery tracking
+  recoveryDays: number; // Days until strength recovers
+}
+
+// Captured Territory
+export interface CapturedTerritory {
+  rivalId: string;
+  districtName: string;
+  dailyIncome: number;
+  capturedOnDay: number;
+  stability: number; // 0-100, low stability = risk of rebellion
 }
 
 // Conflict Resolution Data
@@ -259,6 +274,7 @@ export interface GameState {
   territoryFriction: number;
   territoryInfluence: number;
   frictionInterval: NodeJS.Timeout | null;
+  capturedTerritories: CapturedTerritory[];
 
   // Street War System
   streetWarRivalId: string | null;
@@ -395,8 +411,15 @@ export interface GameState {
     reputationChange: number;
     cashGained: number;
     territoryGained: boolean;
+    territoryIncome: number;
     officerWounded?: string;
     buildingLost?: string;
+    newBuilding?: string;
   };
   negotiatePeace: (rivalId: string) => void;
+  
+  // Territory Management
+  processTerritoryIncome: () => void;
+  processRivalRecovery: () => void;
+  suppressTerritory: (rivalId: string) => void;
 }
