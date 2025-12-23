@@ -9,7 +9,6 @@ import { LegalMedicalView } from './LegalMedicalView';
 import { FamilyCouncilScene } from './FamilyCouncilScene';
 import { EventManager } from './EventManager';
 import { Sidebar } from './Sidebar';
-import { OfficersPanel } from './OfficersPanel';
 import { EmergencyFix } from './EmergencyFix';
 import { ToastProvider } from './ToastProvider';
 import { GameNotifications } from './GameNotifications';
@@ -17,11 +16,10 @@ import { TutorialOverlay } from './TutorialOverlay';
 import { Card } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, HelpCircle } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 
 export const GameLayout = () => {
   const { currentScene, setCurrentScene } = useGameStore();
-  const [showOfficersPanel, setShowOfficersPanel] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
   // Check if tutorial should be shown
@@ -98,7 +96,6 @@ export const GameLayout = () => {
           <Sidebar
             activeView={currentScene.toLowerCase() as any}
             onViewChange={handleViewChange}
-            onOfficersPanelOpen={() => setShowOfficersPanel(true)}
           />
         </aside>
 
@@ -118,34 +115,6 @@ export const GameLayout = () => {
             </Card>
           </div>
         </main>
-
-        {/* Right Panel - Officers Panel */}
-        <aside className={`
-          border-l border-slate-700 bg-slate-900/30 backdrop-blur-sm transition-all duration-300
-          ${showOfficersPanel ? 'w-96' : 'w-0 overflow-hidden'}
-        `}>
-          {showOfficersPanel && (
-            <div className="h-full flex flex-col">
-              {/* Panel Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                <h3 className="text-lg font-bold text-white">Officers</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowOfficersPanel(false)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {/* Officers Panel Content */}
-              <div className="flex-1 overflow-auto p-4">
-                <OfficersPanel />
-              </div>
-            </div>
-          )}
-        </aside>
       </div>
       
       {/* Event Manager Overlay */}

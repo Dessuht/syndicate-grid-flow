@@ -364,3 +364,4 @@ export interface GameState {
 
   // Resource management
   reduceHeat: (amount: number) => void;
+}

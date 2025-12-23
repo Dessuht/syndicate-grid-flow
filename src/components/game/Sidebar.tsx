@@ -9,7 +9,6 @@ export type ViewType = 'district' | 'global' | 'legal';
 interface SidebarProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
-  onOfficersPanelOpen?: () => void;
 }
 
 const NAV_ITEMS = [
@@ -33,7 +32,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export const Sidebar = ({ activeView, onViewChange, onOfficersPanelOpen }: SidebarProps) => {
+export const Sidebar = ({ activeView, onViewChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { rivals, officers, isCivilWarActive } = useGameStore();
   
@@ -137,29 +136,6 @@ export const Sidebar = ({ activeView, onViewChange, onOfficersPanelOpen }: Sideb
               </button>
             );
           })}
-          
-          {/* Officers Panel Button */}
-          <button
-            onClick={onOfficersPanelOpen}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200",
-              "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-primary"
-            )}
-          >
-            <Users className="w-5 h-5 shrink-0 text-neon-magenta" />
-            
-            {!isCollapsed && (
-              <div className="text-left flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">Officers</p>
-                  <span className="flex h-2 w-2">
-                    <span className="relative h-2 w-2 rounded-full bg-neon-magenta"></span>
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">View all officers</p>
-              </div>
-            )}
-          </button>
         </div>
       </nav>
 
