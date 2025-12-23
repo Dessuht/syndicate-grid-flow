@@ -1,10 +1,10 @@
-import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle, Heart, Lock, Swords } from 'lucide-react';
+import { Building, Globe, Users, TrendingUp, Shield, Menu, AlertTriangle, Heart, Lock, Swords, Scale } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 
-export type ViewType = 'district' | 'global' | 'legal';
+export type ViewType = 'district' | 'global' | 'legal' | 'council';
 
 interface SidebarProps {
   activeView: ViewType;
@@ -29,6 +29,12 @@ const NAV_ITEMS = [
     label: 'Legal & Medical',
     icon: Heart,
     description: 'Hospital & jail management'
+  },
+  {
+    id: 'council' as ViewType,
+    label: 'Family Council',
+    icon: Scale,
+    description: 'Call council meetings'
   },
 ];
 
