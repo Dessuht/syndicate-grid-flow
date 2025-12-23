@@ -364,38 +364,59 @@ export const GlobalMap = () => {
                   )}
                 </div>
                 
-                <div className="space-y-2">
-                  {!selectedRivalData.hasTradeAgreement && (
+                {/* Diplomacy Actions */}
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground font-semibold mb-2">Diplomacy</p>
+                  {!selectedRivalData.hasTradeAgreement && !selectedRivalData.isActiveConflict && (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="w-full justify-start gap-2 border-neon-amber/30 text-neon-amber hover:bg-neon-amber/10"
-                      onClick={() => initiateDiplomacy(selectedRivalData.id, 'trade')}
+                      onClick={() => {
+                        initiateDiplomacy(selectedRivalData.id, 'trade');
+                        confirmDiplomacy();
+                      }}
                       disabled={cash < 1000}
                     >
-                      <FaChartLine className="w-4 h-4" /> Trade ($1,000)
+                      <FaChartLine className="w-4 h-4" /> Propose Trade ($1,000)
                     </Button>
                   )}
-                  {!selectedRivalData.hasAlliance && (
+                  {selectedRivalData.hasTradeAgreement && !selectedRivalData.hasAlliance && !selectedRivalData.isActiveConflict && (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="w-full justify-start gap-2 border-neon-green/30 text-neon-green hover:bg-neon-green/10"
-                      onClick={() => initiateDiplomacy(selectedRivalData.id, 'alliance')}
+                      onClick={() => {
+                        initiateDiplomacy(selectedRivalData.id, 'alliance');
+                        confirmDiplomacy();
+                      }}
                       disabled={selectedRivalData.relationship < 30}
                     >
-                      <FaHandshake className="w-4 h-4" /> Alliance {selectedRivalData.relationship < 30 && '(+30)'}
+                      <FaHandshake className="w-4 h-4" /> Form Alliance {selectedRivalData.relationship < 30 && `(Need +${30 - selectedRivalData.relationship} rep)`}
                     </Button>
                   )}
-                  {!selectedRivalData.hasAlliance && (
+                  {!selectedRivalData.hasAlliance && !selectedRivalData.isActiveConflict && (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="w-full justify-start gap-2 border-neon-red/30 text-neon-red hover:bg-neon-red/10"
-                      onClick={() => initiateDiplomacy(selectedRivalData.id, 'turfWar')}
+                      onClick={() => {
+                        initiateDiplomacy(selectedRivalData.id, 'turfWar');
+                        confirmDiplomacy();
+                      }}
                     >
-                      <Swords className="w-4 h-4" /> Turf War
+                      <Swords className="w-4 h-4" /> Declare Turf War
                     </Button>
+                  )}
+                  {selectedRivalData.isActiveConflict && (
+                    <div className="p-2 rounded bg-neon-red/10 border border-neon-red/30">
+                      <p className="text-xs text-neon-red font-medium">⚔️ Active War - resolve through combat or negotiate peace</p>
+                    </div>
+                  )}
+                  {selectedRivalData.hasAlliance && (
+                    <div className="p-2 rounded bg-neon-green/10 border border-neon-green/30">
+                      <p className="text-xs text-neon-green font-medium">🤝 Allied - +$200/day passive income</p>
+                    </div>
                   )}
                 </div>
               </motion.div>

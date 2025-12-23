@@ -332,11 +332,10 @@ export interface GameState {
   // Soldiers
   recruitSoldier: () => void;
   setStipend: (amount: number) => void;
+  paySoldierBonus: () => void;
 
-  // Character System
-  recruitSyndicateMember: () => void;
-  assignSyndicateMember: (memberId: string) => void;
-  unassignSyndicateMember: () => void;
+  // Officer Management
+  trainOfficer: (officerId: string, skill: 'enforcement' | 'diplomacy' | 'logistics' | 'recruitment') => void;
   processRacketCycle: () => void;
   scoutTerritory: (rivalId: string) => void;
 

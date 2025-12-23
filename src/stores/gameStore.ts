@@ -2375,6 +2375,49 @@ export const useGameStore = create<GameState>((set, get) => {
       });
     },
 
+    // Management Actions
+    paySoldierBonus: () => {
+      set((state) => {
+        const bonusCost = state.soldiers.length * 100;
+        if (state.cash < bonusCost) return state;
+        
+        return {
+          cash: state.cash - bonusCost,
+          soldiers: state.soldiers.map(s => ({
+            ...s,
+            loyalty: Math.min(100, s.loyalty + 10)
+          }))
+        };
+      });
+    },
+
+    trainOfficer: (officerId: string, skill: 'enforcement' | 'diplomacy' | 'logistics' | 'recruitment') => {
+      set((state) => {
+        const cost = 500;
+        if (state.cash < cost) return state;
+        
+        const officer = state.officers.find(o => o.id === officerId);
+        if (!officer) return state;
+        
+        const skillIncrease = 5 + Math.floor(Math.random() * 5); // 5-10 increase
+        
+        return {
+          cash: state.cash - cost,
+          officers: state.officers.map(o =>
+            o.id === officerId
+              ? {
+                  ...o,
+                  skills: {
+                    ...o.skills,
+                    [skill]: Math.min(100, o.skills[skill] + skillIncrease)
+                  }
+                }
+              : o
+          )
+        };
+      });
+    },
+
     scoutTerritory: (rivalId: string) => {
       set((state) => {
         const cost = 100;
