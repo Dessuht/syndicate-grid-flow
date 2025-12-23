@@ -4,6 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix Leaflet map z-index to not overlap modals */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 1 !important;
+}
+
+.leaflet-map-pane {
+  z-index: 1 !important;
+}
+
 @layer base {
   :root {
     /* Neon Noir Color System */
