@@ -384,4 +384,8 @@ export interface GameState {
   startGameTimer: () => void;
   stopGameTimer: () => void;
   tickPhaseProgress: () => void;
+
+  // Random Event System
+  triggerRandomEvent: () => void;
+  triggerEventByType: (eventType: EventType) => void;
 }
