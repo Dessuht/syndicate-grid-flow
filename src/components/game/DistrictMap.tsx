@@ -104,16 +104,7 @@ export const DistrictMap = () => {
     toast.success('🎉 Party was a success!');
   };
 
-  const phaseButtonText = {
-    morning: 'Start Operations',
-    day: 'End Work Day',
-    evening: 'Begin Night',
-    night: 'Next Day',
-  };
-  
   const rebelOfficer = officers.find(o => o.id === rebelOfficerId);
-  
-  const isPhaseBlocked = isCivilWarActive || activeEvent === 'dailyBriefing';
 
   return (
     <div className="flex gap-4 p-4 h-full">
@@ -146,34 +137,12 @@ export const DistrictMap = () => {
               variant="nightclub" 
               size="default" 
               onClick={handleHostNightclub} 
-              disabled={cash < 1000 || isPhaseBlocked}
+              disabled={cash < 1000 || isCivilWarActive}
               className="gap-2"
             >
               <PartyPopper className="w-4 h-4" />
               Party ($1k)
             </Button>
-            
-            {isPhaseBlocked ? (
-              <Button 
-                variant="destructive" 
-                size="default" 
-                disabled={true}
-                className="gap-2 animate-pulse"
-              >
-                {isCivilWarActive ? <Swords className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                {isCivilWarActive ? 'Civil War Active' : 'Morning Briefing Required'}
-              </Button>
-            ) : (
-              <Button 
-                variant="cyber" 
-                size="default" 
-                onClick={advancePhase} 
-                className="gap-2"
-              >
-                {currentPhase === 'night' ? <SkipForward className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                {phaseButtonText[currentPhase]}
-              </Button>
-            )}
           </div>
         </div>
 
@@ -213,7 +182,7 @@ export const DistrictMap = () => {
         </AnimatePresence>
 
         {/* Phase Status */}
-        {currentPhase === 'morning' && !isPhaseBlocked && (
+        {currentPhase === 'morning' && !isCivilWarActive && (
           <div className="mb-3 p-2 rounded-lg bg-neon-green/10 border border-neon-green/30">
             <p className="text-sm text-neon-green">
               ☀️ Morning Phase: Click on empty buildings to assign officers.
@@ -221,7 +190,7 @@ export const DistrictMap = () => {
           </div>
         )}
         
-        {currentPhase !== 'morning' && !isPhaseBlocked && (
+        {currentPhase !== 'morning' && !isCivilWarActive && (
           <div className="mb-3 p-2 rounded-lg bg-secondary/50 border border-border">
             <p className="text-sm text-muted-foreground">
               Assignments locked. Wait for morning to reassign officers.

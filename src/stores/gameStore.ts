@@ -2854,7 +2854,7 @@ export const useGameStore = create<GameState>((set, get) => {
       if (!state.isPlaying || state.gameSpeed === 0) return;
       
       // Don't tick if there's a blocking event
-      const blockingEvents = ['dailyBriefing', 'policeShakedown', 'streetBeef', 'coupAttempt', 'newEra', 'policeRaid', 'betrayal', 'rivalAttack', 'streetWar'];
+      const blockingEvents = ['dailyBriefing', 'policeShakedown', 'streetBeef', 'coupAttempt', 'newEra', 'policeRaid', 'betrayal', 'rivalAttack', 'streetWar', 'criminalCaught', 'soldierDesertion', 'territoryUltimatum'];
       if (state.activeEvent && blockingEvents.includes(state.activeEvent)) {
         return;
       }
@@ -2863,12 +2863,261 @@ export const useGameStore = create<GameState>((set, get) => {
       const progressIncrement = 2 * state.gameSpeed;
       const newProgress = state.phaseProgress + progressIncrement;
       
+      // Random event chance on each tick (mob boss life is chaotic!)
+      const eventChance = 0.02 * state.gameSpeed; // Higher speed = more events per phase
+      if (Math.random() < eventChance) {
+        get().triggerRandomEvent();
+      }
+      
       if (newProgress >= 100) {
         // Phase complete - advance to next phase
         set({ phaseProgress: 0 });
         state.advancePhase();
       } else {
         set({ phaseProgress: newProgress });
+      }
+    },
+
+    // Random event system for live simulation
+    triggerRandomEvent: () => {
+      const state = get();
+      
+      // Don't trigger if already have an event
+      if (state.activeEvent) return;
+      
+      const { officers, buildings, soldiers, policeHeat, rivals, currentPhase } = state;
+      
+      // Weight events based on game state
+      const possibleEvents: { type: EventType; weight: number; condition: boolean }[] = [
+        // Police-related events (more likely with high heat)
+        { 
+          type: 'policeRaid', 
+          weight: policeHeat > 50 ? 3 : policeHeat > 30 ? 2 : 1,
+          condition: policeHeat > 20 && buildings.some(b => b.isOccupied && b.isIllicit)
+        },
+        { 
+          type: 'policeShakedown', 
+          weight: policeHeat > 40 ? 2 : 1,
+          condition: policeHeat > 25
+        },
+        
+        // Officer-related events
+        { 
+          type: 'streetBeef', 
+          weight: 2,
+          condition: officers.filter(o => !o.isWounded && !o.isArrested).length >= 2
+        },
+        { 
+          type: 'betrayal', 
+          weight: 1,
+          condition: officers.some(o => o.loyalty < 40 && !o.isWounded && !o.isArrested)
+        },
+        
+        // Rival-related events
+        { 
+          type: 'rivalAttack', 
+          weight: 2,
+          condition: rivals.some(r => r.relationship < -20 && !r.isActiveConflict)
+        },
+        { 
+          type: 'territoryUltimatum', 
+          weight: 1,
+          condition: rivals.some(r => r.relationship < -30 && r.strength > 50)
+        },
+        
+        // Soldier events
+        { 
+          type: 'soldierDesertion', 
+          weight: 1,
+          condition: soldiers.some(s => s.loyalty < 40)
+        },
+        
+        // Criminal caught (officer gets in trouble)
+        { 
+          type: 'criminalCaught', 
+          weight: policeHeat > 30 ? 2 : 1,
+          condition: officers.some(o => o.assignedBuildingId && !o.isArrested)
+        },
+        
+        // Night-specific events
+        { 
+          type: 'nightclubSuccess', 
+          weight: 1,
+          condition: currentPhase === 'night' && buildings.some(b => b.type === 'Nightclub' && b.isOccupied)
+        },
+      ];
+      
+      // Filter to valid events
+      const validEvents = possibleEvents.filter(e => e.condition);
+      if (validEvents.length === 0) return;
+      
+      // Weighted random selection
+      const totalWeight = validEvents.reduce((sum, e) => sum + e.weight, 0);
+      let random = Math.random() * totalWeight;
+      
+      for (const event of validEvents) {
+        random -= event.weight;
+        if (random <= 0) {
+          // Trigger this event
+          get().triggerEventByType(event.type);
+          return;
+        }
+      }
+    },
+
+    triggerEventByType: (eventType: EventType) => {
+      const state = get();
+      const { officers, buildings, soldiers, rivals } = state;
+      
+      // Pause the game when event triggers
+      state.stopGameTimer();
+      set({ isPlaying: false });
+      
+      switch (eventType) {
+        case 'policeRaid': {
+          const illicitBuildings = buildings.filter(b => b.isOccupied && b.isIllicit);
+          if (illicitBuildings.length > 0) {
+            const targetBuilding = illicitBuildings[Math.floor(Math.random() * illicitBuildings.length)];
+            const assignedOfficer = officers.find(o => o.id === targetBuilding.assignedOfficerId);
+            set({ 
+              activeEvent: 'policeRaid', 
+              eventData: { 
+                buildingId: targetBuilding.id,
+                buildingName: targetBuilding.name,
+                officerId: assignedOfficer?.id,
+                officerName: assignedOfficer?.name,
+                severity: state.policeHeat > 60 ? 'heavy' : 'light'
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'policeShakedown': {
+          set({ 
+            activeEvent: 'policeShakedown', 
+            eventData: { 
+              bribeCost: Math.floor(500 + state.policeHeat * 20),
+              heatReduction: 15
+            }
+          });
+          break;
+        }
+        
+        case 'streetBeef': {
+          const activeOfficers = officers.filter(o => !o.isWounded && !o.isArrested);
+          if (activeOfficers.length >= 2) {
+            const shuffled = [...activeOfficers].sort(() => Math.random() - 0.5);
+            set({ 
+              activeEvent: 'streetBeef', 
+              eventData: { 
+                officer1Id: shuffled[0].id,
+                officer1Name: shuffled[0].name,
+                officer2Id: shuffled[1].id,
+                officer2Name: shuffled[1].name,
+                reason: ['territory dispute', 'personal insult', 'money disagreement', 'loyalty question'][Math.floor(Math.random() * 4)]
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'betrayal': {
+          const disloyal = officers.filter(o => o.loyalty < 40 && !o.isWounded && !o.isArrested);
+          if (disloyal.length > 0) {
+            const traitor = disloyal[Math.floor(Math.random() * disloyal.length)];
+            set({ 
+              activeEvent: 'betrayal', 
+              eventData: { 
+                officerId: traitor.id,
+                officerName: traitor.name,
+                type: Math.random() > 0.5 ? 'information_leak' : 'theft'
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'rivalAttack': {
+          const hostileRivals = rivals.filter(r => r.relationship < -20 && !r.isActiveConflict);
+          if (hostileRivals.length > 0) {
+            const attacker = hostileRivals[Math.floor(Math.random() * hostileRivals.length)];
+            const targetBuilding = buildings.filter(b => b.isOccupied)[Math.floor(Math.random() * buildings.filter(b => b.isOccupied).length)];
+            set({ 
+              activeEvent: 'rivalAttack', 
+              eventData: { 
+                rivalId: attacker.id,
+                rivalName: attacker.name,
+                buildingId: targetBuilding?.id,
+                buildingName: targetBuilding?.name
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'soldierDesertion': {
+          const unhappySoldiers = soldiers.filter(s => s.loyalty < 40);
+          if (unhappySoldiers.length > 0) {
+            const deserter = unhappySoldiers[Math.floor(Math.random() * unhappySoldiers.length)];
+            set({ 
+              activeEvent: 'soldierDesertion', 
+              eventData: { 
+                soldierId: deserter.id,
+                soldierName: deserter.name,
+                reason: deserter.needs.pay < 50 ? 'low pay' : deserter.needs.food < 50 ? 'hunger' : 'low morale'
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'criminalCaught': {
+          const workingOfficers = officers.filter(o => o.assignedBuildingId && !o.isArrested);
+          if (workingOfficers.length > 0) {
+            const caught = workingOfficers[Math.floor(Math.random() * workingOfficers.length)];
+            set({ 
+              activeEvent: 'criminalCaught', 
+              eventData: { 
+                officerId: caught.id,
+                officerName: caught.name,
+                bailCost: Math.floor(1000 + Math.random() * 2000)
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'nightclubSuccess': {
+          const cashBonus = Math.floor(500 + Math.random() * 1000);
+          set({ 
+            activeEvent: 'nightclubSuccess', 
+            eventData: { 
+              cashBonus,
+              reputationBonus: Math.floor(5 + Math.random() * 10)
+            }
+          });
+          break;
+        }
+        
+        case 'territoryUltimatum': {
+          const aggressiveRivals = rivals.filter(r => r.relationship < -30 && r.strength > 50);
+          if (aggressiveRivals.length > 0) {
+            const aggressor = aggressiveRivals[Math.floor(Math.random() * aggressiveRivals.length)];
+            set({ 
+              activeEvent: 'territoryUltimatum', 
+              eventData: { 
+                rivalId: aggressor.id,
+                rivalName: aggressor.name,
+                demand: Math.floor(1000 + aggressor.strength * 30)
+              }
+            });
+          }
+          break;
+        }
+        
+        default:
+          break;
       }
     },
   };
