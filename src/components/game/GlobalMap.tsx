@@ -273,7 +273,7 @@ export const GlobalMap = () => {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
         {/* Map - larger area */}
         <div className="flex-1 lg:flex-[2] relative rounded-lg overflow-hidden border border-border min-h-[400px] lg:min-h-0">
-          <div ref={mapContainer} className="absolute inset-0" style={{ background: '#1a1a2e' }} />
+          <div ref={mapContainer} className="absolute inset-0 z-0" style={{ background: '#1a1a2e' }} />
         </div>
 
         {/* Info Panel - smaller sidebar */}
