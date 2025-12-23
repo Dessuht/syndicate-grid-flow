@@ -1,18 +1,16 @@
 import { Officer } from '@/stores/gameStoreTypes';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { OfficerRelationshipCard } from './OfficerRelationshipCard';
+import type { OfficerRelationship } from '@/types/relationships';
 
 interface OfficerRelationshipsTabProps {
   officer: Officer;
 }
 
 export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProps) => {
-  import { OfficerRelationship } from '@/types/relationships';
-  
-  import { OfficerRelationship } from '@/types/relationships';
-  
+
   // Helper functions for relationship display
-    const getRelationshipTypeColor = (relationship: OfficerRelationship) => {
+  const getRelationshipTypeColor = (relationship: OfficerRelationship) => {
     switch (relationship.type) {
       case 'loyal': return 'text-green-500';
       case 'friendly': return 'text-blue-500';
@@ -35,14 +33,16 @@ export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProp
   };
 
   // Simple relationships data - using officer's existing relationships array
-  const relationships = officer.relationships.map((rel, index) => ({
-    officer: {
+  const relationships = (officer.relationships || []).map((rel: any, index: number) => {
+    // Build a minimal compatible Officer object for display (include relationships)
+    const otherOfficer = {
       id: `officer-${index}`,
       name: `Officer ${index + 1}`,
       rank: 'Red Pole' as const,
       energy: 100,
       maxEnergy: 100,
       assignedBuildingId: null,
+      // include legacy flat flags for compatibility
       isWounded: false,
       isArrested: false,
       daysToRecovery: 0,
@@ -60,12 +60,14 @@ export const OfficerRelationshipsTab = ({ officer }: OfficerRelationshipsTabProp
       isTestingWaters: false,
       likes: ['Respects Red Poles', 'Values Loyalty'],
       dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
-      currentAgenda: null,
+      // ensure relationships property exists as required by Officer type
+      relationships: [rel],
       createdAt: Date.now(),
       updatedAt: Date.now()
-    },
-    relationship: rel
-  }));
+    };
+
+    return { officer: otherOfficer, relationship: rel as OfficerRelationship };
+  });
 
   return (
     <ScrollArea className="flex-1 pr-4">

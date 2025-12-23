@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { Officer, OfficerRank, OfficerSkills } from '../types';
-import { GameState } from '../types/base';
 
 interface OfficersState {
   officers: Officer[];
@@ -37,8 +36,8 @@ export const createOfficersSlice = (set: any, get: any) => ({
   // Actions
   assignOfficer: (officerId: string, buildingId: string) => {
     set((state: any) => {
-          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
-          const building = (state as any).buildings?.find((b: any) => b.id === buildingId);
+      const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+      const building = (state as any).buildings?.find((b: any) => b.id === buildingId);
       
       if (!officer || !building || building.isOccupied || officer.assignedBuildingId) {
         return state;
@@ -61,17 +60,17 @@ export const createOfficersSlice = (set: any, get: any) => ({
 
   unassignOfficer: (officerId: string) => {
     set((state: any) => {
-          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
-          if (!officer || !officer.assignedBuildingId) return state;
+      const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+      if (!officer || !officer.assignedBuildingId) return state;
 
       const buildingId = officer.assignedBuildingId;
       return {
-        officers: state.officers.map(o =>
+        officers: (state as any).officers?.map((o: any) =>
           o.id === officerId
             ? { ...o, assignedBuildingId: null, daysAssigned: 0 }
             : o
         ),
-        buildings: state.buildings.map(b =>
+        buildings: (state as any).buildings?.map((b: any) =>
           b.id === buildingId
             ? { ...b, isOccupied: false, assignedOfficerId: null }
             : b
@@ -81,8 +80,8 @@ export const createOfficersSlice = (set: any, get: any) => ({
   },
 
   shareTea: (officerId: string) => {
-    set((state: GameState) => {
-      const officer = state.officers.find(o => o.id === officerId);
+    set((state: any) => {
+      const officer = (state as any).officers?.find((o: any) => o.id === officerId);
       if (!officer) return state;
 
       // Increase Loyalty (+5)
@@ -105,7 +104,7 @@ export const createOfficersSlice = (set: any, get: any) => ({
       const newEnergy = Math.max(0, officer.energy - 10);
 
       return {
-        officers: state.officers.map(o =>
+        officers: (state as any).officers?.map((o: any) =>
           o.id === officerId
             ? { ...o, loyalty: newLoyalty, currentAgenda: newAgenda, energy: newEnergy }
             : o
@@ -116,9 +115,9 @@ export const createOfficersSlice = (set: any, get: any) => ({
 
   giveBonus: (officerId: string) => {
     set((state: any) => {
-          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
-          const cost = 1000;
-          if (!officer || (state as any).cash < cost) return state;
+      const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+      const cost = 1000;
+      if (!officer || (state as any).cash < cost) return state;
 
       // Spend $1,000 Cash
       // Boost Loyalty (+20)
@@ -131,8 +130,8 @@ export const createOfficersSlice = (set: any, get: any) => ({
       }
 
       return {
-        cash: state.cash - cost,
-        officers: state.officers.map(o =>
+        cash: (state as any).cash - cost,
+        officers: (state as any).officers?.map((o: any) =>
           o.id === officerId
             ? { ...o, loyalty: newLoyalty, currentAgenda: newAgenda }
             : o
@@ -143,33 +142,60 @@ export const createOfficersSlice = (set: any, get: any) => ({
 
   reprimandOfficer: (officerId: string) => {
     set((state: any) => {
-          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
-          if (!officer) return state;
-    
-          // 1. Lower District Heat (-10)
-          const newHeat = Math.max(0, (state as any).policeHeat - 10);
+      const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+      if (!officer) return state;
 
-      // Significantly lower Loyalty (-20)
+      // 1. Lower District Heat (-10)
+      const newHeat = Math.max(0, (state as any).policeHeat - 10);
+
+      // 2. Significantly lower Loyalty (-20)
       const newLoyalty = Math.max(0, officer.loyalty - 20);
       
-      return {
+      let updates: any = {
         policeHeat: newHeat,
-        officers: state.officers.map(o =>
+        officers: (state as any).officers?.map((o: any) =>
           o.id === officerId
             ? { ...o, loyalty: newLoyalty }
             : o
         ),
       };
+
+      // 3. Risk of Snitching/Quitting if Loyalty is low (< 20)
+      if (newLoyalty < 20 && Math.random() < 0.3) {
+        if (Math.random() < 0.5) {
+          // Snitch: Increase global heat, officer arrested
+          updates.policeHeat = Math.min(100, (state as any).policeHeat + 10);
+          updates.officers = (state as any).officers?.map((o: any) =>
+            o.id === officerId
+              ? { ...o, loyalty: newLoyalty, status: { ...o.status, isArrested: true }, assignedBuildingId: null, energy: 0 }
+              : o
+          );
+          updates.pendingEvents = [...((state as any).pendingEvents || []), {
+            type: 'criminalCaught',
+            data: { criminalName: officer.name, crime: 'snitching' }
+          }];
+        } else {
+          // Quit: Officer removed
+          updates.officers = (state as any).officers?.filter((o: any) => o.id !== officerId);
+          updates.buildings = (state as any).buildings?.map((b: any) =>
+            b.assignedOfficerId === officerId
+              ? { ...b, isOccupied: false, assignedOfficerId: null }
+              : b
+          );
+        }
+      }
+
+      return { ...state, ...updates };
     });
   },
 
   promoteOfficer: (officerId: string, newRank: OfficerRank) => {
     set((state: any) => {
-          const officer = (state as any).officers?.find((o: any) => o.id === officerId);
-          const cost = 5000; // PROMOTION_COST
-          const requiredFace = 50; // PROMOTION_FACE_REQUIREMENT
-    
-          if (!officer || (state as any).cash < cost || officer.face < requiredFace) return state;
+      const officer = (state as any).officers?.find((o: any) => o.id === officerId);
+      const cost = 5000; // PROMOTION_COST
+      const requiredFace = 50; // PROMOTION_FACE_REQUIREMENT
+
+      if (!officer || (state as any).cash < cost || officer.face < requiredFace) return state;
       if (officer.rank === newRank) return state;
 
       // Determine skill boost based on new rank
@@ -193,8 +219,8 @@ export const createOfficersSlice = (set: any, get: any) => ({
       }
 
       return {
-        cash: state.cash - cost,
-        officers: state.officers.map(o =>
+        cash: (state as any).cash - cost,
+        officers: (state as any).officers?.map((o: any) =>
           o.id === officerId
             ? {
                 ...o,
@@ -212,14 +238,14 @@ export const createOfficersSlice = (set: any, get: any) => ({
               }
             : o
         ),
-        reputation: state.reputation + 10, // Reputation gain for successful ceremony
+        reputation: (state as any).reputation + 10, // Reputation gain for successful ceremony
       };
     });
   },
 
   designateSuccessor: (officerId: string) => {
     set((state: any) => ({
-          officers: (state as any).officers?.map((o: any) => ({
+      officers: (state as any).officers?.map((o: any) => ({
         ...o,
         isSuccessor: o.id === officerId,
       })),
@@ -228,13 +254,13 @@ export const createOfficersSlice = (set: any, get: any) => ({
 
   healOfficer: (officerId: string) => {
     set((state: any) => {
-          if ((state as any).cash < 2000) return state;
-          
-          return {
-            cash: (state as any).cash - 2000,
-            officers: (state as any).officers?.map((o: any) =>
-              o.id === officerId && o.status?.isWounded
-            ? { ...o, isWounded: false, daysToRecovery: 0 }
+      if ((state as any).cash < 2000) return state;
+      
+      return {
+        cash: (state as any).cash - 2000,
+        officers: (state as any).officers?.map((o: any) =>
+          o.id === officerId && o.status?.isWounded
+            ? { ...o, status: { ...o.status, isWounded: false, daysToRecovery: 0 } }
             : o
         ),
       };
@@ -243,15 +269,15 @@ export const createOfficersSlice = (set: any, get: any) => ({
 
   releaseOfficer: (officerId: string) => {
     set((state: any) => {
-          // Check if we have enough intel or cash
-          if ((state as any).intel < 50 && (state as any).cash < 5000) return state;
-          
-          return {
-            intel: (state as any).intel >= 50 ? (state as any).intel - 50 : (state as any).intel,
-            cash: (state as any).cash >= 5000 ? (state as any).cash - 5000 : (state as any).cash,
-            officers: (state as any).officers?.map((o: any) =>
-              o.id === officerId && o.status?.isArrested
-            ? { ...o, isArrested: false }
+      // Check if we have enough intel or cash
+      if ((state as any).intel < 50 && (state as any).cash < 5000) return state;
+      
+      return {
+        intel: (state as any).intel >= 50 ? (state as any).intel - 50 : (state as any).intel,
+        cash: (state as any).cash >= 5000 ? (state as any).cash - 5000 : (state as any).cash,
+        officers: (state as any).officers?.map((o: any) =>
+          o.id === officerId && o.status?.isArrested
+            ? { ...o, status: { ...o.status, isArrested: false } }
             : o
         ),
       };
@@ -260,14 +286,14 @@ export const createOfficersSlice = (set: any, get: any) => ({
 
   processRecovery: () => {
     set((state: any) => {
-          const updatedOfficers = (state as any).officers?.map((o: any) => {
-            if (o.status?.isWounded && o.status.daysToRecovery > 0) {
-          const newDaysToRecovery = o.daysToRecovery - 1;
+      const updatedOfficers = (state as any).officers?.map((o: any) => {
+        if (o.status?.isWounded && o.status.daysToRecovery > 0) {
+          const newDaysToRecovery = o.status.daysToRecovery - 1;
           // If recovery is complete, heal the officer
           if (newDaysToRecovery === 0) {
-            return { ...o, isWounded: false, daysToRecovery: 0 };
+            return { ...o, status: { ...o.status, isWounded: false, daysToRecovery: 0 } };
           }
-          return { ...o, daysToRecovery: newDaysToRecovery };
+          return { ...o, status: { ...o.status, daysToRecovery: newDaysToRecovery } };
         }
         return o;
       });

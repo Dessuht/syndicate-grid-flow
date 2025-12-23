@@ -19,7 +19,8 @@ export class GameEngine {
     }
     
     setPhase(nextPhase);
-    setCurrentDay(nextDay);
+    // call the store's setter safely (may not exist on all store variants)
+    (this.store as any).setCurrentDay?.(nextDay);
   }
 
   // Daily cycle processing
@@ -55,7 +56,7 @@ export class GameEngine {
       const events = [
         {
           id: `event-${Date.now()}`,
-          type: 'policeRaid',
+          type: 'policeRaid' as const,
           title: 'Police Raid',
           description: 'The police are raiding your operations!',
           isBlocking: true,
@@ -88,7 +89,8 @@ export class GameEngine {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      triggerEvent(randomEvent);
+      // cast to any to satisfy triggerEvent signature
+      triggerEvent(randomEvent as any);
     }
   }
 
@@ -102,7 +104,7 @@ export class GameEngine {
     if (!officer || !building) return false;
     if (officer.assignedBuildingId) return false;
     if (building.isOccupied) return false;
-    if (officer.status?.isWounded || officer.status?.isArrested) return false;
+    if ((officer as any).status?.isWounded || (officer as any).status?.isArrested) return false;
     
     return true;
   }
@@ -128,7 +130,7 @@ export class GameEngine {
     );
     
     const soldierStrength = getSoldiers().reduce((sum, s) => 
-      sum + (s.loyalty > 30 ? s.skill : 0), 0
+      sum + ((s as any).loyalty > 30 ? (s as any).skill : 0), 0
     );
     
     return officerStrength + soldierStrength;

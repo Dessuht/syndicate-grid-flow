@@ -22,8 +22,6 @@ export interface OfficerSkills {
 export interface ResourceActions {
   reduceHeat: (amount: number) => void;
 }
-}
-}
 
 export interface StreetBeef {
   officer1Id: string;
@@ -41,13 +39,15 @@ export interface Officer {
   name: string;
   rank: OfficerRank;
   
-  // Status and Assignment
+  // Status and Assignment (flat form kept for backward compatibility)
   energy: number;
   maxEnergy: number;
   assignedBuildingId: string | null;
-  isWounded: boolean;
-  isArrested: boolean;
-  daysToRecovery: number;
+
+  // Legacy flat flags (some parts of code still use these)
+  isWounded?: boolean;
+  isArrested?: boolean;
+  daysToRecovery?: number;
   
   // Skills and Performance
   skills: OfficerSkills;
@@ -61,7 +61,7 @@ export interface Officer {
   dislikes: CompatibilityDislike[];
   
   // Relationship System (integrated from complex system)
-  relationships: ComplexRelationship[];
+  relationships: ComplexRelationship[] | any[];
   
   // Autonomous Features (optional, enabled as game progresses)
   needs?: {
@@ -80,11 +80,21 @@ export interface Officer {
   // State Tracking
   daysAssigned: number;
   daysIdle: number;
-  isBetraying: boolean;
-  grudge: boolean;
-  isTraitor: boolean;
-  isSuccessor: boolean;
-  isTestingWaters: boolean;
+  isBetraying?: boolean;
+  grudge?: boolean;
+  isTraitor?: boolean;
+  isSuccessor?: boolean;
+  isTestingWaters?: boolean;
+  // Optional richer status block may exist on some objects (some code uses `status`)
+  status?: {
+    isWounded?: boolean;
+    isArrested?: boolean;
+    isBetraying?: boolean;
+    isTraitor?: boolean;
+    isSuccessor?: boolean;
+    isTestingWaters?: boolean;
+    daysToRecovery?: number;
+  };
 }
 
 // Building Interface

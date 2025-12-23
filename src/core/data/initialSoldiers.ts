@@ -2,7 +2,7 @@ import { Soldier } from '../store/types';
 
 const SOLDIER_NAMES = ['Ah Keung', 'Wai Gor', 'Siu Ming', 'Ah Fat', 'Lok Jai', 'Ah Sing', 'Chi Wai', 'Hung Jai'];
 
-export const INITIAL_SOLDIERS: StreetSoldier[] = Array.from({ length: 6 }, (_, i) => ({
+export const INITIAL_SOLDIERS: Soldier[] = Array.from({ length: 6 }, (_, i) => ({
   id: `sol-${i + 1}`,
   name: SOLDIER_NAMES[i],
   loyalty: 60 + Math.floor(Math.random() * 20),

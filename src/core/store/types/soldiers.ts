@@ -1,12 +1,6 @@
 import { BaseEntity, EntityId } from './base';
 
 export interface Soldier extends BaseEntity {
-}
-
-// Type alias for backward compatibility
-export type StreetSoldier = Soldier;
-
-export interface StreetSoldier extends BaseEntity {
   name: string;
   rank?: string;
   
@@ -25,3 +19,6 @@ export interface StreetSoldier extends BaseEntity {
     pay: number;
   };
 }
+
+// Type alias for backward compatibility
+export type StreetSoldier = Soldier;

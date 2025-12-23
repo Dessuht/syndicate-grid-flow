@@ -1,5 +1,5 @@
 import { Officer, OfficerRank, OfficerSkills } from '../store/types';
-import { OfficerRelationship } from '@/types/relationships';
+import type { OfficerRelationship } from '@/types/relationships';
 
 export const INITIAL_OFFICERS: Officer[] = [
   {
@@ -9,9 +9,16 @@ export const INITIAL_OFFICERS: Officer[] = [
     energy: 100,
     maxEnergy: 100,
     assignedBuildingId: null,
-    isWounded: false,
-    isArrested: false,
-    daysToRecovery: 0,
+    // Use status object (compatible with core Officer type)
+    status: {
+      isWounded: false,
+      isArrested: false,
+      isBetraying: false,
+      isTraitor: false,
+      isSuccessor: false,
+      isTestingWaters: false,
+      daysToRecovery: 0,
+    },
     skills: { enforcement: 80, diplomacy: 30, logistics: 40, recruitment: 50 } as OfficerSkills,
     loyalty: 75,
     daysAssigned: 0,
@@ -26,7 +33,7 @@ export const INITIAL_OFFICERS: Officer[] = [
     isTestingWaters: false,
     likes: ['Respects Red Poles', 'Values Loyalty'],
     dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
-    relationships: [] as ComplexRelationship[], // Will be populated separately
+    relationships: [] as OfficerRelationship[], // will be populated elsewhere
     createdAt: Date.now(),
     updatedAt: Date.now()
   },
@@ -37,9 +44,15 @@ export const INITIAL_OFFICERS: Officer[] = [
     energy: 80,
     maxEnergy: 80,
     assignedBuildingId: null,
-    isWounded: false,
-    isArrested: false,
-    daysToRecovery: 0,
+    status: {
+      isWounded: false,
+      isArrested: false,
+      isBetraying: false,
+      isTraitor: false,
+      isSuccessor: false,
+      isTestingWaters: false,
+      daysToRecovery: 0,
+    },
     skills: { enforcement: 20, diplomacy: 85, logistics: 60, recruitment: 40 } as OfficerSkills,
     loyalty: 85,
     daysAssigned: 0,
@@ -54,7 +67,7 @@ export const INITIAL_OFFICERS: Officer[] = [
     isTestingWaters: false,
     likes: ['Appreciates Cunning', 'Respects Old School'],
     dislikes: ['Despises Hot-headed', 'Resents Ruthless'],
-    relationships: [] as ComplexRelationship[],
+    relationships: [] as OfficerRelationship[],
     createdAt: Date.now(),
     updatedAt: Date.now()
   },
@@ -65,9 +78,15 @@ export const INITIAL_OFFICERS: Officer[] = [
     energy: 90,
     maxEnergy: 90,
     assignedBuildingId: null,
-    isWounded: false,
-    isArrested: false,
-    daysToRecovery: 0,
+    status: {
+      isWounded: false,
+      isArrested: false,
+      isBetraying: false,
+      isTraitor: false,
+      isSuccessor: false,
+      isTestingWaters: false,
+      daysToRecovery: 0,
+    },
     skills: { enforcement: 40, diplomacy: 50, logistics: 80, recruitment: 60 } as OfficerSkills,
     loyalty: 65,
     daysAssigned: 0,
@@ -82,7 +101,7 @@ export const INITIAL_OFFICERS: Officer[] = [
     isTestingWaters: false,
     likes: ['Admires Ambition', 'Appreciates Cunning'],
     dislikes: ['Scorns Silver Tongue', 'Resents Ruthless'],
-    relationships: [] as ComplexRelationship[],
+    relationships: [] as OfficerRelationship[],
     createdAt: Date.now(),
     updatedAt: Date.now()
   },
@@ -93,9 +112,15 @@ export const INITIAL_OFFICERS: Officer[] = [
     energy: 70,
     maxEnergy: 70,
     assignedBuildingId: null,
-    isWounded: false,
-    isArrested: false,
-    daysToRecovery: 0,
+    status: {
+      isWounded: false,
+      isArrested: false,
+      isBetraying: false,
+      isTraitor: false,
+      isSuccessor: true,
+      isTestingWaters: false,
+      daysToRecovery: 0,
+    },
     skills: { enforcement: 50, diplomacy: 40, logistics: 50, recruitment: 85 } as OfficerSkills,
     loyalty: 70,
     daysAssigned: 0,
@@ -110,7 +135,7 @@ export const INITIAL_OFFICERS: Officer[] = [
     isTestingWaters: false,
     likes: ['Values Loyalty', 'Respects Old School'],
     dislikes: ['Hates Ambitious', 'Distrusts Calculating'],
-    relationships: [] as ComplexRelationship[],
+    relationships: [] as OfficerRelationship[],
     createdAt: Date.now(),
     updatedAt: Date.now()
   },

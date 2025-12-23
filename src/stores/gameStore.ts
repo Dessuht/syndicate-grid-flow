@@ -2278,7 +2278,7 @@ export const useGameStore = create<GameState>((set, get) => {
         return {
           cash: state.cash - upgradeCost,
           buildings: state.buildings.map(b =>
-            b.id === buildingId ? { ...b, upgraded: true } : b
+            b.id === buildingId ? { ...b, isUpgraded: true } : b
           ),
         };
       });
