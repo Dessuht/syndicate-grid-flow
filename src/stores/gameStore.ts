@@ -3172,6 +3172,177 @@ export const useGameStore = create<GameState>((set, get) => {
           break;
       }
     },
+
+    // ============= COMBAT SYSTEM =============
+    launchBattle: (rivalId: string, officerIds: string[], soldierCount: number, tactic: 'aggressive' | 'defensive' | 'guerrilla' | 'overwhelming') => {
+      const state = get();
+      const rival = state.rivals.find(r => r.id === rivalId);
+      if (!rival) return { victory: false, soldiersLost: 0, reputationChange: 0, cashGained: 0, territoryGained: false };
+
+      // Tactic modifiers
+      const tacticMods: Record<string, { strength: number; casualty: number }> = {
+        aggressive: { strength: 1.2, casualty: 1.3 },
+        defensive: { strength: 0.9, casualty: 0.6 },
+        guerrilla: { strength: 1.0, casualty: 0.8 },
+        overwhelming: { strength: 1.4, casualty: 1.5 },
+      };
+      const mod = tacticMods[tactic] || tacticMods.guerrilla;
+
+      // Calculate our strength
+      const loyalSoldiers = state.soldiers.filter(s => s.loyalty > 30);
+      const deployedSoldiers = loyalSoldiers.slice(0, soldierCount);
+      const soldierStrength = deployedSoldiers.reduce((sum, s) => sum + s.skill, 0);
+      
+      const officerStrength = officerIds.reduce((sum, id) => {
+        const officer = state.officers.find(o => o.id === id);
+        if (!officer) return sum;
+        return sum + officer.skills.enforcement + (officer.rank === 'Red Pole' ? 20 : 0);
+      }, 0);
+
+      const baseStrength = soldierStrength + officerStrength;
+      let finalStrength = Math.floor(baseStrength * mod.strength);
+      
+      // Check for overwhelming force requirement
+      if (tactic === 'overwhelming' && finalStrength < rival.strength * 2) {
+        finalStrength = Math.floor(baseStrength * 1.1); // Reduced bonus
+      }
+
+      // Determine victory (with some randomness)
+      const winChance = finalStrength / (finalStrength + rival.strength);
+      const roll = Math.random();
+      const victory = roll < winChance;
+
+      // Calculate casualties
+      const baseCasualtyRate = victory ? 0.1 : 0.35;
+      const casualtyRate = baseCasualtyRate * mod.casualty;
+      const soldiersLost = Math.floor(soldierCount * casualtyRate);
+
+      // Calculate rewards/penalties
+      let reputationChange = victory ? 15 : -20;
+      let cashGained = victory ? Math.floor(rival.strength * 15 + Math.random() * 500) : 0;
+      let territoryGained = victory && rival.strength < 50;
+      let officerWounded: string | undefined;
+      let buildingLost: string | undefined;
+
+      // Officer injury chance on defeat
+      if (!victory && officerIds.length > 0 && Math.random() < 0.3) {
+        const woundedOfficer = state.officers.find(o => officerIds.includes(o.id));
+        if (woundedOfficer) {
+          officerWounded = woundedOfficer.name;
+        }
+      }
+
+      // Building loss on defeat
+      if (!victory && Math.random() < 0.4) {
+        const occupiedBuildings = state.buildings.filter(b => b.isOccupied);
+        if (occupiedBuildings.length > 0) {
+          const lostBuilding = occupiedBuildings[Math.floor(Math.random() * occupiedBuildings.length)];
+          buildingLost = lostBuilding.name;
+        }
+      }
+
+      // Apply changes to state
+      set((state) => {
+        // Remove lost soldiers
+        const remainingSoldiers = [...state.soldiers];
+        for (let i = 0; i < soldiersLost && remainingSoldiers.length > 0; i++) {
+          const idx = remainingSoldiers.findIndex(s => s.loyalty <= 50);
+          if (idx >= 0) remainingSoldiers.splice(idx, 1);
+          else remainingSoldiers.pop();
+        }
+
+        // Update officer status
+        let updatedOfficers = state.officers;
+        if (officerWounded) {
+          updatedOfficers = state.officers.map(o => {
+            if (o.name === officerWounded) {
+              return { ...o, isWounded: true, daysToRecovery: 3, energy: Math.floor(o.maxEnergy * 0.2) };
+            }
+            // Victory gives participating officers +5 loyalty and +5 face
+            if (victory && officerIds.includes(o.id)) {
+              return { ...o, loyalty: Math.min(100, o.loyalty + 5), face: Math.min(100, o.face + 5) };
+            }
+            return o;
+          });
+        } else if (victory) {
+          updatedOfficers = state.officers.map(o => {
+            if (officerIds.includes(o.id)) {
+              return { ...o, loyalty: Math.min(100, o.loyalty + 5), face: Math.min(100, o.face + 5) };
+            }
+            return o;
+          });
+        }
+
+        // Update buildings
+        let updatedBuildings = state.buildings;
+        if (buildingLost) {
+          updatedBuildings = state.buildings.map(b => {
+            if (b.name === buildingLost) {
+              return { ...b, isOccupied: false, assignedOfficerId: null, inactiveUntilDay: state.currentDay + 3 };
+            }
+            return b;
+          });
+        }
+
+        // Update rival status
+        const updatedRivals = state.rivals.map(r => {
+          if (r.id === rivalId) {
+            if (victory) {
+              return { 
+                ...r, 
+                isActiveConflict: false, 
+                strength: Math.max(10, r.strength - 20),
+                relationship: r.relationship - 10
+              };
+            } else {
+              return { ...r, strength: Math.min(100, r.strength + 5) };
+            }
+          }
+          return r;
+        });
+
+        return {
+          soldiers: remainingSoldiers,
+          officers: updatedOfficers,
+          buildings: updatedBuildings,
+          rivals: updatedRivals,
+          cash: state.cash + cashGained,
+          reputation: Math.max(0, Math.min(100, state.reputation + reputationChange)),
+          territoryFriction: victory ? Math.max(0, state.territoryFriction - 20) : Math.min(100, state.territoryFriction + 10),
+        };
+      });
+
+      return {
+        victory,
+        soldiersLost,
+        reputationChange,
+        cashGained,
+        territoryGained,
+        officerWounded,
+        buildingLost,
+      };
+    },
+
+    negotiatePeace: (rivalId: string) => {
+      set((state) => {
+        const rival = state.rivals.find(r => r.id === rivalId);
+        if (!rival) return state;
+
+        const peaceCost = Math.floor(rival.strength * 20);
+        if (state.cash < peaceCost) return state;
+
+        return {
+          cash: state.cash - peaceCost,
+          rivals: state.rivals.map(r => 
+            r.id === rivalId 
+              ? { ...r, isActiveConflict: false, relationship: r.relationship + 10 }
+              : r
+          ),
+          territoryFriction: Math.max(0, state.territoryFriction - 15),
+          reputation: Math.max(0, state.reputation - 5), // Slight rep loss for paying tribute
+        };
+      });
+    },
   };
 
   // Start territory friction timer after store initialization

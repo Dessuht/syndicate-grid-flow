@@ -10,6 +10,8 @@ import { GameStatsPanel } from './GameStatsPanel';
 import { ManagementPanel } from './ManagementPanel';
 import { OfficerAssignmentModal } from './OfficerAssignmentModal';
 import { BuildingPurchaseModal } from './BuildingPurchaseModal';
+import { WarStatusPanel } from './modals/WarStatusPanel';
+import { BattleDeploymentModal } from './modals/BattleDeploymentModal';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -48,6 +50,7 @@ export const DistrictMap = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'officers' | 'soldiers' | 'stats' | 'manage'>('officers');
+  const [battleModalRivalId, setBattleModalRivalId] = useState<string | null>(null);
 
   const handleBuildingClick = (building: BuildingType) => {
     if (building.isRebelBase) {
@@ -147,6 +150,9 @@ export const DistrictMap = () => {
             </Button>
           </div>
         </div>
+
+        {/* War Status Panel */}
+        <WarStatusPanel onOpenBattleModal={(rivalId) => setBattleModalRivalId(rivalId)} />
 
         {/* Police Activity Warning */}
         <AnimatePresence>
@@ -285,6 +291,16 @@ export const DistrictMap = () => {
         {showPurchaseModal && (
           <BuildingPurchaseModal
             onClose={() => setShowPurchaseModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Battle Deployment Modal */}
+      <AnimatePresence>
+        {battleModalRivalId && (
+          <BattleDeploymentModal
+            rivalId={battleModalRivalId}
+            onClose={() => setBattleModalRivalId(null)}
           />
         )}
       </AnimatePresence>

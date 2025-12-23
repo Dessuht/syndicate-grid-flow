@@ -387,4 +387,16 @@ export interface GameState {
   // Random Event System
   triggerRandomEvent: () => void;
   triggerEventByType: (eventType: EventType) => void;
+
+  // Combat System
+  launchBattle: (rivalId: string, officerIds: string[], soldierCount: number, tactic: 'aggressive' | 'defensive' | 'guerrilla' | 'overwhelming') => {
+    victory: boolean;
+    soldiersLost: number;
+    reputationChange: number;
+    cashGained: number;
+    territoryGained: boolean;
+    officerWounded?: string;
+    buildingLost?: string;
+  };
+  negotiatePeace: (rivalId: string) => void;
 }
