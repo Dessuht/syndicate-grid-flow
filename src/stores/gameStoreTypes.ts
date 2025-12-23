@@ -95,6 +95,10 @@ export interface Officer {
     isTestingWaters?: boolean;
     daysToRecovery?: number;
   };
+  
+  // Timestamps
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 // Building Interface

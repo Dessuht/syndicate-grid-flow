@@ -1,4 +1,4 @@
-import { Officer, OfficerRank, OfficerSkills } from '../store/types';
+import { Officer, OfficerRank, OfficerSkills } from '@/stores/gameStoreTypes';
 import type { OfficerRelationship } from '@/types/relationships';
 
 export const INITIAL_OFFICERS: Officer[] = [
@@ -23,7 +23,6 @@ export const INITIAL_OFFICERS: Officer[] = [
     loyalty: 75,
     daysAssigned: 0,
     daysIdle: 0,
-    isBetraying: false,
     traits: ['Fearless', 'Ruthless'],
     currentAgenda: null,
     face: 30,
@@ -57,7 +56,6 @@ export const INITIAL_OFFICERS: Officer[] = [
     loyalty: 85,
     daysAssigned: 0,
     daysIdle: 0,
-    isBetraying: false,
     traits: ['Calculating', 'Silver Tongue'],
     currentAgenda: null,
     face: 35,
@@ -91,7 +89,6 @@ export const INITIAL_OFFICERS: Officer[] = [
     loyalty: 65,
     daysAssigned: 0,
     daysIdle: 0,
-    isBetraying: false,
     traits: ['Street Smart', 'Connected'],
     currentAgenda: null,
     face: 25,
@@ -125,7 +122,6 @@ export const INITIAL_OFFICERS: Officer[] = [
     loyalty: 70,
     daysAssigned: 0,
     daysIdle: 0,
-    isBetraying: false,
     traits: ['Loyal Dog', 'Street Smart'],
     currentAgenda: null,
     face: 40,

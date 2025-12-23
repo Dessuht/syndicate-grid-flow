@@ -468,7 +468,7 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 30,
     entertainmentProvided: 5,
-    upgraded: false,
+    isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
   },
@@ -484,7 +484,7 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: true,
     foodProvided: 0,
     entertainmentProvided: 40,
-    upgraded: false,
+    isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
   },
@@ -500,7 +500,7 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 0,
     entertainmentProvided: 0,
-    upgraded: false,
+    isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
   },
@@ -516,7 +516,7 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: true,
     foodProvided: 10,
     entertainmentProvided: 60,
-    upgraded: false,
+    isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
   },
@@ -532,7 +532,7 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 35,
     entertainmentProvided: 5,
-    upgraded: false,
+    isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
   },
@@ -548,7 +548,7 @@ const INITIAL_BUILDINGS: Building[] = [
     isIllicit: false,
     foodProvided: 0,
     entertainmentProvided: 0,
-    upgraded: false,
+    isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
   },
@@ -2270,7 +2270,7 @@ export const useGameStore = create<GameState>((set, get) => {
     upgradeBuilding: (buildingId: string) => {
       set((state) => {
         const building = state.buildings.find(b => b.id === buildingId);
-        if (!building || building.upgraded || building.isRebelBase) return state;
+        if (!building || building.isUpgraded || building.isRebelBase) return state;
 
         const upgradeCost = building.baseRevenue * 2;
         if (state.cash < upgradeCost) return state;
@@ -2690,7 +2690,7 @@ export const useGameStore = create<GameState>((set, get) => {
           entertainmentProvided: buildingType === 'Mahjong Parlor' ? 40 :
                                buildingType === 'Nightclub' ? 60 :
                                buildingType === 'Drug Lab' ? 20 : 0,
-          upgraded: false,
+          isUpgraded: false,
           isRebelBase: false,
           rebelSoldierCount: 0,
         };
@@ -2700,6 +2700,91 @@ export const useGameStore = create<GameState>((set, get) => {
           buildings: [...state.buildings, newBuilding]
         };
       });
+    },
+
+    // Missing methods required by GameState interface
+    purchaseUpgrade: (upgradeId: string) => {
+      set((state) => {
+        // Simple upgrade system - track unlocked upgrades
+        if (state.unlockedUpgrades.includes(upgradeId)) return state;
+        return {
+          unlockedUpgrades: [...state.unlockedUpgrades, upgradeId]
+        };
+      });
+    },
+
+    updateAutonomousBehavior: () => {
+      // Autonomous behavior update - placeholder for now
+      set((state) => ({
+        lastBehaviorUpdate: Date.now()
+      }));
+    },
+
+    getCharacterCurrentAction: (officerId: string) => {
+      const state = get();
+      const officer = state.officers.find(o => o.id === officerId);
+      if (!officer) return null;
+      if (officer.isWounded || officer.status?.isWounded) return 'recovering';
+      if (officer.isArrested || officer.status?.isArrested) return 'imprisoned';
+      if (officer.assignedBuildingId) return 'working';
+      return 'idle';
+    },
+
+    canForceWork: (officerId: string) => {
+      const state = get();
+      const officer = state.officers.find(o => o.id === officerId);
+      if (!officer) return { canWork: false, reason: 'Officer not found' };
+      if (officer.isWounded || officer.status?.isWounded) return { canWork: false, reason: 'Officer is wounded' };
+      if (officer.isArrested || officer.status?.isArrested) return { canWork: false, reason: 'Officer is arrested' };
+      if (officer.energy < 20) return { canWork: false, reason: 'Officer is too tired' };
+      return { canWork: true };
+    },
+
+    getPlayerInfluenceLevel: () => {
+      const state = get();
+      return Math.floor(state.influence / 10);
+    },
+
+    processSocialInteractions: () => {
+      // Social interactions processing - placeholder
+      set((state) => ({
+        lastBehaviorUpdate: Date.now()
+      }));
+    },
+
+    getOfficerRelationships: (officerId: string) => {
+      const state = get();
+      const officer = state.officers.find(o => o.id === officerId);
+      if (!officer) return { nodes: [], edges: [] };
+      
+      const nodes = state.officers.map(o => o.id);
+      const edges = (officer.relationships || []).map((rel: any) => 
+        `${officerId}-${rel.targetId || rel.officerId}`
+      );
+      return { nodes, edges };
+    },
+
+    createManualInteraction: (initiatorId: string, targetId: string, type: string) => {
+      set((state) => ({
+        recentInteractions: [
+          ...state.recentInteractions,
+          {
+            id: `int-${Date.now()}`,
+            type: type as any,
+            participants: [initiatorId, targetId],
+            initiatorId,
+            targetId,
+            timestamp: Date.now(),
+            location: 'manual',
+            outcome: {
+              success: true,
+              relationshipChange: 5,
+              interestChange: 0,
+              respectChange: 0
+            }
+          }
+        ]
+      }));
     },
   };
 
