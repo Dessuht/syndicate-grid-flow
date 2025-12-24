@@ -75,7 +75,7 @@ export const FamilyCouncilScene = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-full w-full p-8 bg-background/95 backdrop-blur-sm flex flex-col relative"
+      className="h-full w-full p-4 bg-background/95 backdrop-blur-sm flex flex-col relative overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-jianghu-crimson/50 pb-4 mb-6">
@@ -100,15 +100,15 @@ export const FamilyCouncilScene = () => {
       </div>
 
       {/* Council Members */}
-      <div className="flex justify-around mb-8 p-4 rounded-lg bg-secondary/30 border border-border">
+      <div className="flex justify-around mb-4 p-3 rounded-lg bg-secondary/30 border border-border">
         {councilMembers.map(officer => (
           <OfficerPortrait key={officer.id} officer={officer} />
         ))}
       </div>
 
       {/* Motions */}
-      <div className="flex-1 overflow-y-auto space-y-6">
-        <h2 className="font-display text-xl font-bold text-foreground mb-4">Motions on the Table ({councilMotions.length} remaining)</h2>
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
+        <h2 className="font-display text-lg font-bold text-foreground mb-2">Motions on the Table ({councilMotions.length} remaining)</h2>
         
         <AnimatePresence mode="popLayout">
           {councilMotions.length > 0 ? (

@@ -72,7 +72,7 @@ export const SoldiersPanel = () => {
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="h-full flex flex-col space-y-4"
+      className="h-full flex flex-col space-y-3 overflow-hidden"
     >
       {/* Header Card */}
       <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm p-4">
@@ -210,12 +210,12 @@ export const SoldiersPanel = () => {
       </div>
 
       {/* Soldier List */}
-      <Card className="bg-slate-800/30 border-slate-700/50 backdrop-blur-sm p-4 flex-1 overflow-hidden flex flex-col">
-        <h4 className="text-sm font-semibold mb-3 flex items-center justify-between">
+      <Card className="bg-slate-800/30 border-slate-700/50 backdrop-blur-sm p-3 flex-1 min-h-0 overflow-hidden flex flex-col">
+        <h4 className="text-sm font-semibold mb-2 flex items-center justify-between shrink-0">
           <span>Roster</span>
           <span className="text-xs text-muted-foreground font-normal">Click to manage</span>
         </h4>
-        <div className="flex-1 overflow-y-auto space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
           {sortedSoldiers.map((soldier) => {
             const isPromotable = soldier.promotable || (soldier.experience >= 80 && soldier.skill >= 60);
             const SpecIcon = getSpecIcon(soldier.specialization);
