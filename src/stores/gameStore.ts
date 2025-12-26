@@ -569,6 +569,8 @@ const createSoldier = (name: string, overrides: Partial<StreetSoldier> = {}): St
   },
   skill: 30 + Math.floor(Math.random() * 40),
   isDeserting: false,
+  isArrested: false,
+  daysInJail: 0,
   experience: 0,
   battlesWon: 0,
   battlesLost: 0,
@@ -578,6 +580,7 @@ const createSoldier = (name: string, overrides: Partial<StreetSoldier> = {}): St
   isElite: false,
   promotable: false,
   recruitedOnDay: 1,
+  assignedOfficerId: null,
   ...overrides,
 });
 
@@ -639,15 +642,19 @@ const INITIAL_RIVALS: RivalGang[] = [
 
 export const useGameStore = create<GameState>((set, get) => {
   const store: GameState = {
-    // Core Resources
-    cash: 5000,
-    reputation: 50,
-    policeHeat: 15,
+    // Core Resources - REDUCED for harder start
+    cash: 2000,
+    reputation: 30,
+    policeHeat: 25,
     intel: 0,
-    influence: 10,
+    influence: 5,
     currentDay: 1,
     currentPhase: 'morning' as DayPhase,
-    stipend: 50,
+    stipend: 30,
+    
+    // Dirty Cop System
+    hasDirtyCop: false,
+    dirtyCopCost: 500,
 
     // Time System
     gameSpeed: 1 as GameSpeed,
@@ -877,30 +884,74 @@ export const useGameStore = create<GameState>((set, get) => {
         }
       }
       
-      // Random event generation (only if no active event)
+      // TIME-BASED EVENTS: Different events based on phase
       let newEvent = null;
-      if (!currentState.activeEvent && Math.random() < 0.05) {
-        const eventTypes = ['policeRaid', 'betrayal', 'rivalAttack', 'criminalCaught', 'soldierDesertion'];
-        const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+      const eventChance = 0.08 + (currentState.policeHeat * 0.002); // Higher heat = more events
+      
+      if (!currentState.activeEvent && Math.random() < eventChance) {
+        // Phase-specific event pools
+        const phaseEvents: Record<string, string[]> = {
+          morning: ['dailyBriefing'], // Briefings happen in the morning
+          day: ['policeRaid', 'rivalAttack', 'soldierDesertion'], // Action during the day
+          evening: ['criminalCaught', 'betrayal'], // Drama in the evening
+          night: ['policeShakedown', 'rivalAttack', 'streetBeef'], // Danger at night
+        };
         
-        switch (randomEventType) {
-          case 'policeRaid':
-            newEvent = { type: 'policeRaid' as const, data: {} };
-            break;
-          case 'betrayal':
-            const disloyalOfficers = currentState.officers.filter(o => o.loyalty < 50);
-            if (disloyalOfficers.length > 0) {
-              const randomOfficer = disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)];
-              newEvent = { type: 'betrayal' as const, data: { officerId: randomOfficer.id } };
-            }
-            break;
-          case 'rivalAttack':
-            const hostileRivals = currentState.rivals.filter(r => r.relationship < -30 && !r.isActiveConflict);
-            if (hostileRivals.length > 0) {
-              const randomRival = hostileRivals[Math.floor(Math.random() * hostileRivals.length)];
-              newEvent = { type: 'rivalAttack' as const, data: { rivalId: randomRival.id } };
-            }
-            break;
+        // Reputation affects event likelihood - low rep means more attacks
+        const repModifier = currentState.reputation < 30 ? 0.5 : 0; // 50% more events if low rep
+        const shouldTrigger = Math.random() < (0.15 + repModifier);
+        
+        if (shouldTrigger) {
+          const availableEvents = phaseEvents[currentState.currentPhase] || [];
+          const randomEventType = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+          
+          switch (randomEventType) {
+            case 'policeRaid':
+              // Higher heat = higher chance, intel reduces impact
+              if (currentState.policeHeat > 30 || Math.random() < 0.3) {
+                newEvent = { type: 'policeRaid' as const, data: { 
+                  severity: currentState.policeHeat > 60 ? 'major' : 'minor',
+                  intelWarning: currentState.intel > 20 // Intel gives early warning
+                }};
+              }
+              break;
+            case 'betrayal':
+              const disloyalOfficers = currentState.officers.filter(o => o.loyalty < 50);
+              if (disloyalOfficers.length > 0) {
+                const randomOfficer = disloyalOfficers[Math.floor(Math.random() * disloyalOfficers.length)];
+                newEvent = { type: 'betrayal' as const, data: { officerId: randomOfficer.id } };
+              }
+              break;
+            case 'rivalAttack':
+              // Low reputation makes rivals more aggressive
+              const attackThreshold = -30 + (50 - currentState.reputation);
+              const hostileRivals = currentState.rivals.filter(r => r.relationship < attackThreshold && !r.isActiveConflict);
+              if (hostileRivals.length > 0) {
+                const randomRival = hostileRivals[Math.floor(Math.random() * hostileRivals.length)];
+                newEvent = { type: 'rivalAttack' as const, data: { rivalId: randomRival.id } };
+              }
+              break;
+            case 'soldierDesertion':
+              // Low loyalty soldiers may desert
+              const unhappySoldiers = currentState.soldiers.filter(s => s.loyalty < 30 && !s.isArrested);
+              if (unhappySoldiers.length > 0) {
+                newEvent = { type: 'soldierDesertion' as const, data: { 
+                  soldierId: unhappySoldiers[0].id,
+                  soldierName: unhappySoldiers[0].name
+                }};
+              }
+              break;
+            case 'policeShakedown':
+              if (currentState.policeHeat > 40) {
+                newEvent = { type: 'policeShakedown' as const, data: {} };
+              }
+              break;
+            case 'criminalCaught':
+              if (Math.random() < 0.3) {
+                newEvent = { type: 'criminalCaught' as const, data: {} };
+              }
+              break;
+          }
         }
       }
       
@@ -2428,8 +2479,9 @@ export const useGameStore = create<GameState>((set, get) => {
       const soldier = state.soldiers.find(s => s.id === soldierId);
       if (!soldier) return { success: false, reason: 'Soldier not found' };
       if (state.cash < cost) return { success: false, reason: 'Insufficient funds ($2,000 required)' };
-      if (!soldier.promotable && soldier.experience < 80) return { success: false, reason: 'Soldier needs more experience (80+)' };
-      if (!soldier.promotable && soldier.skill < 60) return { success: false, reason: 'Soldier needs more skill (60+)' };
+      // Lowered requirements: 50 experience, 40 skill (was 80/60)
+      if (!soldier.promotable && soldier.experience < 50) return { success: false, reason: 'Soldier needs more experience (50+)' };
+      if (!soldier.promotable && soldier.skill < 40) return { success: false, reason: 'Soldier needs more skill (40+)' };
       
       // Create new officer from soldier
       const newOfficer: Officer = {
@@ -2470,6 +2522,68 @@ export const useGameStore = create<GameState>((set, get) => {
         soldiers: state.soldiers.filter(s => s.id !== soldierId),
         reputation: Math.max(0, state.reputation - 1), // Small rep hit for dismissing
       }));
+    },
+
+    releaseSoldier: (soldierId: string) => {
+      set((state) => {
+        const soldier = state.soldiers.find(s => s.id === soldierId);
+        if (!soldier || !soldier.isArrested) return state;
+        
+        const cost = 300 + (soldier.skill * 5); // Better soldiers cost more to release
+        if (state.cash < cost) return state;
+        
+        return {
+          cash: state.cash - cost,
+          soldiers: state.soldiers.map(s =>
+            s.id === soldierId
+              ? { ...s, isArrested: false, daysInJail: 0 }
+              : s
+          ),
+        };
+      });
+    },
+
+    assignSoldierToOfficer: (soldierId: string, officerId: string) => {
+      set((state) => ({
+        soldiers: state.soldiers.map(s =>
+          s.id === soldierId
+            ? { ...s, assignedOfficerId: officerId }
+            : s
+        ),
+      }));
+    },
+
+    hireDirtyCop: () => {
+      set((state) => {
+        if (state.cash < 2000 || state.hasDirtyCop) return state;
+        return {
+          cash: state.cash - 2000,
+          hasDirtyCop: true,
+          policeHeat: Math.max(0, state.policeHeat - 10), // Initial heat reduction
+        };
+      });
+    },
+
+    useDirtyCopForIntel: () => {
+      set((state) => {
+        if (!state.hasDirtyCop || state.cash < state.dirtyCopCost) return state;
+        return {
+          cash: state.cash - state.dirtyCopCost,
+          intel: state.intel + 25,
+          dirtyCopCost: Math.min(1000, state.dirtyCopCost + 50), // Cost increases
+        };
+      });
+    },
+
+    useDirtyCopForHeat: () => {
+      set((state) => {
+        if (!state.hasDirtyCop || state.cash < state.dirtyCopCost) return state;
+        return {
+          cash: state.cash - state.dirtyCopCost,
+          policeHeat: Math.max(0, state.policeHeat - 15),
+          dirtyCopCost: Math.min(1000, state.dirtyCopCost + 50), // Cost increases
+        };
+      });
     },
 
     recruitSyndicateMember: () => {

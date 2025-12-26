@@ -132,6 +132,9 @@ export interface StreetSoldier {
   };
   skill: number;
   isDeserting: boolean;
+  // Arrest/Status
+  isArrested: boolean;
+  daysInJail: number;
   // Experience & Progression
   experience: number; // 0-100, accumulated through battles
   battlesWon: number;
@@ -140,8 +143,10 @@ export interface StreetSoldier {
   specialization: SoldierSpecialization | null;
   isVeteran: boolean; // True after 5+ battles won
   isElite: boolean; // True after 10+ battles won and skill > 70
-  promotable: boolean; // True when experience >= 80 and skill >= 60
+  promotable: boolean; // True when experience >= 50 and skill >= 40 (lowered for easier promotion)
   recruitedOnDay: number;
+  // Officer Assignment
+  assignedOfficerId: string | null;
 }
 
 export type SoldierSpecialization = 'enforcer' | 'scout' | 'guard' | 'collector' | null;
@@ -240,6 +245,10 @@ export interface GameState {
   stipend: number;
   intel: number;
   influence: number;
+  
+  // Dirty Cop System
+  hasDirtyCop: boolean;
+  dirtyCopCost: number;
 
   // Time System
   gameSpeed: GameSpeed;
@@ -372,6 +381,13 @@ export interface GameState {
   specializeSoldier: (soldierId: string, specialization: SoldierSpecialization) => void;
   promoteSoldierToOfficer: (soldierId: string) => { success: boolean; officerName?: string; reason?: string };
   dismissSoldier: (soldierId: string) => void;
+  releaseSoldier: (soldierId: string) => void;
+  assignSoldierToOfficer: (soldierId: string, officerId: string) => void;
+  
+  // Dirty Cop System
+  hireDirtyCop: () => void;
+  useDirtyCopForIntel: () => void;
+  useDirtyCopForHeat: () => void;
 
   // Officer Management
   trainOfficer: (officerId: string, skill: 'enforcement' | 'diplomacy' | 'logistics' | 'recruitment') => void;
