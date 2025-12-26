@@ -2547,7 +2547,7 @@ export const useGameStore = create<GameState>((set, get) => {
       set((state) => ({
         soldiers: state.soldiers.map(s =>
           s.id === soldierId
-            ? { ...s, assignedOfficerId: officerId }
+            ? { ...s, assignedOfficerId: officerId || null }
             : s
         ),
       }));
