@@ -36,7 +36,7 @@ export const SoldierDetailModal = ({ soldier, onClose }: SoldierDetailModalProps
   const daysServed = currentDay - soldier.recruitedOnDay;
   const canTrain = cash >= 300;
   const canSpecialize = cash >= 500 && !soldier.specialization;
-  const canPromote = soldier.promotable || (soldier.experience >= 80 && soldier.skill >= 60);
+  const canPromote = soldier.promotable || (soldier.experience >= 50 && soldier.skill >= 40);
   
   const handleTrain = () => {
     trainSoldier(soldier.id);
@@ -274,9 +274,9 @@ export const SoldierDetailModal = ({ soldier, onClose }: SoldierDetailModalProps
           {!canPromote && (
             <div className="p-2 rounded bg-secondary/20 text-center">
               <p className="text-xs text-muted-foreground">
-                Promotion requires: <span className={soldier.experience >= 80 ? "text-neon-green" : "text-neon-red"}>80+ Experience</span>
+                Promotion requires: <span className={soldier.experience >= 50 ? "text-neon-green" : "text-neon-red"}>50+ Experience</span>
                 {" & "}
-                <span className={soldier.skill >= 60 ? "text-neon-green" : "text-neon-red"}>60+ Skill</span>
+                <span className={soldier.skill >= 40 ? "text-neon-green" : "text-neon-red"}>40+ Skill</span>
               </p>
             </div>
           )}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Heart, Utensils, Music, DollarSign, Plus, AlertTriangle, Minus, TrendingUp, TrendingDown, Crown, Star, Swords, Shield, Eye, Briefcase } from 'lucide-react';
+import { Users, Heart, Utensils, Music, DollarSign, Plus, AlertTriangle, Minus, TrendingUp, TrendingDown, Crown, Star, Swords, Shield, Eye, Briefcase, Lock, Unlock, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
@@ -22,7 +22,7 @@ const getSpecIcon = (spec: string | null) => {
 };
 
 export const SoldiersPanel = () => {
-  const { soldiers, stipend, cash, setStipend, recruitSoldier, paySoldierBonus } = useGameStore();
+  const { soldiers, stipend, cash, setStipend, recruitSoldier, paySoldierBonus, releaseSoldier, hasDirtyCop, hireDirtyCop, useDirtyCopForIntel, useDirtyCopForHeat, dirtyCopCost } = useGameStore();
   const [selectedSoldier, setSelectedSoldier] = useState<StreetSoldier | null>(null);
 
   const avgLoyalty = soldiers.length > 0 
@@ -41,11 +41,13 @@ export const SoldiersPanel = () => {
   const canAffordDailyCost = cash >= dailyCost;
 
   // Stats for the header
-  const promotableSoldiers = soldiers.filter(s => s.promotable || (s.experience >= 80 && s.skill >= 60));
-  const veteranCount = soldiers.filter(s => s.isVeteran).length;
-  const eliteCount = soldiers.filter(s => s.isElite).length;
-  const avgSkill = soldiers.length > 0 
-    ? Math.floor(soldiers.reduce((sum, s) => sum + s.skill, 0) / soldiers.length)
+  const activeSoldiers = soldiers.filter(s => !s.isArrested);
+  const arrestedSoldiers = soldiers.filter(s => s.isArrested);
+  const promotableSoldiers = activeSoldiers.filter(s => s.promotable || (s.experience >= 50 && s.skill >= 40));
+  const veteranCount = activeSoldiers.filter(s => s.isVeteran).length;
+  const eliteCount = activeSoldiers.filter(s => s.isElite).length;
+  const avgSkill = activeSoldiers.length > 0 
+    ? Math.floor(activeSoldiers.reduce((sum, s) => sum + s.skill, 0) / activeSoldiers.length)
     : 0;
 
   const getLoyaltyStatus = (loyalty: number) => {
@@ -57,10 +59,14 @@ export const SoldiersPanel = () => {
 
   const loyaltyStatus = getLoyaltyStatus(avgLoyalty);
 
-  // Sort soldiers: promotable first, then by skill
+  // Sort soldiers: arrested last, promotable first, then by skill
   const sortedSoldiers = [...soldiers].sort((a, b) => {
-    const aPromotable = a.promotable || (a.experience >= 80 && a.skill >= 60);
-    const bPromotable = b.promotable || (b.experience >= 80 && b.skill >= 60);
+    // Arrested soldiers go to the end
+    if (a.isArrested && !b.isArrested) return 1;
+    if (!a.isArrested && b.isArrested) return -1;
+    
+    const aPromotable = a.promotable || (a.experience >= 50 && a.skill >= 40);
+    const bPromotable = b.promotable || (b.experience >= 50 && b.skill >= 40);
     if (aPromotable && !bPromotable) return -1;
     if (!aPromotable && bPromotable) return 1;
     if (a.isElite && !b.isElite) return -1;
@@ -84,7 +90,7 @@ export const SoldiersPanel = () => {
             <div>
               <h3 className="font-display text-lg font-bold neon-text-amber">Street Soldiers</h3>
               <p className="text-xs text-muted-foreground">
-                {soldiers.length} active • {veteranCount} veterans • {eliteCount} elite
+                {activeSoldiers.length} active • {arrestedSoldiers.length} arrested • {veteranCount} veterans
               </p>
             </div>
           </div>
@@ -149,6 +155,90 @@ export const SoldiersPanel = () => {
           </div>
         </Card>
       )}
+
+      {/* Arrested Soldiers Alert */}
+      {arrestedSoldiers.length > 0 && (
+        <Card className="bg-neon-red/10 border-neon-red/30 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock className="w-5 h-5 text-neon-red" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-neon-red">
+                {arrestedSoldiers.length} soldier{arrestedSoldiers.length > 1 ? 's' : ''} in jail
+              </p>
+              <p className="text-xs text-muted-foreground">Pay to release them</p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            {arrestedSoldiers.slice(0, 2).map(s => {
+              const releaseCost = 300 + (s.skill * 5);
+              return (
+                <div key={s.id} className="flex items-center justify-between p-2 rounded bg-secondary/30">
+                  <span className="text-xs">{s.name}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs border-neon-green/30 text-neon-green"
+                    onClick={() => releaseSoldier(s.id)}
+                    disabled={cash < releaseCost}
+                  >
+                    <Unlock className="w-3 h-3 mr-1" /> ${releaseCost}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Dirty Cop System */}
+      <Card className="bg-slate-800/30 border-slate-700/50 backdrop-blur-sm p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-neon-purple" />
+            <span className="text-sm font-semibold">Dirty Cop</span>
+          </div>
+          {hasDirtyCop ? (
+            <Badge className="bg-neon-green/20 text-neon-green border-neon-green/30 text-xs">Active</Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground text-xs">Not Hired</Badge>
+          )}
+        </div>
+        {hasDirtyCop ? (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs border-neon-purple/30 text-neon-purple"
+              onClick={useDirtyCopForIntel}
+              disabled={cash < dirtyCopCost}
+            >
+              <Eye className="w-3 h-3 mr-1" /> Intel (${dirtyCopCost})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs border-neon-cyan/30 text-neon-cyan"
+              onClick={useDirtyCopForHeat}
+              disabled={cash < dirtyCopCost}
+            >
+              <TrendingDown className="w-3 h-3 mr-1" /> -Heat (${dirtyCopCost})
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs border-neon-purple/30 text-neon-purple"
+            onClick={hireDirtyCop}
+            disabled={cash < 2000}
+          >
+            <ShieldAlert className="w-3 h-3 mr-1" /> Hire Dirty Cop ($2,000)
+          </Button>
+        )}
+        <p className="text-[10px] text-muted-foreground mt-1 text-center">
+          {hasDirtyCop ? "Gain intel or reduce police heat" : "Reduces heat and provides intel"}
+        </p>
+      </Card>
 
       {/* Morale & Stipend Row */}
       <div className="grid grid-cols-2 gap-4">
