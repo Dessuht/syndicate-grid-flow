@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import type { Officer } from '@/stores/gameStoreTypes';
+import { useGameStore } from '@/stores/gameStore';
 import { cn } from '@/lib/utils';
 import { 
   Zap, 
@@ -13,7 +14,8 @@ import {
   Shield,
   Swords,
   Star,
-  Lock
+  Lock,
+  Users
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -36,6 +38,11 @@ const RANK_COLORS: Record<string, string> = {
 };
 
 export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disabled }: OfficerCardProps) => {
+  const { soldiers } = useGameStore();
+  
+  // Get soldiers assigned to this officer
+  const crewCount = soldiers.filter(s => s.assignedOfficerId === officer.id && !s.isArrested).length;
+  
   const loyaltyColor = officer.loyalty > 60 ? 'text-neon-green' : 
                        officer.loyalty > 30 ? 'text-neon-amber' : 'text-neon-red';
   
@@ -97,6 +104,12 @@ export const OfficerCard = ({ officer, isSelected, onSelect, buildingName, disab
               <Badge variant="secondary" className="text-[10px] px-1 py-0">
                 <Building className="w-2 h-2 mr-0.5" />
                 {buildingName}
+              </Badge>
+            )}
+            {crewCount > 0 && (
+              <Badge className="text-[10px] px-1 py-0 bg-neon-amber/20 text-neon-amber border-0">
+                <Users className="w-2 h-2 mr-0.5" />
+                {crewCount} crew
               </Badge>
             )}
           </div>

@@ -3,7 +3,7 @@ import type { Officer, OfficerRank } from '@/stores/gameStoreTypes';
 import { OfficerRelationship } from '@/types/relationships';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase, Star, TrendingUp, Crown, Users, HeartHandshake, AlertTriangle } from 'lucide-react';
+import { X, Heart, Zap, DollarSign, MessageSquare, Skull, Briefcase, Star, TrendingUp, Crown, Users, HeartHandshake, AlertTriangle, Swords, Shield, Lock, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -24,16 +24,22 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
     currentPhase, 
     cash, 
     officers,
+    soldiers,
     shareTea, 
     giveBonus, 
     reprimandOfficer,
     promoteOfficer,
     designateSuccessor,
     relationshipSystem,
-    createManualInteraction
+    createManualInteraction,
+    assignSoldierToOfficer
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Get crew assigned to this officer
+  const assignedCrew = soldiers.filter(s => s.assignedOfficerId === officer.id);
+  const availableSoldiers = soldiers.filter(s => !s.assignedOfficerId && !s.isArrested);
 
   const isMorning = currentPhase === 'morning';
   const isUnavailable = officer.isWounded || officer.isArrested;
@@ -160,17 +166,21 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Briefcase className="w-4 h-4" />
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="overview" className="flex items-center gap-1 text-xs">
+              <Briefcase className="w-3 h-3" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="relationships" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Relationships
+            <TabsTrigger value="crew" className="flex items-center gap-1 text-xs">
+              <Swords className="w-3 h-3" />
+              Crew ({assignedCrew.length})
             </TabsTrigger>
-            <TabsTrigger value="interactions" className="flex items-center gap-2">
-              <HeartHandshake className="w-4 h-4" />
+            <TabsTrigger value="relationships" className="flex items-center gap-1 text-xs">
+              <Users className="w-3 h-3" />
+              Relations
+            </TabsTrigger>
+            <TabsTrigger value="interactions" className="flex items-center gap-1 text-xs">
+              <HeartHandshake className="w-3 h-3" />
               Social
             </TabsTrigger>
           </TabsList>
@@ -336,6 +346,103 @@ export const OfficerDossierModal = ({ officer, onClose }: OfficerDossierModalPro
                   Officer is {officer.isWounded ? 'WOUNDED' : 'ARRESTED'} and cannot be interacted with.
                 </p>
               )}
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Crew Tab */}
+          <TabsContent value="crew" className="flex-1 flex flex-col">
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-4">
+                {/* Assigned Crew */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                    <Swords className="w-4 h-4 text-neon-amber" />
+                    Assigned Soldiers ({assignedCrew.length})
+                  </h3>
+                  {assignedCrew.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3 rounded bg-secondary/30 border border-border">
+                      No soldiers assigned to this officer yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {assignedCrew.map(soldier => (
+                        <div 
+                          key={soldier.id}
+                          className={cn(
+                            "p-3 rounded-lg border flex items-center justify-between",
+                            soldier.isArrested 
+                              ? "bg-neon-red/10 border-neon-red/30" 
+                              : "bg-secondary/30 border-border"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {soldier.isArrested && <Lock className="w-3 h-3 text-neon-red" />}
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{soldier.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Skill: <span className="text-neon-cyan">{soldier.skill}</span></span>
+                                <span>Loyalty: <span className={soldier.loyalty > 60 ? "text-neon-green" : soldier.loyalty > 30 ? "text-neon-amber" : "text-neon-red"}>{soldier.loyalty}%</span></span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs text-muted-foreground hover:text-neon-red"
+                            onClick={() => assignSoldierToOfficer(soldier.id, '')}
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Available Soldiers */}
+                {availableSoldiers.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                      <Plus className="w-4 h-4 text-neon-green" />
+                      Available Soldiers ({availableSoldiers.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {availableSoldiers.map(soldier => (
+                        <div 
+                          key={soldier.id}
+                          className="p-3 rounded-lg border bg-secondary/20 border-border flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{soldier.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>Skill: <span className="text-neon-cyan">{soldier.skill}</span></span>
+                              <span>Loyalty: <span className={soldier.loyalty > 60 ? "text-neon-green" : "text-neon-amber"}>{soldier.loyalty}%</span></span>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs border-neon-green/30 text-neon-green"
+                            onClick={() => assignSoldierToOfficer(soldier.id, officer.id)}
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Assign
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Crew Benefits Info */}
+                <div className="p-3 rounded-lg bg-neon-cyan/10 border border-neon-cyan/30">
+                  <h4 className="text-xs font-semibold text-neon-cyan mb-1">Crew Benefits</h4>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• More crew = stronger in battles</li>
+                    <li>• Crew skill adds to officer's effectiveness</li>
+                    <li>• Officers recruit soldiers automatically over time</li>
+                  </ul>
+                </div>
+              </div>
             </ScrollArea>
           </TabsContent>
 

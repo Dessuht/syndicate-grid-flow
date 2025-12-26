@@ -248,16 +248,12 @@ export const DistrictMap = () => {
 
           {mobileTab === 'crew' && (
             <Tabs defaultValue="officers" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-3 mb-2">
+              <TabsList className="grid w-full grid-cols-2 mb-2">
                 <TabsTrigger value="officers" className="text-xs">Officers</TabsTrigger>
-                <TabsTrigger value="soldiers" className="text-xs">Soldiers</TabsTrigger>
                 <TabsTrigger value="manage" className="text-xs">Manage</TabsTrigger>
               </TabsList>
               <TabsContent value="officers" className="flex-1 overflow-auto mt-0">
                 <OfficersPanel />
-              </TabsContent>
-              <TabsContent value="soldiers" className="flex-1 overflow-auto mt-0">
-                <SoldiersPanel />
               </TabsContent>
               <TabsContent value="manage" className="flex-1 overflow-auto mt-0">
                 <ManagementPanel />
@@ -425,14 +421,10 @@ export const DistrictMap = () => {
       {/* Right Sidebar with Tabs */}
       <div className="w-80 shrink-0 flex flex-col overflow-hidden">
         <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as any)} className="flex flex-col h-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="officers" className="gap-1 text-xs px-2">
               <Users className="w-3 h-3" />
               Officers
-            </TabsTrigger>
-            <TabsTrigger value="soldiers" className="gap-1 text-xs px-2">
-              <Swords className="w-3 h-3" />
-              Soldiers
             </TabsTrigger>
             <TabsTrigger value="manage" className="gap-1 text-xs px-2">
               <Settings className="w-3 h-3" />
@@ -446,10 +438,6 @@ export const DistrictMap = () => {
           
           <TabsContent value="officers" className="flex-1 overflow-auto mt-0">
             <OfficersPanel />
-          </TabsContent>
-          
-          <TabsContent value="soldiers" className="flex-1 overflow-auto mt-0">
-            <SoldiersPanel />
           </TabsContent>
           
           <TabsContent value="manage" className="flex-1 overflow-auto mt-0">
