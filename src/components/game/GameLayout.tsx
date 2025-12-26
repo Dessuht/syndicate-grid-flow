@@ -2,6 +2,7 @@
 
 import { useGameStore } from '@/stores/gameStore';
 import { ResourceBar } from './ResourceBar';
+import { MobileResourceBar } from './MobileResourceBar';
 import { DayCycle } from './DayCycle';
 import { DistrictMap } from './DistrictMap';
 import { GlobalMap } from './GlobalMap';
@@ -9,6 +10,7 @@ import { LegalMedicalView } from './LegalMedicalView';
 import { FamilyCouncilScene } from './FamilyCouncilScene';
 import { EventManager } from './EventManager';
 import { Sidebar } from './Sidebar';
+import { MobileNav } from './MobileNav';
 import { EmergencyFix } from './EmergencyFix';
 import { ToastProvider } from './ToastProvider';
 import { GameNotifications } from './GameNotifications';
@@ -17,10 +19,12 @@ import { Card } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { HelpCircle } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const GameLayout = () => {
   const { currentScene, setCurrentScene } = useGameStore();
   const [showTutorial, setShowTutorial] = useState(false);
+  const isMobile = useIsMobile();
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -74,6 +78,53 @@ export const GameLayout = () => {
     setShowTutorial(true);
   };
 
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 pb-16">
+        <ToastProvider />
+        <GameNotifications />
+
+        {/* Mobile Resource Bar */}
+        <MobileResourceBar />
+
+        {/* Day Cycle - Compact */}
+        <div className="px-3 py-2 border-b border-slate-700/50 bg-slate-800/30 flex items-center justify-between">
+          <DayCycle />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleShowTutorial}
+            className="text-muted-foreground hover:text-white p-1"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Main Content */}
+        <main className="h-[calc(100vh-120px)] overflow-auto">
+          <div className="p-3 h-full">
+            {renderCurrentView()}
+          </div>
+        </main>
+
+        {/* Bottom Navigation */}
+        <MobileNav
+          activeView={currentScene.toLowerCase() as any}
+          onViewChange={handleViewChange}
+        />
+
+        <EventManager />
+        <EmergencyFix />
+
+        {showTutorial && (
+          <TutorialOverlay onComplete={handleTutorialComplete} />
+        )}
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">
       {/* Toast Provider */}

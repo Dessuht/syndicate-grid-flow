@@ -27,6 +27,7 @@ interface BuildingCardProps {
   isInactive: boolean;
   currentDay: number;
   canInteract: boolean;
+  compact?: boolean;
 }
 
 const BUILDING_ICONS: Record<string, React.ElementType> = {
@@ -49,7 +50,7 @@ const BUILDING_COLORS: Record<string, string> = {
   'Drug Lab': 'neon-red',
 };
 
-export const BuildingCard = ({ building, officer, onAssign, onUnassign, isInactive, currentDay, canInteract }: BuildingCardProps) => {
+export const BuildingCard = ({ building, officer, onAssign, onUnassign, isInactive, currentDay, canInteract, compact = false }: BuildingCardProps) => {
   const Icon = BUILDING_ICONS[building.type] || Store;
   const colorVar = building.isRebelBase ? 'neon-red' : BUILDING_COLORS[building.type] || 'neon-cyan';
   const daysUntilActive = isInactive && building.inactiveUntilDay ? building.inactiveUntilDay - currentDay : 0;
@@ -60,6 +61,84 @@ export const BuildingCard = ({ building, officer, onAssign, onUnassign, isInacti
       onUnassign();
     }
   };
+
+  // Compact mobile version
+  if (compact) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileTap={{ scale: 0.98 }}
+        className={cn(
+          "building-card p-2 group",
+          building.isOccupied && "occupied",
+          isInactive && "opacity-50",
+          building.isRebelBase && "border-neon-red/70 animate-pulse",
+          canInteract && !isInactive && !building.isRebelBase ? "cursor-pointer" : "cursor-default"
+        )}
+        onClick={handleClick}
+      >
+        {/* Compact Header */}
+        <div className="flex items-center gap-1.5 mb-1">
+          <div className={cn(
+            "p-1 rounded transition-all",
+            building.isOccupied 
+              ? `bg-${colorVar}/20` 
+              : "bg-secondary"
+          )}
+          style={building.isOccupied ? {
+            background: `hsl(var(--${colorVar}) / 0.2)`
+          } : {}}
+          >
+            {building.isRebelBase ? (
+              <Skull className="w-3 h-3 text-neon-red" />
+            ) : (
+              <Icon className="w-3 h-3"
+                style={building.isOccupied ? { color: `hsl(var(--${colorVar}))` } : {}}
+              />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display text-[10px] font-semibold text-foreground truncate leading-tight">
+              {building.name}
+            </h3>
+          </div>
+        </div>
+
+        {/* Compact Stats */}
+        <div className="flex items-center gap-2 text-[10px]">
+          {!building.isRebelBase && (
+            <>
+              <div className="flex items-center gap-0.5">
+                <DollarSign className="w-2.5 h-2.5 text-neon-amber" />
+                <span className="neon-text-amber">${building.baseRevenue}</span>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Flame className={cn("w-2.5 h-2.5", building.heatGen < 0 ? "text-neon-cyan" : "text-neon-red/70")} />
+                <span className={building.heatGen < 0 ? "text-neon-cyan" : "text-neon-red/70"}>
+                  {building.heatGen > 0 ? '+' : ''}{building.heatGen}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Compact Status */}
+        <div className="mt-1 text-[9px]">
+          {building.isRebelBase ? (
+            <span className="text-neon-red">REBEL</span>
+          ) : isInactive ? (
+            <span className="text-destructive">{daysUntilActive}d closed</span>
+          ) : officer ? (
+            <span className="text-neon-green truncate block">{officer.name.split(' ')[0]}</span>
+          ) : (
+            <span className="text-muted-foreground">Empty</span>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
