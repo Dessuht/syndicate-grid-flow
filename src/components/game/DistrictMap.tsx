@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const DistrictMap = () => {
   const {
@@ -47,10 +48,12 @@ export const DistrictMap = () => {
     unassignOfficer,
   } = useGameStore();
 
+  const isMobile = useIsMobile();
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'officers' | 'soldiers' | 'stats' | 'manage'>('officers');
   const [battleModalRivalId, setBattleModalRivalId] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<'map' | 'crew' | 'stats'>('map');
 
   const handleBuildingClick = (building: BuildingType) => {
     if (building.isRebelBase) {
@@ -111,6 +114,189 @@ export const DistrictMap = () => {
 
   const rebelOfficer = officers.find(o => o.id === rebelOfficerId);
 
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Mobile Tabs */}
+        <div className="flex gap-1 mb-3 bg-slate-800/50 p-1 rounded-lg">
+          <button
+            onClick={() => setMobileTab('map')}
+            className={`flex-1 py-2 text-xs font-medium rounded transition-colors ${
+              mobileTab === 'map' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            <BuildingIcon className="w-3 h-3 inline mr-1" />
+            Buildings
+          </button>
+          <button
+            onClick={() => setMobileTab('crew')}
+            className={`flex-1 py-2 text-xs font-medium rounded transition-colors ${
+              mobileTab === 'crew' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            <Users className="w-3 h-3 inline mr-1" />
+            Crew
+          </button>
+          <button
+            onClick={() => setMobileTab('stats')}
+            className={`flex-1 py-2 text-xs font-medium rounded transition-colors ${
+              mobileTab === 'stats' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            <BarChart3 className="w-3 h-3 inline mr-1" />
+            Stats
+          </button>
+        </div>
+
+        {/* War Status - Always visible */}
+        <WarStatusPanel onOpenBattleModal={(rivalId) => setBattleModalRivalId(rivalId)} />
+
+        {/* Police/Civil War Warnings */}
+        <AnimatePresence>
+          {activeEvent === 'policeShakedown' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-2 p-2 rounded-lg bg-gradient-to-r from-blue-600/30 via-neon-red/30 to-blue-600/30 border border-blue-500/50"
+            >
+              <p className="text-xs text-foreground flex items-center gap-1">
+                <ShieldAlert className="w-4 h-4 text-blue-400" />
+                <span className="font-bold text-blue-400">POLICE SHAKEDOWN</span>
+              </p>
+            </motion.div>
+          )}
+          {isCivilWarActive && rebelOfficer && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-2 p-2 rounded-lg bg-neon-red/20 border border-neon-red/50"
+            >
+              <p className="text-xs text-neon-red flex items-center gap-1">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="font-semibold">{rebelOfficer.name}</span> rebellion!
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-auto">
+          {mobileTab === 'map' && (
+            <div className="space-y-3">
+              {/* Quick Actions */}
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowPurchaseModal(true)}
+                  className="flex-1 text-xs"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Buy
+                </Button>
+                <Button 
+                  variant="nightclub" 
+                  size="sm"
+                  onClick={handleHostNightclub} 
+                  disabled={cash < 1000 || isCivilWarActive}
+                  className="flex-1 text-xs"
+                >
+                  <PartyPopper className="w-3 h-3 mr-1" />
+                  Party
+                </Button>
+              </div>
+
+              {/* Phase Status */}
+              {currentPhase === 'morning' && !isCivilWarActive && (
+                <div className="p-2 rounded-lg bg-neon-green/10 border border-neon-green/30">
+                  <p className="text-xs text-neon-green">☀️ Morning: Tap buildings to assign</p>
+                </div>
+              )}
+
+              {/* Building Grid - 2 columns for mobile */}
+              <div className="grid grid-cols-2 gap-2">
+                {buildings.map((building, index) => {
+                  const isInactive = building.inactiveUntilDay ? building.inactiveUntilDay > currentDay : false;
+                  return (
+                    <motion.div
+                      key={building.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      onClick={() => handleBuildingClick(building)}
+                      className="cursor-pointer"
+                    >
+                      <BuildingCard
+                        building={building}
+                        officer={getOfficerForBuilding(building.id)}
+                        onAssign={() => {}}
+                        onUnassign={() => handleUnassign(building.id)}
+                        isInactive={isInactive}
+                        currentDay={currentDay}
+                        canInteract={currentPhase === 'morning'}
+                        compact
+                      />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {mobileTab === 'crew' && (
+            <Tabs defaultValue="officers" className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-3 mb-2">
+                <TabsTrigger value="officers" className="text-xs">Officers</TabsTrigger>
+                <TabsTrigger value="soldiers" className="text-xs">Soldiers</TabsTrigger>
+                <TabsTrigger value="manage" className="text-xs">Manage</TabsTrigger>
+              </TabsList>
+              <TabsContent value="officers" className="flex-1 overflow-auto mt-0">
+                <OfficersPanel />
+              </TabsContent>
+              <TabsContent value="soldiers" className="flex-1 overflow-auto mt-0">
+                <SoldiersPanel />
+              </TabsContent>
+              <TabsContent value="manage" className="flex-1 overflow-auto mt-0">
+                <ManagementPanel />
+              </TabsContent>
+            </Tabs>
+          )}
+
+          {mobileTab === 'stats' && (
+            <GameStatsPanel />
+          )}
+        </div>
+
+        {/* Modals */}
+        <AnimatePresence>
+          {selectedBuilding && (
+            <OfficerAssignmentModal
+              building={selectedBuilding}
+              onClose={() => setSelectedBuilding(null)}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {showPurchaseModal && (
+            <BuildingPurchaseModal onClose={() => setShowPurchaseModal(false)} />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {battleModalRivalId && (
+            <BattleDeploymentModal
+              rivalId={battleModalRivalId}
+              onClose={() => setBattleModalRivalId(null)}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="flex gap-4 p-4 h-full">
       {/* Main Grid */}
