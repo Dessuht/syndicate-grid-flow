@@ -717,6 +717,12 @@ export const useGameStore = create<GameState>((set, get) => {
     // Street Beef (Officer Friction) State
     activeStreetBeefs: [],
     beefDaysTracker: {},
+    
+    // Intrigue System
+    schemes: [],
+    officerAmbitions: {},
+    intrigueRumors: [],
+    activeIntrigueEvent: null,
 
     // Basic actions
     assignOfficer: (officerId: string, buildingId: string) => {

@@ -1,11 +1,12 @@
 import { OfficerRelationship as ComplexRelationship, SharedMemory, Grudge } from '@/types/relationships';
+import type { Scheme, PersonalAmbition, IntrigueEvent } from '@/types/intrigue';
 
 // Core Game Types
 export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blue Lantern' | 'Deputy (438)' | 'Dragonhead (489)';
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL';
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | 'streetBeef' | 'nightclubSuccess' | null;
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | 'streetBeef' | 'nightclubSuccess' | 'intrigueEvent' | null;
 
 export type CompatibilityLike = 'Respects Red Poles' | 'Values Loyalty' | 'Admires Ambition' | 'Appreciates Cunning' | 'Respects Old School';
 export type CompatibilityDislike = 'Hates Ambitious' | 'Distrusts Calculating' | 'Despises Hot-headed' | 'Resents Ruthless' | 'Scorns Silver Tongue';
@@ -308,6 +309,12 @@ export interface GameState {
   // Street Beef (Officer Friction) State
   activeStreetBeefs: StreetBeef[];
   beefDaysTracker: Record<string, number>;
+  
+  // Intrigue System
+  schemes: Scheme[];
+  officerAmbitions: Record<string, PersonalAmbition[]>;
+  intrigueRumors: string[];
+  activeIntrigueEvent: IntrigueEvent | null;
   
   // Street beef actions
   processStreetBeefs: () => void;
