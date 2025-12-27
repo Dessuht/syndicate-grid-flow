@@ -20,7 +20,9 @@ import type {
   CompatibilityLike,
   CompatibilityDislike,
   StreetBeef,
-  GameSpeed
+  GameSpeed,
+  Equipment,
+  EquipmentSlot
 } from './gameStoreTypes';
 
 
@@ -589,14 +591,24 @@ const INITIAL_SOLDIERS: StreetSoldier[] = Array.from({ length: 6 }, (_, i) => cr
   recruitedOnDay: 1,
 }));
 
+// Initial equipment available
+const INITIAL_EQUIPMENT: Equipment[] = [
+  { id: 'eq-1', name: 'Butterfly Knife', slot: 'weapon', rarity: 'common', effects: { enforcement: 10 }, cost: 500, description: 'A classic triad weapon' },
+  { id: 'eq-2', name: 'AK-47', slot: 'weapon', rarity: 'rare', effects: { enforcement: 30 }, cost: 3000, description: 'Serious firepower for serious business' },
+  { id: 'eq-3', name: 'Gold Chain', slot: 'accessory', rarity: 'common', effects: { face: 10 }, cost: 800, description: 'Shows you mean business' },
+  { id: 'eq-4', name: 'Armani Suit', slot: 'armor', rarity: 'rare', effects: { face: 20, diplomacy: 10 }, cost: 2500, description: 'High-end clothing for high-end meetings' },
+  { id: 'eq-5', name: 'Bulletproof Vest', slot: 'armor', rarity: 'common', effects: { enforcement: 5 }, cost: 1000, description: 'Protection in a firefight' },
+  { id: 'eq-6', name: 'Rolex Watch', slot: 'accessory', rarity: 'legendary', effects: { face: 30, diplomacy: 15 }, cost: 5000, description: 'The ultimate status symbol' },
+];
+
 const INITIAL_RIVALS: RivalGang[] = [
   {
     id: 'rival-1',
     name: '14K Triad',
     district: 'Mong Kok',
-    strength: 45,
-    maxStrength: 45,
-    relationship: -20,
+    strength: 80,
+    maxStrength: 80,
+    relationship: -35,
     hasTradeAgreement: false,
     hasAlliance: false,
     isScouted: false,
@@ -604,15 +616,16 @@ const INITIAL_RIVALS: RivalGang[] = [
     isDefeated: false,
     controlledByPlayer: false,
     dailyTribute: 0,
-    recoveryDays: 0
+    recoveryDays: 0,
+    isDiscovered: true
   },
   {
     id: 'rival-2',
     name: 'Sun Yee On',
     district: 'Tsim Sha Tsui',
-    strength: 60,
-    maxStrength: 60,
-    relationship: 10,
+    strength: 100,
+    maxStrength: 100,
+    relationship: -10,
     hasTradeAgreement: false,
     hasAlliance: false,
     isScouted: false,
@@ -620,15 +633,16 @@ const INITIAL_RIVALS: RivalGang[] = [
     isDefeated: false,
     controlledByPlayer: false,
     dailyTribute: 0,
-    recoveryDays: 0
+    recoveryDays: 0,
+    isDiscovered: false
   },
   {
     id: 'rival-3',
     name: 'Wo Shing Wo',
     district: 'Central',
-    strength: 75,
-    maxStrength: 75,
-    relationship: -40,
+    strength: 120,
+    maxStrength: 120,
+    relationship: -55,
     hasTradeAgreement: false,
     hasAlliance: false,
     isScouted: false,
@@ -636,36 +650,61 @@ const INITIAL_RIVALS: RivalGang[] = [
     isDefeated: false,
     controlledByPlayer: false,
     dailyTribute: 0,
-    recoveryDays: 0
+    recoveryDays: 0,
+    isDiscovered: false
+  },
+  {
+    id: 'rival-4',
+    name: 'Bamboo Union',
+    district: 'Wan Chai',
+    strength: 90,
+    maxStrength: 90,
+    relationship: -25,
+    hasTradeAgreement: false,
+    hasAlliance: false,
+    isScouted: false,
+    isActiveConflict: false,
+    isDefeated: false,
+    controlledByPlayer: false,
+    dailyTribute: 0,
+    recoveryDays: 0,
+    isDiscovered: false
   },
 ];
 
 export const useGameStore = create<GameState>((set, get) => {
   const store: GameState = {
-    // Core Resources - REDUCED for harder start
-    cash: 2000,
-    reputation: 30,
-    policeHeat: 25,
+    // Core Resources - REDUCED for very hard start
+    cash: 1500,
+    reputation: 20,
+    policeHeat: 30,
     intel: 0,
-    influence: 5,
+    influence: 3,
     currentDay: 1,
     currentPhase: 'morning' as DayPhase,
-    stipend: 30,
+    stipend: 20,
     
     // Dirty Cop System
     hasDirtyCop: false,
     dirtyCopCost: 500,
+    
+    // Auto-pause settings
+    autoPauseOnEvent: true,
+    autoPauseOnNewDay: false,
 
     // Time System
     gameSpeed: 1 as GameSpeed,
     isPlaying: false,
     timeInterval: null,
     phaseProgress: 0,
+    
+    // Equipment
+    availableEquipment: INITIAL_EQUIPMENT,
 
-    // Game Entities
-    officers: INITIAL_OFFICERS,
-    buildings: INITIAL_BUILDINGS,
-    soldiers: INITIAL_SOLDIERS,
+    // Game Entities - REDUCED starting forces
+    officers: [INITIAL_OFFICERS[0]], // Only 1 officer
+    buildings: [], // No starting buildings
+    soldiers: INITIAL_SOLDIERS.slice(0, 2), // Only 2 soldiers
     rivals: INITIAL_RIVALS,
 
     // Social and Relationship System
@@ -3766,6 +3805,48 @@ export const useGameStore = create<GameState>((set, get) => {
         };
       });
     },
+    
+    // Discovery System
+    discoverRival: (rivalId: string) => {
+      set((state) => ({
+        rivals: state.rivals.map(r => r.id === rivalId ? { ...r, isDiscovered: true, discoveredOnDay: state.currentDay } : r)
+      }));
+    },
+    
+    // Equipment System
+    equipItem: (officerId: string, equipmentId: string) => {
+      set((state) => {
+        const equipment = state.availableEquipment.find(e => e.id === equipmentId);
+        if (!equipment) return state;
+        return {
+          officers: state.officers.map(o => o.id === officerId ? {
+            ...o,
+            equipment: { ...(o.equipment || {}), [equipment.slot]: equipment }
+          } : o)
+        };
+      });
+    },
+    
+    unequipItem: (officerId: string, slot: EquipmentSlot) => {
+      set((state) => ({
+        officers: state.officers.map(o => o.id === officerId ? {
+          ...o,
+          equipment: { ...(o.equipment || {}), [slot]: undefined }
+        } : o)
+      }));
+    },
+    
+    purchaseEquipment: (equipmentId: string) => {
+      set((state) => {
+        const equipment = state.availableEquipment.find(e => e.id === equipmentId);
+        if (!equipment || state.cash < equipment.cost) return state;
+        return { cash: state.cash - equipment.cost };
+      });
+    },
+    
+    // Auto-pause settings
+    toggleAutoPauseOnEvent: () => set((state) => ({ autoPauseOnEvent: !state.autoPauseOnEvent })),
+    toggleAutoPauseOnNewDay: () => set((state) => ({ autoPauseOnNewDay: !state.autoPauseOnNewDay })),
   };
 
   // Start territory friction timer after store initialization

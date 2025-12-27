@@ -55,6 +55,13 @@ export interface Officer {
   loyalty: number;
   face: number;
   
+  // Equipment System
+  equipment?: {
+    weapon?: Equipment;
+    armor?: Equipment;
+    accessory?: Equipment;
+  };
+  
   // Behavioral State
   currentAgenda: string | null;
   traits: string[];
@@ -168,6 +175,30 @@ export interface RivalGang {
   dailyTribute: number; // Income from controlled territory
   maxStrength: number; // For recovery tracking
   recoveryDays: number; // Days until strength recovers
+  // Discovery system
+  isDiscovered: boolean; // Whether player knows about this gang
+  discoveredOnDay?: number;
+}
+
+// Equipment for officers
+export type EquipmentSlot = 'weapon' | 'armor' | 'accessory';
+export type EquipmentRarity = 'common' | 'rare' | 'legendary';
+
+export interface Equipment {
+  id: string;
+  name: string;
+  slot: EquipmentSlot;
+  rarity: EquipmentRarity;
+  effects: {
+    enforcement?: number;
+    diplomacy?: number;
+    logistics?: number;
+    recruitment?: number;
+    face?: number;
+    loyalty?: number;
+  };
+  cost: number;
+  description: string;
 }
 
 // Captured Territory
@@ -249,12 +280,19 @@ export interface GameState {
   // Dirty Cop System
   hasDirtyCop: boolean;
   dirtyCopCost: number;
+  
+  // Auto-pause Settings
+  autoPauseOnEvent: boolean;
+  autoPauseOnNewDay: boolean;
 
   // Time System
   gameSpeed: GameSpeed;
   isPlaying: boolean;
   timeInterval: NodeJS.Timeout | null;
   phaseProgress: number; // 0-100 progress within current phase
+  
+  // Available equipment in shop
+  availableEquipment: Equipment[];
 
   // Game Entities
   officers: Officer[];
@@ -461,4 +499,16 @@ export interface GameState {
   processTerritoryIncome: () => void;
   processRivalRecovery: () => void;
   suppressTerritory: (rivalId: string) => void;
+  
+  // Discovery System
+  discoverRival: (rivalId: string) => void;
+  
+  // Equipment System
+  equipItem: (officerId: string, equipmentId: string) => void;
+  unequipItem: (officerId: string, slot: EquipmentSlot) => void;
+  purchaseEquipment: (equipmentId: string) => void;
+  
+  // Auto-pause settings
+  toggleAutoPauseOnEvent: () => void;
+  toggleAutoPauseOnNewDay: () => void;
 }
