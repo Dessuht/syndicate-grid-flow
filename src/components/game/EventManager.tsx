@@ -10,6 +10,7 @@ import { NewEraModal } from './modals/NewEraModal';
 import { DailyBriefingModal } from './modals/DailyBriefingModal';
 import { PoliceShakedownModal } from './modals/PoliceShakedownModal';
 import { StreetBeefModal } from './modals/StreetBeefModal';
+import { GangAttackModal } from './modals/GangAttackModal';
 
 export const EventManager = () => {
   const { activeEvent, eventData } = useGameStore();
@@ -37,6 +38,10 @@ export const EventManager = () => {
       return <PoliceShakedownModal />;
     case 'streetBeef':
       return <StreetBeefModal />;
+    case 'gangAttackOfficer':
+      return <GangAttackModal type="officer" />;
+    case 'gangAttackBuilding':
+      return <GangAttackModal type="building" />;
     case 'nightclubSuccess':
       // This is a temporary notification event, auto-dismiss it
       return null;
