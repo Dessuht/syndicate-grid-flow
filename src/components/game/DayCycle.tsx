@@ -1,10 +1,12 @@
 import { useGameStore } from '@/stores/gameStore';
 import type { DayPhase, GameSpeed } from '@/stores/gameStoreTypes';
 import { motion } from 'framer-motion';
-import { Sun, Sunset, Moon, Coffee, Play, Pause, FastForward } from 'lucide-react';
+import { Sun, Sunset, Moon, Coffee, Play, Pause, FastForward, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const PHASE_CONFIG: Record<DayPhase, { icon: React.ElementType; label: string; color: string; description: string }> = {
   morning: {
@@ -49,7 +51,11 @@ export const DayCycle = () => {
     phaseProgress,
     setGameSpeed,
     togglePlay,
-    activeEvent
+    activeEvent,
+    autoPauseOnEvent,
+    autoPauseOnNewDay,
+    toggleAutoPauseOnEvent,
+    toggleAutoPauseOnNewDay
   } = useGameStore();
   
   const config = PHASE_CONFIG[currentPhase];
@@ -222,6 +228,34 @@ export const DayCycle = () => {
           <p className="text-xs text-muted-foreground">{config.description}</p>
         </div>
       </div>
+
+      {/* Auto-Pause Settings */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-2">
+            <Settings2 className="w-4 h-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="end">
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Auto-Pause Settings</h4>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">Pause on Events</label>
+              <Switch 
+                checked={autoPauseOnEvent} 
+                onCheckedChange={toggleAutoPauseOnEvent}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">Pause on New Day</label>
+              <Switch 
+                checked={autoPauseOnNewDay} 
+                onCheckedChange={toggleAutoPauseOnNewDay}
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </motion.div>
   );
 };

@@ -18,6 +18,14 @@ interface BattleDeploymentModalProps {
 
 type BattleTactic = 'aggressive' | 'defensive' | 'guerrilla' | 'overwhelming';
 
+// Strategy synergy with officer traits
+const TACTIC_TRAIT_SYNERGIES: Record<BattleTactic, string[]> = {
+  aggressive: ['Ruthless', 'Fearless', 'Hot-headed'],
+  defensive: ['Calculating', 'Cautious', 'Loyal Dog'],
+  guerrilla: ['Street Smart', 'Connected', 'Cunning'],
+  overwhelming: ['Ambitious', 'Fearless', 'Ruthless'],
+};
+
 const TACTICS: { id: BattleTactic; name: string; icon: any; description: string; strengthMod: number; casualtyMod: number }[] = [
   { id: 'aggressive', name: 'Aggressive Assault', icon: Swords, description: '+20% strength, +30% casualties', strengthMod: 1.2, casualtyMod: 1.3 },
   { id: 'defensive', name: 'Defensive Hold', icon: Shield, description: '-10% strength, -40% casualties', strengthMod: 0.9, casualtyMod: 0.6 },
@@ -46,19 +54,31 @@ export const BattleDeploymentModal = ({ rivalId, onClose }: BattleDeploymentModa
   
   const tactic = TACTICS.find(t => t.id === selectedTactic)!;
   
-  // Calculate our deployed strength
+  // Check for strategy synergy with selected officers
+  const selectedOfficers = selectedOfficerIds.map(id => officers.find(o => o.id === id)).filter(Boolean);
+  const hasSynergy = selectedOfficers.some(officer => 
+    officer?.traits.some(trait => TACTIC_TRAIT_SYNERGIES[selectedTactic]?.includes(trait))
+  );
+  const synergyBonus = hasSynergy ? 0.15 : 0; // 15% bonus for strategy synergy
+  
+  // Calculate our deployed strength with unit counts
   const deployedSoldierStrength = loyalSoldiers
     .slice(0, soldiersDeployed)
-    .reduce((sum, s) => sum + s.skill, 0);
+    .reduce((sum, s) => {
+      const unitMod = (s.unitCount || 1) / 3; // Unit count affects strength
+      const healthMod = (s.unitHealth || 100) / 100; // Health affects strength
+      return sum + (s.skill * unitMod * healthMod);
+    }, 0);
   
   const officerStrength = selectedOfficerIds.reduce((sum, id) => {
     const officer = officers.find(o => o.id === id);
     if (!officer) return sum;
-    return sum + officer.skills.enforcement + (officer.rank === 'Red Pole' ? 20 : 0);
+    const equipmentBonus = officer.equipment?.weapon?.effects?.enforcement || 0;
+    return sum + officer.skills.enforcement + equipmentBonus + (officer.rank === 'Red Pole' ? 20 : 0);
   }, 0);
   
   const baseStrength = deployedSoldierStrength + officerStrength;
-  const tacticalStrength = Math.floor(baseStrength * tactic.strengthMod);
+  const tacticalStrength = Math.floor(baseStrength * tactic.strengthMod * (1 + synergyBonus));
   
   // Overwhelming force bonus
   const hasOverwhelmingForce = tacticalStrength > rival.strength * 2;

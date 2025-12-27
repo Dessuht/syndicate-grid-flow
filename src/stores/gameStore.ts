@@ -474,6 +474,10 @@ const INITIAL_BUILDINGS: Building[] = [
     isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
+    upgradeLevel: 0,
+    maxUpgradeLevel: 3,
+    upgradeCost: 1500,
+    territoryId: 'player',
   },
   {
     id: 'bld-2',
@@ -490,6 +494,10 @@ const INITIAL_BUILDINGS: Building[] = [
     isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
+    upgradeLevel: 0,
+    maxUpgradeLevel: 3,
+    upgradeCost: 2500,
+    territoryId: 'player',
   },
   {
     id: 'bld-3',
@@ -506,6 +514,10 @@ const INITIAL_BUILDINGS: Building[] = [
     isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
+    upgradeLevel: 0,
+    maxUpgradeLevel: 3,
+    upgradeCost: 2000,
+    territoryId: 'player',
   },
   {
     id: 'bld-4',
@@ -522,6 +534,10 @@ const INITIAL_BUILDINGS: Building[] = [
     isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
+    upgradeLevel: 0,
+    maxUpgradeLevel: 3,
+    upgradeCost: 3000,
+    territoryId: 'player',
   },
   {
     id: 'bld-5',
@@ -538,6 +554,10 @@ const INITIAL_BUILDINGS: Building[] = [
     isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
+    upgradeLevel: 0,
+    maxUpgradeLevel: 3,
+    upgradeCost: 1500,
+    territoryId: 'player',
   },
   {
     id: 'bld-6',
@@ -554,6 +574,10 @@ const INITIAL_BUILDINGS: Building[] = [
     isUpgraded: false,
     isRebelBase: false,
     rebelSoldierCount: 0,
+    upgradeLevel: 0,
+    maxUpgradeLevel: 0,
+    upgradeCost: 0,
+    territoryId: 'player',
   },
 ];
 
@@ -583,6 +607,10 @@ const createSoldier = (name: string, overrides: Partial<StreetSoldier> = {}): St
   promotable: false,
   recruitedOnDay: 1,
   assignedOfficerId: null,
+  // Combat unit system
+  unitCount: 2 + Math.floor(Math.random() * 2), // Start with 2-3 units
+  maxUnitCount: 5,
+  unitHealth: 100,
   ...overrides,
 });
 
@@ -3043,6 +3071,15 @@ export const useGameStore = create<GameState>((set, get) => {
           isUpgraded: false,
           isRebelBase: false,
           rebelSoldierCount: 0,
+          upgradeLevel: 0,
+          maxUpgradeLevel: 3,
+          upgradeCost: buildingType === 'Noodle Shop' ? 1500 :
+                       buildingType === 'Mahjong Parlor' ? 2500 :
+                       buildingType === 'Warehouse' ? 2000 :
+                       buildingType === 'Nightclub' ? 3000 :
+                       buildingType === 'Counterfeit Lab' ? 4000 :
+                       buildingType === 'Drug Lab' ? 5000 : 0,
+          territoryId: 'player',
         };
 
         return {
@@ -3297,6 +3334,20 @@ export const useGameStore = create<GameState>((set, get) => {
           weight: 1,
           condition: currentPhase === 'night' && buildings.some(b => b.type === 'Nightclub' && b.isOccupied)
         },
+        
+        // Gang attack events - hostile rivals attack officers or buildings
+        { 
+          type: 'gangAttackOfficer', 
+          weight: 3,
+          condition: rivals.some(r => r.relationship < -30 && !r.isActiveConflict && r.isDiscovered) && 
+                     officers.filter(o => !o.isWounded && !o.isArrested).length > 0
+        },
+        { 
+          type: 'gangAttackBuilding', 
+          weight: 2,
+          condition: rivals.some(r => r.relationship < -25 && !r.isActiveConflict && r.isDiscovered) && 
+                     buildings.some(b => b.isOccupied)
+        },
       ];
       
       // Filter to valid events
@@ -3468,6 +3519,56 @@ export const useGameStore = create<GameState>((set, get) => {
           break;
         }
         
+        // Gang attacks an officer
+        case 'gangAttackOfficer': {
+          const hostileRivals = rivals.filter(r => r.relationship < -30 && !r.isActiveConflict && r.isDiscovered);
+          const activeOfficers = officers.filter(o => !o.isWounded && !o.isArrested);
+          if (hostileRivals.length > 0 && activeOfficers.length > 0) {
+            const attacker = hostileRivals[Math.floor(Math.random() * hostileRivals.length)];
+            const target = activeOfficers[Math.floor(Math.random() * activeOfficers.length)];
+            const attackStrength = Math.floor(attacker.strength * 0.3);
+            set({ 
+              activeEvent: 'gangAttackOfficer', 
+              eventData: { 
+                rivalId: attacker.id,
+                rivalName: attacker.name,
+                officerId: target.id,
+                officerName: target.name,
+                attackStrength,
+                defendCost: Math.floor(500 + attackStrength * 10),
+              }
+            });
+          }
+          break;
+        }
+        
+        // Gang attacks a building
+        case 'gangAttackBuilding': {
+          const hostileRivals = rivals.filter(r => r.relationship < -25 && !r.isActiveConflict && r.isDiscovered);
+          const occupiedBuildings = buildings.filter(b => b.isOccupied);
+          if (hostileRivals.length > 0 && occupiedBuildings.length > 0) {
+            const attacker = hostileRivals[Math.floor(Math.random() * hostileRivals.length)];
+            const targetBuilding = occupiedBuildings[Math.floor(Math.random() * occupiedBuildings.length)];
+            const assignedOfficer = officers.find(o => o.id === targetBuilding.assignedOfficerId);
+            const attackStrength = Math.floor(attacker.strength * 0.4);
+            set({ 
+              activeEvent: 'gangAttackBuilding', 
+              eventData: { 
+                rivalId: attacker.id,
+                rivalName: attacker.name,
+                buildingId: targetBuilding.id,
+                buildingName: targetBuilding.name,
+                officerId: assignedOfficer?.id,
+                officerName: assignedOfficer?.name,
+                attackStrength,
+                reinforceCost: Math.floor(300 + attackStrength * 8),
+                potentialDamage: Math.floor(targetBuilding.baseRevenue * 0.3),
+              }
+            });
+          }
+          break;
+        }
+        
         default:
           break;
       }
@@ -3626,6 +3727,10 @@ export const useGameStore = create<GameState>((set, get) => {
             isUpgraded: false,
             isRebelBase: false,
             rebelSoldierCount: 0,
+            upgradeLevel: 0,
+            maxUpgradeLevel: 3,
+            upgradeCost: 2000,
+            territoryId: rivalId,
           });
         }
 

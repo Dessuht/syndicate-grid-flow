@@ -6,7 +6,20 @@ export type OfficerRank = 'Red Pole' | 'White Paper Fan' | 'Straw Sandal' | 'Blu
 export type DayPhase = 'morning' | 'day' | 'evening' | 'night';
 export type GameScene = 'DISTRICT' | 'GLOBAL' | 'LEGAL' | 'COUNCIL';
 export type BuildingType = 'Noodle Shop' | 'Mahjong Parlor' | 'Warehouse' | 'Nightclub' | 'Counterfeit Lab' | 'Police Station' | 'Drug Lab';
-export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | 'streetBeef' | 'nightclubSuccess' | 'intrigueEvent' | null;
+export type EventType = 'policeRaid' | 'betrayal' | 'rivalAttack' | 'criminalCaught' | 'soldierDesertion' | 'territoryUltimatum' | 'streetWar' | 'postConflictSummary' | 'coupAttempt' | 'newEra' | 'dailyBriefing' | 'policeShakedown' | 'streetBeef' | 'nightclubSuccess' | 'intrigueEvent' | 'gangAttackOfficer' | 'gangAttackBuilding' | null;
+
+// Battle tactics and combat system
+export type BattleTactic = 'aggressive' | 'defensive' | 'guerrilla' | 'overwhelming';
+export type CombatAdvantage = 'terrain' | 'intel' | 'ambush' | 'morale' | 'numbers' | 'equipment' | 'strategy_synergy';
+export type CombatDisadvantage = 'outnumbered' | 'low_morale' | 'injured_units' | 'bad_weather' | 'no_intel';
+
+// Strategy synergy with officer traits
+export const TACTIC_TRAIT_SYNERGIES: Record<BattleTactic, string[]> = {
+  aggressive: ['Ruthless', 'Fearless', 'Hot-headed'],
+  defensive: ['Calculating', 'Cautious', 'Loyal Dog'],
+  guerrilla: ['Street Smart', 'Connected', 'Cunning'],
+  overwhelming: ['Ambitious', 'Fearless', 'Ruthless'],
+};
 
 export type CompatibilityLike = 'Respects Red Poles' | 'Values Loyalty' | 'Admires Ambition' | 'Appreciates Cunning' | 'Respects Old School';
 export type CompatibilityDislike = 'Hates Ambitious' | 'Distrusts Calculating' | 'Despises Hot-headed' | 'Resents Ruthless' | 'Scorns Silver Tongue';
@@ -125,6 +138,12 @@ export interface Building {
   isUpgraded: boolean;
   isRebelBase: boolean;
   rebelSoldierCount: number;
+  // Upgrade System
+  upgradeLevel: number; // 0-3
+  maxUpgradeLevel: number;
+  upgradeCost: number;
+  // Territory association
+  territoryId?: string; // Which territory/district this building is in
 }
 
 // Soldier Interface
@@ -154,6 +173,10 @@ export interface StreetSoldier {
   recruitedOnDay: number;
   // Officer Assignment
   assignedOfficerId: string | null;
+  // Combat Unit System
+  unitCount: number; // Number of fighters in this soldier's unit (1-5)
+  maxUnitCount: number; // Max unit size based on rank/experience
+  unitHealth: number; // 0-100, heals over time
 }
 
 export type SoldierSpecialization = 'enforcer' | 'scout' | 'guard' | 'collector' | null;
