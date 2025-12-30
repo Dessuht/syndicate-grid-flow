@@ -5,9 +5,11 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { FaGlobe, FaChartLine, FaHandshake, FaShoppingCart, FaTimes, FaCheck, FaUsers, FaMapMarkerAlt, FaDollarSign, FaBrain, FaExclamationTriangle, FaHome, FaEye, FaBolt } from 'react-icons/fa';
+import { FaGlobe, FaChartLine, FaHandshake, FaShoppingCart, FaTimes, FaCheck, FaUsers, FaMapMarkerAlt, FaDollarSign, FaBrain, FaExclamationTriangle, FaHome, FaEye, FaBolt, FaBuilding, FaArrowUp, FaStore } from 'react-icons/fa';
 import { Swords } from 'lucide-react';
 import { BattleDeploymentModal } from './modals/BattleDeploymentModal';
+import { BuildingUpgradeModal } from './modals/BuildingUpgradeModal';
+import type { Building } from '@/stores/gameStoreTypes';
 
 // Territory polygon boundaries in Hong Kong (lat, lng) - approximate district boundaries
 const TERRITORY_BOUNDARIES: Record<string, { coords: [number, number][]; label: string; center: [number, number] }> = {
@@ -75,11 +77,16 @@ export const GlobalMap = () => {
   const mapRef = useRef<L.Map | null>(null);
   const polygonsRef = useRef<L.Polygon[]>([]);
   const [selectedRival, setSelectedRival] = useState<string | null>(null);
+  const [selectedPlayerTerritory, setSelectedPlayerTerritory] = useState(false);
   const [battleModalRivalId, setBattleModalRivalId] = useState<string | null>(null);
+  const [upgradeBuilding, setUpgradeBuilding] = useState<Building | null>(null);
   const activeRival = activeDiplomacy ? rivals.find(r => r.id === activeDiplomacy.rivalId) : null;
   const selectedRivalData = selectedRival ? rivals.find(r => r.id === selectedRival) : null;
   const assignedLeader = syndicateMembers.find(m => m.id === homeDistrictLeaderId);
   const ourStrength = soldiers.reduce((sum, s) => sum + (s.loyalty > 30 ? s.skill : 0), 0);
+  
+  // Get buildings in player territory
+  const playerBuildings = buildings.filter(b => !b.territoryId || b.territoryId === 'player');
 
   // Calculate passive income based on buildings owned
   const calculatePassiveIncome = () => {
@@ -147,7 +154,8 @@ export const GlobalMap = () => {
     });
 
     playerPolygon.on('click', () => {
-      // No longer opens district hub - just shows info
+      setSelectedRival(null);
+      setSelectedPlayerTerritory(true);
     });
 
     polygonsRef.current.push(playerPolygon);
@@ -186,6 +194,7 @@ export const GlobalMap = () => {
       });
 
       polygon.on('click', () => {
+        setSelectedPlayerTerritory(false);
         setSelectedRival(selectedRival === rival.id ? null : rival.id);
       });
 
@@ -279,7 +288,86 @@ export const GlobalMap = () => {
         {/* Info Panel - smaller sidebar */}
         <div className="lg:w-80 space-y-4 overflow-auto">
           <AnimatePresence mode="wait">
-            {selectedRivalData ? (
+            {selectedPlayerTerritory ? (
+              <motion.div 
+                key="player-territory"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="p-5 rounded-lg border border-neon-cyan/30 bg-card"
+              >
+                <div className="inline-block px-2 py-0.5 rounded text-xs font-medium mb-3 bg-neon-cyan/20 text-neon-cyan">
+                  Your Territory
+                </div>
+                
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-neon-cyan/10 border border-neon-cyan/30">
+                    <FaHome className="w-5 h-5 text-neon-cyan" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground">Wan Chai District</h3>
+                    <p className="text-sm text-muted-foreground">Your Home Base</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="flex items-center gap-1.5">
+                    <FaUsers className="w-4 h-4 text-neon-cyan" />
+                    <span className="text-sm">Strength: <span className="font-bold text-neon-cyan">{ourStrength}</span></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <FaBuilding className="w-4 h-4 text-neon-amber" />
+                    <span className="text-sm">{playerBuildings.length} Buildings</span>
+                  </div>
+                </div>
+                
+                {/* Buildings List */}
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground font-semibold mb-2">Territory Buildings</p>
+                  {playerBuildings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No buildings owned yet</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-auto">
+                      {playerBuildings.map(building => (
+                        <div 
+                          key={building.id}
+                          className="p-2 rounded-lg bg-secondary/50 border border-border hover:border-neon-cyan/30 transition-colors cursor-pointer"
+                          onClick={() => setUpgradeBuilding(building)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FaStore className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-sm font-medium">{building.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-neon-green">${building.baseRevenue}</span>
+                              {(building.upgradeLevel || 0) < (building.maxUpgradeLevel || 3) && (
+                                <FaArrowUp className="w-3 h-3 text-neon-cyan animate-pulse" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground">{building.type}</span>
+                            <span className="text-xs text-neon-purple">Lv.{(building.upgradeLevel || 0) + 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Territory Stats */}
+                <div className="mt-4 p-3 rounded-lg bg-secondary/30 border border-border">
+                  <p className="text-xs text-muted-foreground font-semibold mb-2">Daily Income</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Buildings</span>
+                    <span className="text-sm text-neon-green font-medium">
+                      ${playerBuildings.filter(b => b.isOccupied).reduce((sum, b) => sum + b.baseRevenue, 0)}/day
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ) : selectedRivalData ? (
               <motion.div 
                 key={selectedRivalData.id}
                 initial={{ opacity: 0, x: 20 }}
@@ -539,6 +627,16 @@ export const GlobalMap = () => {
           <BattleDeploymentModal
             rivalId={battleModalRivalId}
             onClose={() => setBattleModalRivalId(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Building Upgrade Modal */}
+      <AnimatePresence>
+        {upgradeBuilding && (
+          <BuildingUpgradeModal
+            building={upgradeBuilding}
+            onClose={() => setUpgradeBuilding(null)}
           />
         )}
       </AnimatePresence>

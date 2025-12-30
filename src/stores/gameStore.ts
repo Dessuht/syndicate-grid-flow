@@ -914,6 +914,27 @@ export const useGameStore = create<GameState>((set, get) => {
           
           // Process territory stability decay and rival recovery
           get().processRivalRecovery();
+          
+          // UNIT HEALING: Soldiers heal over time at night->morning transition
+          const healedSoldiers = currentState.soldiers.map(soldier => {
+            if (soldier.unitHealth < 100) {
+              // Base healing rate: 10 health per day
+              // Veterans heal faster: +5 health
+              // Food availability bonus: +5 health if food needs met
+              let healAmount = 10;
+              if (soldier.isVeteran) healAmount += 5;
+              if (soldier.needs.food >= 50) healAmount += 5;
+              
+              return {
+                ...soldier,
+                unitHealth: Math.min(100, soldier.unitHealth + healAmount)
+              };
+            }
+            return soldier;
+          });
+          
+          // Apply soldier healing to state
+          set({ soldiers: healedSoldiers });
         
         // Check for council meeting (every 10 days)
         if (nextDay % 10 === 0) {
@@ -2443,15 +2464,67 @@ export const useGameStore = create<GameState>((set, get) => {
     upgradeBuilding: (buildingId: string) => {
       set((state) => {
         const building = state.buildings.find(b => b.id === buildingId);
-        if (!building || building.isUpgraded || building.isRebelBase) return state;
+        if (!building || building.isRebelBase) return state;
+        
+        const currentLevel = building.upgradeLevel || 0;
+        const maxLevel = building.maxUpgradeLevel || 3;
+        
+        if (currentLevel >= maxLevel) return state;
+        
+        const upgradeCost = building.upgradeCost || (building.baseRevenue * 2);
+        const levelCost = upgradeCost * (currentLevel + 1);
+        
+        if (state.cash < levelCost) return state;
 
-        const upgradeCost = building.baseRevenue * 2;
-        if (state.cash < upgradeCost) return state;
+        // Upgrade effects per building type
+        const UPGRADE_EFFECTS: Record<string, { revenue: number; heat: number; food?: number; entertainment?: number }[]> = {
+          'Noodle Shop': [
+            { revenue: 150, heat: 0, food: 10 },
+            { revenue: 200, heat: 1, food: 15 },
+            { revenue: 300, heat: 1, food: 20 },
+          ],
+          'Mahjong Parlor': [
+            { revenue: 200, heat: 1, entertainment: 10 },
+            { revenue: 300, heat: 2, entertainment: 15 },
+            { revenue: 450, heat: 2, entertainment: 25 },
+          ],
+          'Warehouse': [
+            { revenue: 100, heat: 0 },
+            { revenue: 200, heat: 1 },
+            { revenue: 350, heat: 1 },
+          ],
+          'Nightclub': [
+            { revenue: 250, heat: 1, entertainment: 15 },
+            { revenue: 400, heat: 2, entertainment: 25 },
+            { revenue: 600, heat: 3, entertainment: 40 },
+          ],
+          'Counterfeit Lab': [
+            { revenue: 350, heat: 2 },
+            { revenue: 500, heat: 3 },
+            { revenue: 750, heat: 4 },
+          ],
+          'Drug Lab': [
+            { revenue: 450, heat: 3 },
+            { revenue: 650, heat: 4 },
+            { revenue: 900, heat: 5 },
+          ],
+        };
+
+        const effects = UPGRADE_EFFECTS[building.type] || [];
+        const effect = effects[currentLevel] || { revenue: 100, heat: 1 };
 
         return {
-          cash: state.cash - upgradeCost,
+          cash: state.cash - levelCost,
           buildings: state.buildings.map(b =>
-            b.id === buildingId ? { ...b, isUpgraded: true } : b
+            b.id === buildingId ? { 
+              ...b, 
+              upgradeLevel: currentLevel + 1,
+              isUpgraded: currentLevel + 1 >= maxLevel, // Mark fully upgraded
+              baseRevenue: b.baseRevenue + effect.revenue,
+              heatGen: b.heatGen + effect.heat,
+              foodProvided: b.foodProvided + (effect.food || 0),
+              entertainmentProvided: b.entertainmentProvided + (effect.entertainment || 0),
+            } : b
           ),
         };
       });
