@@ -1304,56 +1304,304 @@ export const useGameStore = create<GameState>((set, get) => {
     // Council Actions
     generateCouncilMotions: () => {
       const state = get();
-      const motions: CouncilMotion[] = [];
-      const councilMembers = state.officers.filter(o => o.rank !== 'Blue Lantern').slice(0, 3); // Top 3 non-Blue Lanterns
+      const councilMembers = state.officers.filter(o => o.rank !== 'Blue Lantern').slice(0, 3);
+      
+      // Define motion templates with conditions and variety
+      type MotionTemplate = {
+        id: string;
+        title: string;
+        description: string;
+        type: 'expansion' | 'internal' | 'diplomacy' | 'business' | 'security';
+        condition: (s: GameState) => boolean;
+        effect: (s: GameState) => Partial<GameState>;
+        voteLogic: (officer: Officer) => 'yes' | 'no';
+        weight: number;
+      };
 
-      // Motion 1: Expansion (Invade Sun Yee On)
-      const rivalToAttack = state.rivals.find(r => r.name === 'Sun Yee On');
-      if (rivalToAttack && !rivalToAttack.isActiveConflict) {
-        const motion: CouncilMotion = {
-          id: 'motion-1',
-          title: 'Expand Territory: Invade Sun Yee On',
-          description: 'Launch a turf war against Sun Yee On in Tsim Sha Tsui. High risk, high reward.',
-          type: 'expansion',
-          effect: (s) => ({
-            territoryFriction: Math.min(100, s.territoryFriction + 50),
-            rivals: s.rivals.map(r => r.id === rivalToAttack.id ? { ...r, isActiveConflict: true } : r),
+      const availableRivals = state.rivals.filter(r => r.isDiscovered && !r.isActiveConflict);
+      const hostileRivals = state.rivals.filter(r => r.isDiscovered && r.relationship < 30);
+      const friendlyRivals = state.rivals.filter(r => r.isDiscovered && r.relationship >= 50);
+      const lowLoyaltyOfficers = state.officers.filter(o => o.loyalty < 50);
+      const woundedSoldiers = state.soldiers.filter(s => s.unitHealth < 50);
+
+      const MOTION_TEMPLATES: MotionTemplate[] = [
+        // === EXPANSION MOTIONS ===
+        ...availableRivals.map((rival) => ({
+          id: `expand-${rival.id}`,
+          title: `Territorial Expansion: ${rival.district}`,
+          description: `Launch an offensive against ${rival.name} in ${rival.district}. Victory means new revenue streams, defeat means war.`,
+          type: 'expansion' as const,
+          condition: () => true,
+          effect: (s: GameState) => ({
+            territoryFriction: Math.min(100, s.territoryFriction + 40),
+            rivals: s.rivals.map(r => r.id === rival.id ? { ...r, isActiveConflict: true, relationship: Math.max(0, r.relationship - 30) } : r),
           }),
-          officerVotes: {},
-          isVetoed: false,
-        };
-        motions.push(motion);
+          voteLogic: (o: Officer) => (o.rank === 'Red Pole' || (o.loyalty > 60 && Math.random() > 0.4)) ? 'yes' : 'no',
+          weight: 2,
+        })),
+        
+        // === DIPLOMACY MOTIONS ===
+        ...friendlyRivals.map(rival => ({
+          id: `alliance-${rival.id}`,
+          title: `Propose Alliance: ${rival.name}`,
+          description: `Formalize a non-aggression pact with ${rival.name}. They control ${rival.district} and could be valuable allies.`,
+          type: 'diplomacy' as const,
+          condition: () => friendlyRivals.length > 0,
+          effect: (s: GameState) => ({
+            rivals: s.rivals.map(r => r.id === rival.id ? { ...r, relationship: Math.min(100, r.relationship + 25), hasAlliance: true } : r),
+            reputation: Math.min(100, s.reputation + 10),
+          }),
+          voteLogic: (o: Officer) => (o.rank === 'White Paper Fan' || o.rank === 'Straw Sandal' || o.loyalty > 70) ? 'yes' : 'no',
+          weight: 3,
+        })),
+        
+        ...hostileRivals.slice(0, 1).map(rival => ({
+          id: `peace-${rival.id}`,
+          title: `Peace Offering: ${rival.name}`,
+          description: `Send an envoy to ${rival.name} with tribute to reduce tensions. Costs $2,000 but could prevent war.`,
+          type: 'diplomacy' as const,
+          condition: (s: GameState) => s.cash >= 2000 && hostileRivals.length > 0,
+          effect: (s: GameState) => ({
+            cash: s.cash - 2000,
+            rivals: s.rivals.map(r => r.id === rival.id ? { ...r, relationship: Math.min(100, r.relationship + 20) } : r),
+          }),
+          voteLogic: (o: Officer) => (o.rank !== 'Red Pole' && o.loyalty > 50) ? 'yes' : 'no',
+          weight: 2,
+        })),
+
+        // === BUSINESS MOTIONS ===
+        {
+          id: 'invest-legitimate',
+          title: 'Legitimate Investment',
+          description: 'Invest $3,000 in a front business. Reduces heat over time and provides steady income.',
+          type: 'business' as const,
+          condition: (s: GameState) => s.cash >= 3000,
+          effect: (s: GameState) => ({
+            cash: s.cash - 3000,
+            policeHeat: Math.max(0, s.policeHeat - 15),
+            reputation: Math.min(100, s.reputation + 5),
+          }),
+          voteLogic: (o: Officer) => (o.rank === 'White Paper Fan' || o.loyalty > 65) ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'expand-gambling',
+          title: 'Expand Gambling Operations',
+          description: 'Open new gambling dens across the territory. High profit but increases police attention.',
+          type: 'business' as const,
+          condition: (s: GameState) => s.policeHeat < 70,
+          effect: (s: GameState) => ({
+            policeHeat: Math.min(100, s.policeHeat + 20),
+            cash: s.cash + 1500,
+          }),
+          voteLogic: (o: Officer) => (o.rank === 'Red Pole' || Math.random() > 0.5) ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'protection-racket',
+          title: 'Increase Protection Fees',
+          description: 'Raise protection money from local businesses by 15%. More cash but may damage reputation.',
+          type: 'business' as const,
+          condition: () => true,
+          effect: (s: GameState) => ({
+            cash: s.cash + 800,
+            reputation: Math.max(0, s.reputation - 8),
+          }),
+          voteLogic: (o: Officer) => (o.loyalty < 60 || o.rank === 'Straw Sandal') ? 'yes' : 'no',
+          weight: 1,
+        },
+        {
+          id: 'smuggling-route',
+          title: 'New Smuggling Route',
+          description: 'Establish a new smuggling corridor through the harbor. Risky but lucrative.',
+          type: 'business' as const,
+          condition: (s: GameState) => s.policeHeat < 60,
+          effect: (s: GameState) => ({
+            policeHeat: Math.min(100, s.policeHeat + 15),
+            cash: s.cash + 2000,
+            intel: Math.min(100, s.intel + 10),
+          }),
+          voteLogic: (o: Officer) => Math.random() > 0.4 ? 'yes' : 'no',
+          weight: 2,
+        },
+
+        // === INTERNAL/PERSONNEL MOTIONS ===
+        {
+          id: 'raise-officer-pay',
+          title: 'Increase Officer Compensation',
+          description: 'Raise officer stipends by 20%. Improves loyalty but increases operating costs.',
+          type: 'internal' as const,
+          condition: () => lowLoyaltyOfficers.length > 0 || Math.random() > 0.6,
+          effect: (s: GameState) => ({
+            officers: s.officers.map(o => ({ ...o, loyalty: Math.min(100, o.loyalty + 15) })),
+            cash: s.cash - 500,
+          }),
+          voteLogic: (o: Officer) => o.loyalty < 80 ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'soldier-bonus',
+          title: 'Soldier Loyalty Bonus',
+          description: 'Pay a one-time bonus of $1,000 to all soldiers. Boosts loyalty significantly.',
+          type: 'internal' as const,
+          condition: (s: GameState) => s.cash >= 1000,
+          effect: (s: GameState) => ({
+            cash: s.cash - 1000,
+            soldiers: s.soldiers.map(sol => ({ ...sol, loyalty: Math.min(100, sol.loyalty + 25) })),
+          }),
+          voteLogic: (o: Officer) => o.rank === 'Red Pole' || o.loyalty > 50 ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'recruit-drive',
+          title: 'Recruitment Drive',
+          description: 'Spend $2,000 on recruiting new blood. May attract 2-3 new soldiers.',
+          type: 'internal' as const,
+          condition: (s: GameState) => s.cash >= 2000 && s.soldiers.length < 10,
+          effect: (s: GameState) => ({
+            cash: s.cash - 2000,
+            reputation: Math.min(100, s.reputation + 5),
+          }),
+          voteLogic: (o: Officer) => o.rank === 'Straw Sandal' || state.soldiers.length < 5 ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'medical-fund',
+          title: 'Establish Medical Fund',
+          description: 'Set aside $1,500 for wounded soldiers\' treatment. Faster healing, better loyalty.',
+          type: 'internal' as const,
+          condition: (s: GameState) => woundedSoldiers.length > 0 && s.cash >= 1500,
+          effect: (s: GameState) => ({
+            cash: s.cash - 1500,
+            soldiers: s.soldiers.map(sol => ({ 
+              ...sol, 
+              unitHealth: Math.min(100, sol.unitHealth + 30),
+              loyalty: Math.min(100, sol.loyalty + 10) 
+            })),
+          }),
+          voteLogic: (o: Officer) => o.loyalty > 40 ? 'yes' : 'no',
+          weight: 3,
+        },
+        {
+          id: 'training-program',
+          title: 'Combat Training Program',
+          description: 'Invest $2,500 in training soldiers. Improves their combat effectiveness.',
+          type: 'internal' as const,
+          condition: (s: GameState) => s.cash >= 2500,
+          effect: (s: GameState) => ({
+            cash: s.cash - 2500,
+            soldiers: s.soldiers.map(sol => ({ ...sol, skill: sol.skill + 5 })),
+          }),
+          voteLogic: (o: Officer) => o.rank === 'Red Pole' ? 'yes' : 'no',
+          weight: 2,
+        },
+
+        // === SECURITY MOTIONS ===
+        {
+          id: 'bribe-police',
+          title: 'Police Bribery Fund',
+          description: 'Spend $3,000 bribing key police officers. Significantly reduces heat.',
+          type: 'security' as const,
+          condition: (s: GameState) => s.cash >= 3000 && s.policeHeat > 40,
+          effect: (s: GameState) => ({
+            cash: s.cash - 3000,
+            policeHeat: Math.max(0, s.policeHeat - 30),
+          }),
+          voteLogic: (o: Officer) => (o.rank === 'White Paper Fan' || state.policeHeat > 60) ? 'yes' : 'no',
+          weight: 3,
+        },
+        {
+          id: 'intel-network',
+          title: 'Expand Intelligence Network',
+          description: 'Invest $1,500 in informants and surveillance. Better intel on rivals and police.',
+          type: 'security' as const,
+          condition: (s: GameState) => s.cash >= 1500,
+          effect: (s: GameState) => ({
+            cash: s.cash - 1500,
+            intel: Math.min(100, s.intel + 25),
+          }),
+          voteLogic: (o: Officer) => o.rank === 'White Paper Fan' || o.rank === 'Straw Sandal' ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'safe-houses',
+          title: 'Establish Safe Houses',
+          description: 'Set up hidden locations across the city. Provides escape routes and storage.',
+          type: 'security' as const,
+          condition: (s: GameState) => s.cash >= 2000,
+          effect: (s: GameState) => ({
+            cash: s.cash - 2000,
+            policeHeat: Math.max(0, s.policeHeat - 10),
+            intel: Math.min(100, s.intel + 10),
+          }),
+          voteLogic: (o: Officer) => o.loyalty > 50 ? 'yes' : 'no',
+          weight: 2,
+        },
+        {
+          id: 'crackdown-traitors',
+          title: 'Internal Security Crackdown',
+          description: 'Root out potential informants and traitors. May affect morale but increases security.',
+          type: 'security' as const,
+          condition: () => true,
+          effect: (s: GameState) => ({
+            officers: s.officers.map(o => ({ 
+              ...o, 
+              loyalty: o.loyalty < 40 ? Math.max(0, o.loyalty - 10) : Math.min(100, o.loyalty + 5) 
+            })),
+            policeHeat: Math.max(0, s.policeHeat - 10),
+          }),
+          voteLogic: (o: Officer) => o.loyalty > 60 ? 'yes' : 'no',
+          weight: 1,
+        },
+      ];
+
+      // Filter templates by condition and shuffle by weight
+      const validTemplates = MOTION_TEMPLATES.filter(t => t.condition(state));
+      
+      // Weighted random selection - pick 2-3 diverse motions
+      const shuffled = validTemplates
+        .map(t => ({ ...t, sortKey: Math.random() * t.weight }))
+        .sort((a, b) => b.sortKey - a.sortKey);
+      
+      // Ensure type diversity - try to pick different types
+      const selectedMotions: MotionTemplate[] = [];
+      const usedTypes = new Set<string>();
+      
+      for (const template of shuffled) {
+        if (selectedMotions.length >= 3) break;
+        // Prefer different types, but allow same type if we've gone through all
+        if (!usedTypes.has(template.type) || selectedMotions.length < 2) {
+          selectedMotions.push(template);
+          usedTypes.add(template.type);
+        }
+      }
+      
+      // If we don't have enough, fill with remaining
+      if (selectedMotions.length < 2) {
+        for (const template of shuffled) {
+          if (!selectedMotions.includes(template)) {
+            selectedMotions.push(template);
+            if (selectedMotions.length >= 2) break;
+          }
+        }
       }
 
-      // Motion 2: Internal (Raise Officer Cut)
-      const motion2: CouncilMotion = {
-        id: 'motion-2',
-        title: 'Internal Affairs: Raise Officer Cut',
-        description: 'Increase officer pay by 20% of daily revenue. Boosts loyalty but cuts profits.',
-        type: 'internal',
-        effect: (s) => ({
-          officers: s.officers.map(o => ({ ...o, loyalty: Math.min(100, o.loyalty + 30) })),
-          officerCutIncreased: true,
-        }),
-        officerVotes: {},
-        isVetoed: false,
-      };
-      motions.push(motion2);
-
-      // Determine officer votes (based on loyalty/rank)
-      const finalMotions = motions.map(motion => {
+      // Convert templates to motions with officer votes
+      const finalMotions: CouncilMotion[] = selectedMotions.map((template, idx) => {
         const officerVotes: Record<string, 'yes' | 'no'> = {};
         councilMembers.forEach(officer => {
-          let vote = 'no';
-          // Simple voting logic: High loyalty/high rank tends to vote 'yes' on expansion/internal stability
-          if (motion.type === 'expansion') {
-            vote = officer.loyalty > 60 || officer.rank === 'Red Pole' ? 'yes' : 'no';
-          } else if (motion.type === 'internal') {
-            vote = officer.loyalty < 80 || officer.rank === 'White Paper Fan' ? 'yes' : 'no';
-          }
-          officerVotes[officer.id] = vote as 'yes' | 'no';
+          officerVotes[officer.id] = template.voteLogic(officer);
         });
-        return { ...motion, officerVotes };
+        
+        return {
+          id: `motion-${idx}-${template.id}`,
+          title: template.title,
+          description: template.description,
+          type: template.type as 'expansion' | 'internal',
+          effect: template.effect,
+          officerVotes,
+          isVetoed: false,
+        };
       });
 
       set({ councilMotions: finalMotions });
